@@ -1,0 +1,325 @@
+import React, { useMemo } from 'react';
+import { MODULES } from '../data/modules';
+import { ACCESSORIES } from '../data/config';
+import { Printer, Download, Share2 } from 'lucide-react';
+import { useConfig } from '../store/ConfigContext';
+
+const StepBOQ = () => {
+  const { config, derived } = useConfig();
+  const { valuation } = derived;
+
+  const accessories = useMemo(() =>
+    Array.from(config.selectedAccessories).map(id => ACCESSORIES.find(a => a.id === id)),
+    [config.selectedAccessories]
+  );
+
+  const totalModulesCount = useMemo(() =>
+    Object.values(config.modules).reduce((a, b) => a + b, 0),
+    [config.modules]
+  );
+
+  const boqItems = useMemo(() => {
+    const moduleRows = Object.entries(config.modules)
+      .filter(([, qty]) => qty > 0)
+      .map(([id, qty]) => {
+        const mod = MODULES.find(m => m.id === id);
+        const rate = mod.basePrice * config.material.multiplier;
+        return {
+          category: 'Wardrobe Module',
+          name: mod.name,
+          desc: `${mod.id} — ${config.material.name}`,
+          qty,
+          rate,
+          total: rate * qty,
+          status: 'Active',
+        };
+      });
+
+    const hardwareRows = [
+      {
+        category: 'Hardware',
+        name: 'Handle Set',
+        desc: `${config.handle.name} (${config.handle.sub})`,
+        qty: totalModulesCount,
+        rate: config.handle.price,
+        total: config.handle.price * totalModulesCount,
+        status: 'Active',
+      },
+      {
+        category: 'Lighting',
+        name: 'Ambience Lighting',
+        desc: config.lighting.name,
+        qty: 1,
+        rate: config.lighting.price,
+        total: config.lighting.price,
+        status: config.lighting.price > 0 ? 'Active' : 'Not included',
+      },
+    ];
+
+    const accRows = accessories.map(a => ({
+      category: 'Accessory',
+      name: a.name,
+      desc: a.desc,
+      qty: 1,
+      rate: a.price,
+      total: a.price,
+      status: 'Active',
+    }));
+
+    return [...moduleRows, ...hardwareRows, ...accRows];
+  }, [config, accessories, totalModulesCount]);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }} className="animate-fade-in">
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
+        <div>
+          <h2 style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--text-primary)', marginBottom: 6 }}>
+            Quote Summary
+          </h2>
+          <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
+            A full breakdown of your selected configuration and pricing.
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '10px 18px',
+              background: 'var(--bg-secondary)',
+              border: '1px solid var(--border)',
+              borderRadius: 8,
+              fontSize: 13, fontWeight: 600,
+              color: 'var(--text-primary)',
+              cursor: 'pointer',
+              transition: 'all 0.15s',
+              fontFamily: 'var(--font-sans)',
+              boxShadow: 'var(--shadow-xs)',
+            }}
+          >
+            <Printer size={15} /> Print
+          </button>
+          <button
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '10px 18px',
+              background: 'var(--accent)',
+              border: 'none',
+              borderRadius: 8,
+              fontSize: 13, fontWeight: 600,
+              color: 'white',
+              cursor: 'pointer',
+              transition: 'all 0.15s',
+              fontFamily: 'var(--font-sans)',
+              boxShadow: 'var(--shadow-sm)',
+            }}
+          >
+            <Download size={15} /> Export PDF
+          </button>
+        </div>
+      </div>
+
+      {/* Summary specs */}
+      <div
+        style={{
+          background: 'var(--bg-secondary)',
+          border: '1px solid var(--border)',
+          borderRadius: 10,
+          padding: '16px 20px',
+          display: 'flex',
+          gap: 32,
+          flexWrap: 'wrap',
+          boxShadow: 'var(--shadow-xs)',
+        }}
+      >
+        {[
+          { label: 'Material', value: `${config.material.name} (${config.material.multiplier}x)` },
+          { label: 'Depth × Height', value: `${config.depth} mm × ${config.height} mm` },
+          { label: 'Total Modules', value: `${totalModulesCount} units` },
+        ].map(item => (
+          <div key={item.label}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
+              {item.label}
+            </div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{item.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* BOM Table */}
+      <div
+        style={{
+          background: 'var(--bg-secondary)',
+          border: '1px solid var(--border)',
+          borderRadius: 12,
+          overflow: 'hidden',
+          boxShadow: 'var(--shadow-sm)',
+        }}
+      >
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <thead>
+            <tr style={{ background: 'var(--bg-tertiary)', borderBottom: '1px solid var(--border)' }}>
+              {['Item', 'Details', 'Qty', 'Rate', 'Total'].map((h, i) => (
+                <th
+                  key={h}
+                  style={{
+                    padding: '12px 18px',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: 'var(--text-secondary)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.07em',
+                    textAlign: i >= 2 ? 'right' : 'left',
+                  }}
+                >
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {boqItems.map((item, i) => (
+              <tr
+                key={i}
+                style={{
+                  borderBottom: i < boqItems.length - 1 ? '1px solid var(--border)' : 'none',
+                  transition: 'background 0.12s',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-primary)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+              >
+                <td style={{ padding: '14px 18px' }}>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>
+                    {item.category}
+                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{item.name}</div>
+                  {item.status === 'Not included' && (
+                    <span style={{
+                      marginTop: 4, display: 'inline-block',
+                      fontSize: 10, fontWeight: 600,
+                      background: '#fef2f2', color: '#ef4444',
+                      padding: '2px 7px', borderRadius: 4,
+                    }}>
+                      Not included
+                    </span>
+                  )}
+                </td>
+                <td style={{ padding: '14px 18px', fontSize: 12, color: 'var(--text-secondary)' }}>{item.desc}</td>
+                <td style={{ padding: '14px 18px', fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', textAlign: 'right' }}>
+                  {item.qty}
+                </td>
+                <td style={{ padding: '14px 18px', fontSize: 13, color: 'var(--text-secondary)', textAlign: 'right' }}>
+                  ₹{item.rate.toLocaleString()}
+                </td>
+                <td style={{ padding: '14px 18px', fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', textAlign: 'right' }}>
+                  ₹{item.total.toLocaleString()}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr style={{ borderTop: '2px solid var(--border)' }}>
+              <td colSpan={4} style={{ padding: '14px 18px', fontSize: 13, color: 'var(--text-secondary)', textAlign: 'right', fontWeight: 600 }}>
+                Modules Subtotal
+              </td>
+              <td style={{ padding: '14px 18px', fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', textAlign: 'right' }}>
+                ₹{valuation.modulesSubtotal.toLocaleString()}
+              </td>
+            </tr>
+            <tr>
+              <td colSpan={4} style={{ padding: '10px 18px', fontSize: 13, color: 'var(--text-secondary)', textAlign: 'right', fontWeight: 600 }}>
+                Accessories & Hardware
+              </td>
+              <td style={{ padding: '10px 18px', fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', textAlign: 'right' }}>
+                ₹{valuation.accessoriesTotal.toLocaleString()}
+              </td>
+            </tr>
+            <tr style={{ background: 'var(--accent)' }}>
+              <td colSpan={4} style={{ padding: '18px 18px', fontSize: 14, color: 'rgba(255,255,255,0.75)', textAlign: 'right', fontWeight: 600 }}>
+                Total Project Quote
+              </td>
+              <td style={{ padding: '18px 18px', fontSize: 22, fontWeight: 800, color: 'white', textAlign: 'right', letterSpacing: '-0.03em' }}>
+                ₹{valuation.total.toLocaleString()}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      {/* Cards row */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        {/* Spec notes */}
+        <div
+          style={{
+            background: 'var(--bg-secondary)',
+            border: '1px solid var(--border)',
+            borderRadius: 12,
+            padding: '24px',
+            boxShadow: 'var(--shadow-xs)',
+          }}
+        >
+          <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 14 }}>
+            Technical Notes
+          </h4>
+          <ul style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {[
+              '18mm high-density calibrated panel core',
+              '2mm impact-resistant PVC edge banding',
+              'Pricing based on modular unit baseline',
+              'Site-specific assembly factors may apply',
+            ].map((note, i) => (
+              <li key={i} style={{ display: 'flex', gap: 8, fontSize: 13, color: 'var(--text-secondary)' }}>
+                <span style={{ color: 'var(--accent)', fontWeight: 700, flexShrink: 0 }}>·</span>
+                {note}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* CTA */}
+        <div
+          style={{
+            background: 'var(--accent-light)',
+            border: '1.5px solid var(--accent-border)',
+            borderRadius: 12,
+            padding: '24px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            gap: 16,
+          }}
+        >
+          <div>
+            <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent)', marginBottom: 8 }}>
+              Ready to Proceed?
+            </h4>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+              Export this quote as a specification sheet. Pricing is valid for 30 days.
+            </p>
+          </div>
+          <button
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              padding: '12px 20px',
+              background: 'var(--accent)',
+              border: 'none',
+              borderRadius: 8,
+              fontSize: 13, fontWeight: 600,
+              color: 'white',
+              cursor: 'pointer',
+              fontFamily: 'var(--font-sans)',
+              alignSelf: 'flex-start',
+              transition: 'background 0.15s',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = 'var(--accent-hover)')}
+            onMouseLeave={e => (e.currentTarget.style.background = 'var(--accent)')}
+          >
+            <Share2 size={15} /> Generate Quote
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default StepBOQ;
