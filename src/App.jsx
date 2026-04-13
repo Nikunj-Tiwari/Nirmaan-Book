@@ -6,6 +6,8 @@ import { Layers, ChevronRight, ChevronLeft, Check, FileText } from 'lucide-react
 // Pages & Components
 import HomePage from './components/HomePage';
 import LoginPage from './components/LoginPage';
+import StepIndicator from './components/StepIndicator';
+import ToastProvider from './components/ToastProvider';
 import StepDimensions from './components/StepDimensions';
 import StepModules from './components/StepModules';
 import StepFinishes from './components/StepFinishes';
@@ -472,6 +474,9 @@ const ConfiguratorApp = ({ setConfigured }) => {
           </div>
         </header>
 
+        {/* Step Indicator */}
+        <StepIndicator currentStep={currentStep} totalSteps={3} />
+
         {/* Scrollable Content */}
         <main style={{ flex: 1, overflowY: 'auto', padding: '40px 48px' }}>
           <div style={{ maxWidth: 1100, margin: '0 auto', paddingBottom: 120 }}>{renderStep()}</div>
@@ -601,21 +606,23 @@ const App = () => {
   const [configured, setConfigured] = useState(false);
 
   return (
-    <Routes>
-      <Route
-        path="/"
-        element={
-          configured ? (
-            <ConfiguratorApp setConfigured={setConfigured} />
-          ) : (
-            <HomePage onStart={() => setConfigured(true)} />
-          )
-        }
-      />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/configure" element={<ConfiguratorApp setConfigured={setConfigured} />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <ToastProvider>
+      <Routes>
+        <Route
+          path="/"
+          element={
+            configured ? (
+              <ConfiguratorApp setConfigured={setConfigured} />
+            ) : (
+              <HomePage onStart={() => setConfigured(true)} />
+            )
+          }
+        />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/configure" element={<ConfiguratorApp setConfigured={setConfigured} />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </ToastProvider>
   );
 };
 

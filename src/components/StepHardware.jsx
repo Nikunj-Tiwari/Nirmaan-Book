@@ -1,10 +1,12 @@
 import React from 'react';
 import { HANDLES, LIGHTING, ACCESSORIES } from '../data/config';
 import { useConfig } from '../store/ConfigContext';
+import { useToast } from './ToastProvider';
 import { Check } from 'lucide-react';
 
 const StepHardware = () => {
   const { config, actions } = useConfig();
+  const { addToast } = useToast();
   const { handle, lighting, selectedAccessories } = config;
 
   const optionCard = (item, isSelected, onClick) => (
@@ -93,7 +95,10 @@ const StepHardware = () => {
           <div className="section-title">Handles</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             {HANDLES.map((h) =>
-              optionCard(h, handle.name === h.name, () => actions.setFinish('handle', h))
+              optionCard(h, handle.name === h.name, () => {
+                actions.setFinish('handle', h);
+                addToast(`Handle changed to ${h.name}`, 'success');
+              })
             )}
           </div>
         </div>
@@ -103,7 +108,10 @@ const StepHardware = () => {
           <div className="section-title">Lighting</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             {LIGHTING.map((l) =>
-              optionCard(l, lighting.name === l.name, () => actions.setFinish('lighting', l))
+              optionCard(l, lighting.name === l.name, () => {
+                actions.setFinish('lighting', l);
+                addToast(`Lighting changed to ${l.name}`, 'success');
+              })
             )}
           </div>
         </div>
@@ -136,7 +144,11 @@ const StepHardware = () => {
               return (
                 <button
                   key={acc.id}
-                  onClick={() => actions.toggleAccessory(acc.id)}
+                  onClick={() => {
+                    actions.toggleAccessory(acc.id);
+                    const isSelected = selectedAccessories.has(acc.id);
+                    addToast(isSelected ? `${acc.name} removed` : `${acc.name} added`, 'success');
+                  }}
                   style={{
                     display: 'flex',
                     alignItems: 'center',

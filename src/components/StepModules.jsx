@@ -2,77 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { MODULES, CATEGORIES, TYPE_COLORS, TYPE_LABELS } from '../data/modules';
 import { canAddModule } from '../utils/rules';
 import { useConfig } from '../store/ConfigContext';
-import { Plus, Minus } from 'lucide-react';
-
-const ModuleVisual = ({ layout }) => (
-  <div
-    style={{
-      width: '100%',
-      height: '100%',
-      padding: 10,
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 4,
-    }}
-  >
-    <div
-      style={{
-        flex: 1,
-        background: '#f1f3f5',
-        border: '1px solid #e5e7eb',
-        borderRadius: 4,
-        position: 'relative',
-        overflow: 'hidden',
-      }}
-    >
-      {layout.shelves > 0 &&
-        Array(layout.shelves)
-          .fill(0)
-          .map((_, i) => (
-            <div
-              key={i}
-              style={{
-                position: 'absolute',
-                width: '100%',
-                height: 1,
-                background: '#d1d5db',
-                top: `${(100 / (layout.shelves + 1)) * (i + 1)}%`,
-              }}
-            />
-          ))}
-      {layout.hang > 0 && (
-        <div
-          style={{
-            position: 'absolute',
-            width: '75%',
-            height: 2,
-            background: '#3b82f6',
-            top: 10,
-            left: '12.5%',
-            borderRadius: 99,
-          }}
-        />
-      )}
-      {layout.drawers > 0 && (
-        <div style={{ position: 'absolute', bottom: 0, width: '100%' }}>
-          {Array(layout.drawers)
-            .fill(0)
-            .map((_, i) => (
-              <div
-                key={i}
-                style={{
-                  width: '100%',
-                  height: 14,
-                  background: '#fff',
-                  borderTop: '1px solid #e5e7eb',
-                }}
-              />
-            ))}
-        </div>
-      )}
-    </div>
-  </div>
-);
+import ModuleCard from './ModuleCard';
 
 const StepModules = () => {
   const { config, derived, actions } = useConfig();
@@ -217,8 +147,16 @@ const StepModules = () => {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-          gap: 16,
+          gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+          gap: '18px',
+          '@media (max-width: 768px)': {
+            gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+            gap: '14px',
+          },
+          '@media (max-width: 480px)': {
+            gridTemplateColumns: '1fr',
+            gap: '12px',
+          },
         }}
       >
         {filteredModules.map((m) => {
@@ -226,168 +164,15 @@ const StepModules = () => {
           const canAdd = canAddModule(config.width, config.modules, m.id);
 
           return (
-            <div
+            <ModuleCard
               key={m.id}
-              className={`premium-card ${qty > 0 ? 'selected' : ''}`}
-              style={{ display: 'flex', flexDirection: 'column' }}
-            >
-              {/* Thumbnail */}
-              <div className="module-thumb" style={{ height: 130, position: 'relative' }}>
-                <ModuleVisual layout={m.layout} type={m.type} />
-
-                {/* Type badge */}
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: 10,
-                    left: 10,
-                    padding: '3px 8px',
-                    borderRadius: 99,
-                    fontSize: 10,
-                    fontWeight: 600,
-                    background: '#fff',
-                    border: `1.5px solid ${TYPE_COLORS[m.type] || 'var(--border)'}`,
-                    color: TYPE_COLORS[m.type] || 'var(--text-secondary)',
-                  }}
-                >
-                  {TYPE_LABELS?.[m.type] || m.type}
-                </div>
-
-                {/* Qty badge */}
-                {qty > 0 && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: 10,
-                      right: 10,
-                      width: 24,
-                      height: 24,
-                      borderRadius: '50%',
-                      background: 'var(--accent)',
-                      color: 'white',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: 11,
-                      fontWeight: 700,
-                    }}
-                  >
-                    {qty}
-                  </div>
-                )}
-              </div>
-
-              {/* Info */}
-              <div
-                style={{
-                  padding: '14px 14px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 10,
-                  flex: 1,
-                }}
-              >
-                <div>
-                  <div
-                    style={{
-                      fontSize: 11,
-                      color: 'var(--text-muted)',
-                      fontWeight: 500,
-                      marginBottom: 2,
-                    }}
-                  >
-                    {m.id}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 14,
-                      fontWeight: 700,
-                      color: 'var(--text-primary)',
-                      lineHeight: 1.3,
-                      letterSpacing: '-0.01em',
-                    }}
-                  >
-                    {m.name}
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
-                    {m.width} mm wide
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginTop: 'auto',
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: 15,
-                      fontWeight: 700,
-                      color: 'var(--accent)',
-                      letterSpacing: '-0.02em',
-                    }}
-                  >
-                    ₹{(m.basePrice || 0).toLocaleString()}
-                  </span>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <button
-                      onClick={() => chQty(m.id, -1)}
-                      disabled={qty === 0}
-                      style={{
-                        width: 30,
-                        height: 30,
-                        borderRadius: 7,
-                        border: '1px solid var(--border)',
-                        background: qty === 0 ? 'var(--bg-tertiary)' : 'var(--bg-secondary)',
-                        color: qty === 0 ? 'var(--text-muted)' : 'var(--text-primary)',
-                        cursor: qty === 0 ? 'not-allowed' : 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'all 0.15s',
-                      }}
-                    >
-                      <Minus size={13} />
-                    </button>
-                    <span
-                      style={{
-                        minWidth: 22,
-                        textAlign: 'center',
-                        fontSize: 14,
-                        fontWeight: 700,
-                        color: 'var(--text-primary)',
-                      }}
-                    >
-                      {qty}
-                    </span>
-                    <button
-                      onClick={() => chQty(m.id, 1)}
-                      disabled={!canAdd}
-                      title={!canAdd ? 'Not enough space remaining' : 'Add module'}
-                      style={{
-                        width: 30,
-                        height: 30,
-                        borderRadius: 7,
-                        border: 'none',
-                        background: canAdd ? 'var(--accent)' : 'var(--bg-tertiary)',
-                        color: canAdd ? 'white' : 'var(--text-muted)',
-                        cursor: canAdd ? 'pointer' : 'not-allowed',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'all 0.15s',
-                      }}
-                    >
-                      <Plus size={13} />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
+              module={m}
+              qty={qty}
+              canAdd={canAdd}
+              onQtyChange={chQty}
+              typeColors={TYPE_COLORS}
+              typeLabels={TYPE_LABELS}
+            />
           );
         })}
       </div>

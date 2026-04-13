@@ -2,9 +2,11 @@ import React from 'react';
 import { Check } from 'lucide-react';
 import { MATERIALS, COLOURS } from '../data/config';
 import { useConfig } from '../store/ConfigContext';
+import { useToast } from './ToastProvider';
 
 const StepFinishes = () => {
   const { config, actions } = useConfig();
+  const { addToast } = useToast();
   const { material, colour, fascia } = config;
 
   const FASCIAS = ['Akila', 'Inline', 'J-Pull'];
@@ -56,7 +58,10 @@ const StepFinishes = () => {
             {MATERIALS.map((m) => (
               <button
                 key={m.id}
-                onClick={() => actions.setFinish('material', m)}
+                onClick={() => {
+                  actions.setFinish('material', m);
+                  addToast(`Material changed to ${m.name}`, 'success');
+                }}
                 style={selStyle(material.id === m.id)}
               >
                 <div>
@@ -107,7 +112,10 @@ const StepFinishes = () => {
             {COLOURS.map((c) => (
               <button
                 key={c.id}
-                onClick={() => actions.setFinish('colour', c)}
+                onClick={() => {
+                  actions.setFinish('colour', c);
+                  addToast(`Colour changed to ${c.name}`, 'success');
+                }}
                 style={{
                   padding: '10px 8px',
                   borderRadius: 10,
@@ -156,7 +164,10 @@ const StepFinishes = () => {
             {FASCIAS.map((f) => (
               <button
                 key={f}
-                onClick={() => actions.setFinish('fascia', f)}
+                onClick={() => {
+                  actions.setFinish('fascia', f);
+                  addToast(`Door style changed to ${f}`, 'success');
+                }}
                 style={{
                   flex: 1,
                   padding: '10px 12px',

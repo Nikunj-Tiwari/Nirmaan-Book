@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../store/AuthContext';
+import BackgroundSlider from './BackgroundSlider';
+import { BACKGROUND_IMAGES } from '../data/backgroundImages';
 import {
   ArrowRight,
   Layers,
@@ -166,6 +168,8 @@ const ImageGallery = () => {
         borderTop: '1px solid var(--border)',
         background: 'var(--bg-primary)',
         overflow: 'hidden',
+        position: 'relative',
+        zIndex: 2,
       }}
     >
       <div
@@ -212,8 +216,12 @@ const EnhancedHomePage = ({ onStart }) => {
         minHeight: '100vh',
         background: 'var(--bg-primary)',
         fontFamily: 'var(--font-sans)',
+        position: 'relative',
       }}
     >
+      {/* ── Dynamic Background Slider ── */}
+      <BackgroundSlider images={BACKGROUND_IMAGES} />
+
       {/* ── Sticky Navbar ── */}
       <nav
         style={{
@@ -397,6 +405,7 @@ const EnhancedHomePage = ({ onStart }) => {
           alignItems: 'center',
           position: 'relative',
           overflow: 'hidden',
+          zIndex: 2,
         }}
       >
         {/* Soft glow background */}
@@ -423,19 +432,18 @@ const EnhancedHomePage = ({ onStart }) => {
             fontWeight: 800,
             letterSpacing: '-0.05em',
             lineHeight: 1.05,
-            color: 'var(--text-primary)',
+            color: '#ffffff',
             maxWidth: 760,
             marginTop: 24,
             marginBottom: 20,
+            textShadow: '0 2px 12px rgba(0, 0, 0, 0.3)',
           }}
         >
           Design Your Perfect{' '}
           <span
             style={{
-              color: 'var(--accent)',
-              background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
+              color: '#60d5ff',
+              textShadow: '0 0 20px rgba(96, 213, 255, 0.4)',
             }}
           >
             Wardrobe
@@ -445,10 +453,11 @@ const EnhancedHomePage = ({ onStart }) => {
         <p
           style={{
             fontSize: 18,
-            color: 'var(--text-secondary)',
+            color: '#f0f0f0',
             maxWidth: 540,
             lineHeight: 1.7,
             marginBottom: 40,
+            textShadow: '0 1px 8px rgba(0, 0, 0, 0.25)',
           }}
         >
           Configure, customize, and get instant pricing — all in one place. Built for interior
@@ -529,15 +538,14 @@ const EnhancedHomePage = ({ onStart }) => {
             gap: 6,
             marginTop: 24,
             fontSize: 12,
-            color: 'var(--text-muted)',
+            color: '#e0e0e0',
           }}
         >
           {[0, 1, 2, 3, 4].map((i) => (
             <Star key={i} size={13} fill="#f59e0b" color="#f59e0b" />
           ))}
           <span style={{ marginLeft: 4 }}>
-            Trusted by <strong style={{ color: 'var(--text-secondary)' }}>500+ designers</strong>{' '}
-            across India
+            Trusted by <strong style={{ color: '#ffffff' }}>500+ designers</strong> across India
           </span>
         </div>
 
@@ -876,6 +884,8 @@ const EnhancedHomePage = ({ onStart }) => {
           justifyContent: 'center',
           gap: 80,
           flexWrap: 'wrap',
+          position: 'relative',
+          zIndex: 2,
         }}
       >
         <StatBadge value="500+" label="Active designers" />
@@ -888,7 +898,16 @@ const EnhancedHomePage = ({ onStart }) => {
       </section>
 
       {/* ── Features ── */}
-      <section style={{ padding: '80px 48px', maxWidth: 1100, margin: '0 auto', width: '100%' }}>
+      <section
+        style={{
+          padding: '80px 48px',
+          maxWidth: 1100,
+          margin: '0 auto',
+          width: '100%',
+          position: 'relative',
+          zIndex: 2,
+        }}
+      >
         <div style={{ textAlign: 'center', marginBottom: 52 }}>
           <Tag>Why NirmanBook?</Tag>
           <h2
@@ -896,9 +915,10 @@ const EnhancedHomePage = ({ onStart }) => {
               fontSize: 'clamp(28px, 4vw, 40px)',
               fontWeight: 800,
               letterSpacing: '-0.04em',
-              color: 'var(--text-primary)',
+              color: '#ffffff',
               marginTop: 16,
               marginBottom: 12,
+              textShadow: '0 2px 8px rgba(0,0,0,0.4)',
             }}
           >
             Everything your design workflow needs
@@ -906,10 +926,11 @@ const EnhancedHomePage = ({ onStart }) => {
           <p
             style={{
               fontSize: 15,
-              color: 'var(--text-secondary)',
+              color: '#f0f0f0',
               maxWidth: 500,
               margin: '0 auto',
               lineHeight: 1.6,
+              textShadow: '0 1px 4px rgba(0,0,0,0.5)',
             }}
           >
             From first measurement to final quote — designed for speed and accuracy.
@@ -963,6 +984,8 @@ const EnhancedHomePage = ({ onStart }) => {
           background: 'var(--bg-secondary)',
           borderTop: '1px solid var(--border)',
           borderBottom: '1px solid var(--border)',
+          position: 'relative',
+          zIndex: 2,
         }}
       >
         <div
@@ -1057,6 +1080,8 @@ const EnhancedHomePage = ({ onStart }) => {
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
+          position: 'relative',
+          zIndex: 2,
         }}
       >
         <h2
@@ -1064,8 +1089,9 @@ const EnhancedHomePage = ({ onStart }) => {
             fontSize: 'clamp(28px, 4vw, 42px)',
             fontWeight: 800,
             letterSpacing: '-0.04em',
-            color: 'var(--text-primary)',
+            color: '#ffffff',
             marginBottom: 14,
+            textShadow: '0 2px 8px rgba(0,0,0,0.4)',
           }}
         >
           Ready to design your wardrobe?
@@ -1073,10 +1099,11 @@ const EnhancedHomePage = ({ onStart }) => {
         <p
           style={{
             fontSize: 15,
-            color: 'var(--text-secondary)',
+            color: '#f0f0f0',
             marginBottom: 36,
             maxWidth: 420,
             lineHeight: 1.65,
+            textShadow: '0 1px 4px rgba(0,0,0,0.5)',
           }}
         >
           Join hundreds of interior designers using NirmanBook to win clients faster.
@@ -1137,6 +1164,8 @@ const EnhancedHomePage = ({ onStart }) => {
           justifyContent: 'space-between',
           flexWrap: 'wrap',
           gap: 16,
+          position: 'relative',
+          zIndex: 2,
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

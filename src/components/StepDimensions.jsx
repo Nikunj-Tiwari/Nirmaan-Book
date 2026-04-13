@@ -1,10 +1,12 @@
 import React, { useEffect, useRef } from 'react';
 import { WALL_TYPES } from '../data/config';
 import { useConfig } from '../store/ConfigContext';
+import { useToast } from './ToastProvider';
 import { Layout } from 'lucide-react';
 
 const StepDimensions = () => {
   const { config, actions, derived } = useConfig();
+  const { addToast } = useToast();
   const { wallType, width, height, width2, width3, depth } = config;
   const canvasRef = useRef(null);
 
@@ -153,7 +155,7 @@ const StepDimensions = () => {
     }
   }, [width, height, wallType, width2, width3, depth]);
 
-  const NumericInput = ({ value, min, max, onChange }) => {
+  const NumericInput = ({ value, min, max, onChange, label }) => {
     const [temp, setTemp] = React.useState(value);
 
     React.useEffect(() => {
@@ -163,7 +165,10 @@ const StepDimensions = () => {
     const commit = (val) => {
       const v = Math.min(max, Math.max(min, parseInt(val) || min));
       setTemp(v);
-      onChange(v);
+      if (v !== value) {
+        onChange(v);
+        addToast(`${label} updated to ${v} mm`, 'success');
+      }
     };
 
     return (
@@ -216,6 +221,7 @@ const StepDimensions = () => {
             value={value}
             min={min}
             max={max}
+            label={label}
             onChange={(v) => actions.setDimension(key, v)}
           />
           <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-muted)' }}>{unit}</span>
@@ -228,7 +234,11 @@ const StepDimensions = () => {
         step={step}
         value={value}
         style={{ width: '100%', accentColor: 'var(--accent)', cursor: 'pointer' }}
-        onChange={(e) => actions.setDimension(key, parseInt(e.target.value))}
+        onChange={(e) => {
+          const v = parseInt(e.target.value);
+          actions.setDimension(key, v);
+          addToast(`${label} updated to ${v} ${unit}`, 'success');
+        }}
       />
       <div
         style={{
@@ -306,7 +316,10 @@ const StepDimensions = () => {
             ].map((w) => (
               <button
                 key={w.id}
-                onClick={() => actions.setDimension('wallType', w.id)}
+                onClick={() => {
+                  actions.setDimension('wallType', w.id);
+                  addToast(`Layout changed to ${w.label}`, 'success');
+                }}
                 style={{
                   flex: 1,
                   padding: '12px',

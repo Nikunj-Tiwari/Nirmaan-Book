@@ -469,6 +469,69 @@ input[type='range'] {
 }
 
 /* ════════════════════════════════════════════════
+   MODULE CARD STYLES & ANIMATIONS
+   ════════════════════════════════════════════════ */
+
+/* Shimmer Loading Animation */
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+/* Module Card Container */
+.module-card-container {
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  will-change: transform, box-shadow;
+}
+
+/* Module Card Image Container */
+.module-image-container {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Module Control Buttons (Add/Remove) */
+.module-control-btn {
+  font-family: var(--font-sans);
+}
+
+.module-control-btn:hover:not(:disabled) {
+  transform: scale(1.05);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+}
+
+.module-control-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* Responsive Grid for Module Cards */
+@media (max-width: 1200px) {
+  /* Desktop: 3-4 cards per row */
+  .module-card-container {
+    /* Grid handled by parent */
+  }
+}
+
+@media (max-width: 768px) {
+  /* Tablet: 2 cards per row */
+  .module-card-container {
+    /* Adjusted via grid template */
+  }
+}
+
+@media (max-width: 480px) {
+  /* Mobile: 1 card per row */
+  .module-card-container {
+    max-width: 100%;
+  }
+}
+
+/* ════════════════════════════════════════════════
    PRINT STYLES  @media print
    Only .print-zone renders on paper.
    Sidebar, header, buttons, floating bar hidden.
