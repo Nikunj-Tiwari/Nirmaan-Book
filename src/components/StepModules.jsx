@@ -5,7 +5,16 @@ import { useConfig } from '../store/ConfigContext';
 import { Plus, Minus } from 'lucide-react';
 
 const ModuleVisual = ({ layout }) => (
-  <div style={{ width: '100%', height: '100%', padding: 10, display: 'flex', flexDirection: 'column', gap: 4 }}>
+  <div
+    style={{
+      width: '100%',
+      height: '100%',
+      padding: 10,
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 4,
+    }}
+  >
     <div
       style={{
         flex: 1,
@@ -16,34 +25,49 @@ const ModuleVisual = ({ layout }) => (
         overflow: 'hidden',
       }}
     >
-      {layout.shelves > 0 && Array(layout.shelves).fill(0).map((_, i) => (
+      {layout.shelves > 0 &&
+        Array(layout.shelves)
+          .fill(0)
+          .map((_, i) => (
+            <div
+              key={i}
+              style={{
+                position: 'absolute',
+                width: '100%',
+                height: 1,
+                background: '#d1d5db',
+                top: `${(100 / (layout.shelves + 1)) * (i + 1)}%`,
+              }}
+            />
+          ))}
+      {layout.hang > 0 && (
         <div
-          key={i}
           style={{
             position: 'absolute',
-            width: '100%',
-            height: 1,
-            background: '#d1d5db',
-            top: `${(100 / (layout.shelves + 1)) * (i + 1)}%`,
+            width: '75%',
+            height: 2,
+            background: '#3b82f6',
+            top: 10,
+            left: '12.5%',
+            borderRadius: 99,
           }}
         />
-      ))}
-      {layout.hang > 0 && (
-        <div style={{
-          position: 'absolute',
-          width: '75%',
-          height: 2,
-          background: '#3b82f6',
-          top: 10,
-          left: '12.5%',
-          borderRadius: 99,
-        }} />
       )}
       {layout.drawers > 0 && (
         <div style={{ position: 'absolute', bottom: 0, width: '100%' }}>
-          {Array(layout.drawers).fill(0).map((_, i) => (
-            <div key={i} style={{ width: '100%', height: 14, background: '#fff', borderTop: '1px solid #e5e7eb' }} />
-          ))}
+          {Array(layout.drawers)
+            .fill(0)
+            .map((_, i) => (
+              <div
+                key={i}
+                style={{
+                  width: '100%',
+                  height: 14,
+                  background: '#fff',
+                  borderTop: '1px solid #e5e7eb',
+                }}
+              />
+            ))}
         </div>
       )}
     </div>
@@ -54,28 +78,49 @@ const StepModules = () => {
   const { config, derived, actions } = useConfig();
   const [filter, setFilter] = useState('all');
 
-  const filteredModules = useMemo(() =>
-    filter === 'all' ? MODULES : MODULES.filter(m => m.type === filter),
+  const filteredModules = useMemo(
+    () => (filter === 'all' ? MODULES : MODULES.filter((m) => m.type === filter)),
     [filter]
   );
 
-  const { remainingWidth, usedWidth, validation } = useMemo(() => ({
-    remainingWidth: derived.remainingWidth,
-    usedWidth: derived.validation.usedWidth,
-    validation: derived.validation,
-  }), [derived]);
+  const { remainingWidth, usedWidth, validation } = useMemo(
+    () => ({
+      remainingWidth: derived.remainingWidth,
+      usedWidth: derived.validation.usedWidth,
+      validation: derived.validation,
+    }),
+    [derived]
+  );
 
   const chQty = (code, delta) => actions.setModuleQty(code, delta);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }} className="animate-fade-in">
       {/* Header row */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 20, flexWrap: 'wrap' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          gap: 20,
+          flexWrap: 'wrap',
+        }}
+      >
         <div>
-          <h2 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--text-primary)', marginBottom: 4 }}>
+          <h2
+            style={{
+              fontSize: 20,
+              fontWeight: 700,
+              letterSpacing: '-0.03em',
+              color: 'var(--text-primary)',
+              marginBottom: 4,
+            }}
+          >
             Choose Modules
           </h2>
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Select the components for your wardrobe</p>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+            Select the components for your wardrobe
+          </p>
         </div>
 
         {/* Capacity bar */}
@@ -89,8 +134,17 @@ const StepModules = () => {
             boxShadow: 'var(--shadow-xs)',
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>Space Available</span>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 8,
+            }}
+          >
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>
+              Space Available
+            </span>
             <span
               style={{
                 fontSize: 15,
@@ -102,7 +156,14 @@ const StepModules = () => {
               {remainingWidth} mm
             </span>
           </div>
-          <div style={{ height: 6, background: 'var(--bg-tertiary)', borderRadius: 99, overflow: 'hidden' }}>
+          <div
+            style={{
+              height: 6,
+              background: 'var(--bg-tertiary)',
+              borderRadius: 99,
+              overflow: 'hidden',
+            }}
+          >
             <div
               style={{
                 height: '100%',
@@ -113,7 +174,15 @@ const StepModules = () => {
               }}
             />
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 11, color: 'var(--text-muted)' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              marginTop: 6,
+              fontSize: 11,
+              color: 'var(--text-muted)',
+            }}
+          >
             <span>{usedWidth} mm used</span>
             <span>{Math.round(validation.percentUsed)}%</span>
           </div>
@@ -122,7 +191,7 @@ const StepModules = () => {
 
       {/* Filter pills */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-        {[{ id: 'all', label: 'All Modules' }, ...CATEGORIES].map(cat => (
+        {[{ id: 'all', label: 'All Modules' }, ...CATEGORIES].map((cat) => (
           <button
             key={cat.id}
             onClick={() => setFilter(cat.id)}
@@ -152,7 +221,7 @@ const StepModules = () => {
           gap: 16,
         }}
       >
-        {filteredModules.map(m => {
+        {filteredModules.map((m) => {
           const qty = config.modules[m.id] || 0;
           const canAdd = canAddModule(config.width, config.modules, m.id);
 
@@ -163,10 +232,7 @@ const StepModules = () => {
               style={{ display: 'flex', flexDirection: 'column' }}
             >
               {/* Thumbnail */}
-              <div
-                className="module-thumb"
-                style={{ height: 130, position: 'relative' }}
-              >
+              <div className="module-thumb" style={{ height: 130, position: 'relative' }}>
                 <ModuleVisual layout={m.layout} type={m.type} />
 
                 {/* Type badge */}
@@ -212,9 +278,24 @@ const StepModules = () => {
               </div>
 
               {/* Info */}
-              <div style={{ padding: '14px 14px', display: 'flex', flexDirection: 'column', gap: 10, flex: 1 }}>
+              <div
+                style={{
+                  padding: '14px 14px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 10,
+                  flex: 1,
+                }}
+              >
                 <div>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500, marginBottom: 2 }}>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: 'var(--text-muted)',
+                      fontWeight: 500,
+                      marginBottom: 2,
+                    }}
+                  >
                     {m.id}
                   </div>
                   <div
@@ -233,8 +314,22 @@ const StepModules = () => {
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 'auto' }}>
-                  <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--accent)', letterSpacing: '-0.02em' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginTop: 'auto',
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: 15,
+                      fontWeight: 700,
+                      color: 'var(--accent)',
+                      letterSpacing: '-0.02em',
+                    }}
+                  >
                     ₹{(m.basePrice || 0).toLocaleString()}
                   </span>
 
@@ -258,7 +353,15 @@ const StepModules = () => {
                     >
                       <Minus size={13} />
                     </button>
-                    <span style={{ minWidth: 22, textAlign: 'center', fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
+                    <span
+                      style={{
+                        minWidth: 22,
+                        textAlign: 'center',
+                        fontSize: 14,
+                        fontWeight: 700,
+                        color: 'var(--text-primary)',
+                      }}
+                    >
                       {qty}
                     </span>
                     <button

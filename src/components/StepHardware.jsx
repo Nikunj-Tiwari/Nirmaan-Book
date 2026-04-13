@@ -29,20 +29,36 @@ const StepHardware = () => {
     >
       <div
         style={{
-          width: 44, height: 44, borderRadius: 10,
+          width: 44,
+          height: 44,
+          borderRadius: 10,
           background: isSelected ? 'var(--accent)' : 'var(--bg-tertiary)',
           border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
           fontSize: 22,
         }}
       >
         {item.icon}
       </div>
       <div>
-        <div style={{ fontSize: 13, fontWeight: 600, color: isSelected ? 'var(--accent)' : 'var(--text-primary)' }}>
+        <div
+          style={{
+            fontSize: 13,
+            fontWeight: 600,
+            color: isSelected ? 'var(--accent)' : 'var(--text-primary)',
+          }}
+        >
           {item.name}
         </div>
-        <div style={{ fontSize: 11, color: isSelected ? 'var(--accent)' : 'var(--text-secondary)', marginTop: 2 }}>
+        <div
+          style={{
+            fontSize: 11,
+            color: isSelected ? 'var(--accent)' : 'var(--text-secondary)',
+            marginTop: 2,
+          }}
+        >
           {item.sub}
         </div>
       </div>
@@ -50,20 +66,35 @@ const StepHardware = () => {
   );
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32 }} className="animate-fade-in">
+    <div
+      style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32 }}
+      className="animate-fade-in"
+    >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
         <div>
-          <h2 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--text-primary)', marginBottom: 4 }}>
+          <h2
+            style={{
+              fontSize: 20,
+              fontWeight: 700,
+              letterSpacing: '-0.03em',
+              color: 'var(--text-primary)',
+              marginBottom: 4,
+            }}
+          >
             Hardware & Lighting
           </h2>
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Choose handles and lighting for your wardrobe</p>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+            Choose handles and lighting for your wardrobe
+          </p>
         </div>
 
         {/* Handles */}
         <div>
           <div className="section-title">Handles</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            {HANDLES.map(h => optionCard(h, handle.name === h.name, () => actions.setFinish('handle', h)))}
+            {HANDLES.map((h) =>
+              optionCard(h, handle.name === h.name, () => actions.setFinish('handle', h))
+            )}
           </div>
         </div>
 
@@ -71,7 +102,9 @@ const StepHardware = () => {
         <div>
           <div className="section-title">Lighting</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            {LIGHTING.map(l => optionCard(l, lighting.name === l.name, () => actions.setFinish('lighting', l)))}
+            {LIGHTING.map((l) =>
+              optionCard(l, lighting.name === l.name, () => actions.setFinish('lighting', l))
+            )}
           </div>
         </div>
       </div>
@@ -79,16 +112,26 @@ const StepHardware = () => {
       {/* Accessories */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
         <div>
-          <h2 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--text-primary)', marginBottom: 4 }}>
+          <h2
+            style={{
+              fontSize: 20,
+              fontWeight: 700,
+              letterSpacing: '-0.03em',
+              color: 'var(--text-primary)',
+              marginBottom: 4,
+            }}
+          >
             Accessories
           </h2>
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Add internal accessories to your wardrobe</p>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+            Add internal accessories to your wardrobe
+          </p>
         </div>
 
         <div>
           <div className="section-title">Internal Add-ons</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {ACCESSORIES.map(acc => {
+            {ACCESSORIES.map((acc) => {
               const isSelected = selectedAccessories.has(acc.id);
               return (
                 <button
@@ -111,29 +154,51 @@ const StepHardware = () => {
                 >
                   <div
                     style={{
-                      width: 40, height: 40, borderRadius: 8, flexShrink: 0,
+                      width: 40,
+                      height: 40,
+                      borderRadius: 8,
+                      flexShrink: 0,
                       background: isSelected ? 'var(--accent)' : 'var(--bg-tertiary)',
                       border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}`,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
                       fontSize: 20,
                     }}
                   >
                     {acc.icon}
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: isSelected ? 'var(--accent)' : 'var(--text-primary)' }}>
+                    <div
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: isSelected ? 'var(--accent)' : 'var(--text-primary)',
+                      }}
+                    >
                       {acc.name}
                     </div>
-                    <div style={{ fontSize: 11, color: isSelected ? 'var(--accent)' : 'var(--text-secondary)', marginTop: 2 }}>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: isSelected ? 'var(--accent)' : 'var(--text-secondary)',
+                        marginTop: 2,
+                      }}
+                    >
                       {acc.desc}
                     </div>
                   </div>
                   <div
                     style={{
-                      width: 22, height: 22, borderRadius: 6, flexShrink: 0,
+                      width: 22,
+                      height: 22,
+                      borderRadius: 6,
+                      flexShrink: 0,
                       border: `1.5px solid ${isSelected ? 'var(--accent)' : 'var(--border-strong)'}`,
                       background: isSelected ? 'var(--accent)' : 'transparent',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
                       transition: 'all 0.15s',
                     }}
                   >

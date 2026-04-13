@@ -2,15 +2,33 @@
   "name": "nirmanbook-wardrobe-configurator",
   "private": true,
   "version": "1.0.0",
+  "description": "NirmanBook Custom Wardrobe Configurator - Rule-based engine, 2D visualizations, and dynamic pricing.",
+  "author": "Ayush Bhargava",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "lint": "eslint src --ext js,jsx --report-unused-disable-directives --max-warnings 0",
+    "format": "prettier --write \"src/**/*.{js,jsx,css,md}\"",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{js,jsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{css,md,json}": [
+      "prettier --write"
+    ]
   },
   "dependencies": {
     "@react-three/drei": "^9.97.1",
     "@react-three/fiber": "^8.15.16",
+    "firebase": "^12.11.0",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
     "lucide-react": "^0.344.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -19,6 +37,13 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.1",
+    "eslint": "^8.57.1",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
+    "prettier": "^3.8.2",
     "vite": "^5.1.4"
   }
 }

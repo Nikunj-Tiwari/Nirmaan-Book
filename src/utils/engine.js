@@ -1,6 +1,6 @@
 import { MODULES } from '../data/modules';
 import { calculateValuation } from './pricing';
-import { validateSpaceCapacity, canAddModule } from './rules';
+import { validateSpaceCapacity, canAddModule, calculateUsedWidth } from './rules';
 
 /**
  * Core Configuration Engine - State Transitions
@@ -10,7 +10,7 @@ import { validateSpaceCapacity, canAddModule } from './rules';
 export const updateModuleQty = (config, id, delta) => {
   const currentQty = config.modules[id] || 0;
   const newQty = Math.max(0, currentQty + delta);
-  
+
   // If adding, check physical constraints
   if (delta > 0 && !canAddModule(config.width, config.modules, id)) {
     return config; // Explicitly block state change
@@ -31,20 +31,32 @@ export const updateFinishes = (config, key, value) => {
 };
 
 export const updateDimensions = (config, key, value) => {
+  if (key === 'wallType') return { ...config, [key]: value };
+
   const v = parseInt(value) || 0;
-  
+
   // Architectural Constraints
   if (key === 'width' && (v < 600 || v > 6000)) return config;
+  if (key === 'width2' && (v < 0 || v > 6000)) return config;
+  if (key === 'width3' && (v < 0 || v > 6000)) return config;
   if (key === 'height' && (v < 1800 || v > 3000)) return config;
   if (key === 'depth' && (v < 300 || v > 1200)) return config;
 
   // Occupancy Guard: Cannot shrink room below currently placed modules
-  if (key === 'width') {
-    const used = Object.entries(config.modules).reduce((total, [id, qty]) => {
-      const mod = MODULES.find(m => m.id === id);
-      return total + (mod?.width || 0) * qty;
-    }, 0);
-    if (v < used) return config;
+  // We check against the total capacity for multi-wall layouts
+  if (key === 'width' || key === 'width2' || key === 'width3') {
+    const used = calculateUsedWidth(config.modules);
+
+    // Create hypothetical next state to check capacity
+    const nextConfig = { ...config, [key]: v };
+    const totalCap =
+      nextConfig.wallType === 'u-shape'
+        ? nextConfig.width + nextConfig.width2 + nextConfig.width3
+        : nextConfig.wallType === 'l-shape'
+          ? nextConfig.width + nextConfig.width2
+          : nextConfig.width;
+
+    if (totalCap < used) return config;
   }
 
   return { ...config, [key]: v };
@@ -56,13 +68,22 @@ export const updateDimensions = (config, key, value) => {
  */
 export const getDerivedState = (config) => {
   const totalModules = Object.values(config.modules).reduce((a, b) => a + b, 0);
+
+  // Calculate total capacity based on layout
+  const totalCapacity =
+    config.wallType === 'u-shape'
+      ? config.width + config.width2 + config.width3
+      : config.wallType === 'l-shape'
+        ? config.width + config.width2
+        : config.width;
+
   const valuation = calculateValuation(config);
-  const validation = validateSpaceCapacity(config.width, config.modules);
-  
+  const validation = validateSpaceCapacity(totalCapacity, config.modules);
+
   // Flat list for visualization/bom (using id)
   const modulesList = [];
   Object.entries(config.modules).forEach(([id, qty]) => {
-    const mod = MODULES.find(m => m.id === id);
+    const mod = MODULES.find((m) => m.id === id);
     if (mod) {
       for (let i = 0; i < qty; i++) {
         modulesList.push(mod);
@@ -72,9 +93,10 @@ export const getDerivedState = (config) => {
 
   return {
     totalModules,
+    totalCapacity,
     valuation,
     validation,
     modulesList,
-    remainingWidth: validation.remaining
+    remainingWidth: validation.remaining,
   };
 };

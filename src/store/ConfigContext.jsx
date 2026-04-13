@@ -1,6 +1,11 @@
 import React, { createContext, useContext, useReducer, useMemo } from 'react';
 import { COLOURS, MATERIALS, HANDLES, LIGHTING } from '../data/config';
-import { updateModuleQty, updateFinishes, updateDimensions, getDerivedState } from '../utils/engine';
+import {
+  updateModuleQty,
+  updateFinishes,
+  updateDimensions,
+  getDerivedState,
+} from '../utils/engine';
 
 const ConfigContext = createContext();
 
@@ -10,6 +15,7 @@ const initialState = {
   height: 2400,
   depth: 600,
   width2: 1200,
+  width3: 1200,
   modules: {},
   colour: COLOURS[0],
   material: MATERIALS[0],
@@ -54,13 +60,11 @@ export const ConfigProvider = ({ children }) => {
     setFinish: (key, value) => dispatch({ type: 'UPDATE_FINISH', payload: { key, value } }),
     setModuleQty: (id, delta) => dispatch({ type: 'UPDATE_MODULE_QTY', payload: { id, delta } }),
     toggleAccessory: (id) => dispatch({ type: 'TOGGLE_ACCESSORY', payload: { id } }),
-    reset: () => dispatch({ type: 'RESET_CONFIG' })
+    reset: () => dispatch({ type: 'RESET_CONFIG' }),
   };
 
   return (
-    <ConfigContext.Provider value={{ config, derived, actions }}>
-      {children}
-    </ConfigContext.Provider>
+    <ConfigContext.Provider value={{ config, derived, actions }}>{children}</ConfigContext.Provider>
   );
 };
 

@@ -5,7 +5,7 @@ import { Layout } from 'lucide-react';
 
 const StepDimensions = () => {
   const { config, actions, derived } = useConfig();
-  const { wallType, width, height, width2, depth } = config;
+  const { wallType, width, height, width2, width3, depth } = config;
   const canvasRef = useRef(null);
 
   useEffect(() => {
@@ -25,10 +25,16 @@ const StepDimensions = () => {
     ctx.strokeStyle = '#e5e7eb';
     ctx.lineWidth = 0.5;
     for (let x = 0; x < cw; x += 32) {
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, ch); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, ch);
+      ctx.stroke();
     }
     for (let y = 0; y < ch; y += 32) {
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(cw, y); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(cw, y);
+      ctx.stroke();
     }
 
     if (!width || !height) {
@@ -88,30 +94,101 @@ const StepDimensions = () => {
     };
 
     if (wallType === 'single') {
-      const mW = cw - pad * 2, mH = ch - pad * 2 - 48;
+      const mW = cw - pad * 2,
+        mH = ch - pad * 2 - 48;
       const r = Math.min(mW / width, mH / height);
-      const rw = width * r, rh = height * r, rx = (cw - rw) / 2, ry = (ch - rh) / 2 - 10;
+      const rw = width * r,
+        rh = height * r,
+        rx = (cw - rw) / 2,
+        ry = (ch - rh) / 2 - 10;
       heightLabel(rx - 28, ry, rh);
-      drawBox(rx, ry, rw, rh, slots, width + ' mm', slots + ' sections');
-    } else if (wallType === 'l-shape' || wallType === 'u-shape') {
-      const B = width2 || Math.round(width * 0.55);
+      drawBox(rx, ry, rw, rh, Math.floor(width / 600), width + ' mm', 'Main Wall');
+    } else if (wallType === 'l-shape') {
+      const B = width2 || 1200;
       const r = Math.min((cw - pad * 3) / (width + B), (ch - pad * 2 - 48) / height, 0.12);
-      const aW = width * r, aH = height * r, bW = B * r, bS = Math.floor(B / 600);
-      const ox = (cw - (aW + bW + 20)) / 2, oy = (ch - aH) / 2 - 10;
-      drawBox(ox, oy, aW, aH, slots, width + ' mm', 'Main wall');
-      drawBox(ox + aW + 20, oy, bW, aH, bS, B + ' mm', 'Side wall');
+      const aW = width * r,
+        aH = height * r,
+        bW = B * r;
+      const ox = (cw - (aW + bW + 20)) / 2,
+        oy = (ch - aH) / 2 - 10;
+      drawBox(ox, oy, aW, aH, Math.floor(width / 600), width + ' mm', 'Wall 1');
+      drawBox(ox + aW + 20, oy, bW, aH, Math.floor(B / 600), B + ' mm', 'Wall 2');
+    } else if (wallType === 'u-shape') {
+      const w1 = width,
+        w2 = width2,
+        w3 = width3 || 1200;
+      const r = Math.min((cw - pad * 4) / (w1 + w2 + w3), (ch - pad * 2 - 48) / height, 0.09);
+      const aW = w1 * r,
+        bW = w2 * r,
+        cW = w3 * r,
+        aH = height * r;
+      const ox = (cw - (aW + bW + cW + 40)) / 2,
+        oy = (ch - aH) / 2 - 10;
+      drawBox(ox, oy, aW, aH, Math.floor(w1 / 600), w1 + ' mm', 'Wall 1');
+      drawBox(ox + aW + 20, oy, bW, aH, Math.floor(w2 / 600), w2 + ' mm', 'Wall 2');
+      drawBox(ox + aW + bW + 40, oy, cW, aH, Math.floor(w3 / 600), w3 + ' mm', 'Wall 3');
     } else {
-      const r = Math.min((cw - pad * 2) / width, (ch - pad * 2 - 48) / Math.max(width * 0.6, 400), 0.15);
-      const rw = width * r, rd = depth * 4 * r;
-      const rx = (cw - rw) / 2, ry = (ch - rd) / 2 - 10;
-      ctx.strokeStyle = '#3b82f6'; ctx.lineWidth = 2; ctx.strokeRect(rx, ry, rw, rd);
-      ctx.fillStyle = '#f1f3f5'; ctx.fillRect(rx, ry, depth * r * 0.7, rd);
+      const r = Math.min(
+        (cw - pad * 2) / width,
+        (ch - pad * 2 - 48) / Math.max(width * 0.6, 400),
+        0.15
+      );
+      const rw = width * r,
+        rd = depth * 4 * r;
+      const rx = (cw - rw) / 2,
+        ry = (ch - rd) / 2 - 10;
+      ctx.strokeStyle = '#3b82f6';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(rx, ry, rw, rd);
+      ctx.fillStyle = '#f1f3f5';
+      ctx.fillRect(rx, ry, depth * r * 0.7, rd);
       ctx.fillRect(rx + rw - depth * r * 0.7, ry, depth * r * 0.7, rd);
-      ctx.strokeStyle = '#e5e7eb'; ctx.lineWidth = 1; ctx.strokeRect(rx, ry, rw, rd);
-      ctx.fillStyle = '#6b7280'; ctx.font = '600 12px Inter, sans-serif'; ctx.textAlign = 'center';
+      ctx.strokeStyle = '#e5e7eb';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(rx, ry, rw, rd);
+      ctx.fillStyle = '#6b7280';
+      ctx.font = '600 12px Inter, sans-serif';
+      ctx.textAlign = 'center';
       ctx.fillText('Walk-in Closet', rx + rw / 2, ry + rd / 2 + 5);
     }
-  }, [width, height, wallType, width2, depth]);
+  }, [width, height, wallType, width2, width3, depth]);
+
+  const NumericInput = ({ value, min, max, onChange }) => {
+    const [temp, setTemp] = React.useState(value);
+
+    React.useEffect(() => {
+      setTemp(value);
+    }, [value]);
+
+    const commit = (val) => {
+      const v = Math.min(max, Math.max(min, parseInt(val) || min));
+      setTemp(v);
+      onChange(v);
+    };
+
+    return (
+      <input
+        type="number"
+        value={temp}
+        min={min}
+        max={max}
+        onChange={(e) => setTemp(e.target.value)}
+        onBlur={(e) => commit(e.target.value)}
+        onKeyDown={(e) => e.key === 'Enter' && commit(e.target.value)}
+        style={{
+          width: 75,
+          padding: '4px 8px',
+          borderRadius: 6,
+          border: '1px solid var(--border)',
+          fontSize: 14,
+          fontWeight: 700,
+          textAlign: 'right',
+          color: 'var(--accent)',
+          fontFamily: 'var(--font-sans)',
+        }}
+      />
+    );
+  };
 
   const sliderCard = (label, key, min, max, step, value, unit, hint) => (
     <div
@@ -123,35 +200,80 @@ const StepDimensions = () => {
         boxShadow: 'var(--shadow-xs)',
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>{label}</span>
-        <span style={{ fontSize: 17, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.03em' }}>
-          {value} <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)' }}>{unit}</span>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: 12,
+        }}
+      >
+        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>
+          {label}
         </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <NumericInput
+            value={value}
+            min={min}
+            max={max}
+            onChange={(v) => actions.setDimension(key, v)}
+          />
+          <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-muted)' }}>{unit}</span>
+        </div>
       </div>
       <input
-        type="range" min={min} max={max} step={step} value={value}
-        style={{ width: '100%', accentColor: 'var(--accent)' }}
-        onChange={e => actions.setDimension(key, parseInt(e.target.value))}
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        style={{ width: '100%', accentColor: 'var(--accent)', cursor: 'pointer' }}
+        onChange={(e) => actions.setDimension(key, parseInt(e.target.value))}
       />
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}>
-        <span>{min} {unit}</span>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          marginTop: 6,
+          fontSize: 11,
+          color: 'var(--text-muted)',
+          fontWeight: 500,
+        }}
+      >
+        <span>
+          {min} {unit}
+        </span>
         {hint && <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{hint}</span>}
-        <span>{max} {unit}</span>
+        <span>
+          {max} {unit}
+        </span>
       </div>
     </div>
   );
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 32, alignItems: 'start' }} className="animate-fade-in">
+    <div
+      style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 32, alignItems: 'start' }}
+      className="animate-fade-in"
+    >
       {/* Left: Controls */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
         {/* Section label */}
         <div>
-          <h2 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--text-primary)', marginBottom: 4 }}>
+          <h2
+            style={{
+              fontSize: 20,
+              fontWeight: 700,
+              letterSpacing: '-0.03em',
+              color: 'var(--text-primary)',
+              marginBottom: 4,
+            }}
+          >
             Room Setup
           </h2>
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Choose layout and set your dimensions</p>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+            Choose layout and set your dimensions
+          </p>
         </div>
 
         {/* Layout Type */}
@@ -164,14 +286,24 @@ const StepDimensions = () => {
             boxShadow: 'var(--shadow-xs)',
           }}
         >
-          <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          <div
+            style={{
+              fontSize: 12,
+              fontWeight: 600,
+              color: 'var(--text-secondary)',
+              marginBottom: 12,
+              textTransform: 'uppercase',
+              letterSpacing: '0.06em',
+            }}
+          >
             Layout Type
           </div>
           <div style={{ display: 'flex', gap: 10 }}>
             {[
               { id: 'single', label: 'Straight' },
               { id: 'l-shape', label: 'L-Shape' },
-            ].map(w => (
+              { id: 'u-shape', label: 'U-Shape' },
+            ].map((w) => (
               <button
                 key={w.id}
                 onClick={() => actions.setDimension('wallType', w.id)}
@@ -201,7 +333,21 @@ const StepDimensions = () => {
         </div>
 
         {/* Sliders */}
-        {sliderCard('Room Width', 'width', 600, 6000, 100, width, 'mm', `${derived.validation.usedWidth} mm used`)}
+        {sliderCard(
+          wallType === 'single' ? 'Room Width' : 'Wall 1 Width',
+          'width',
+          600,
+          6000,
+          100,
+          width,
+          'mm',
+          'Primary Wall'
+        )}
+        {(wallType === 'l-shape' || wallType === 'u-shape') &&
+          sliderCard('Wall 2 Width', 'width2', 0, 6000, 100, width2, 'mm', 'Left Return')}
+        {wallType === 'u-shape' &&
+          sliderCard('Wall 3 Width', 'width3', 0, 6000, 100, width3, 'mm', 'Right Return')}
+
         {sliderCard('Wardrobe Height', 'height', 1800, 3000, 100, height, 'mm', null)}
         {sliderCard('Internal Depth', 'depth', 300, 1200, 50, depth, 'mm', null)}
       </div>
@@ -209,10 +355,20 @@ const StepDimensions = () => {
       {/* Right: Blueprint Preview */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div>
-          <h2 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--text-primary)', marginBottom: 4 }}>
+          <h2
+            style={{
+              fontSize: 20,
+              fontWeight: 700,
+              letterSpacing: '-0.03em',
+              color: 'var(--text-primary)',
+              marginBottom: 4,
+            }}
+          >
             Layout Preview
           </h2>
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Live preview of your configuration</p>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+            Live preview of your configuration
+          </p>
         </div>
 
         <div
@@ -238,17 +394,34 @@ const StepDimensions = () => {
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           {[
-            { label: 'Sections', value: `${Math.floor(width / 600)} units` },
-            { label: 'Area', value: `${((width * height) / 1e6 * 10.764).toFixed(1)} sqft` },
-          ].map(stat => (
-            <div
-              key={stat.label}
-              className="stat-card"
-            >
-              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+            { label: 'Total Capacity', value: `${derived.totalCapacity} mm` },
+            { label: 'Sections', value: `${Math.floor(derived.totalCapacity / 600)} units` },
+            {
+              label: 'Area',
+              value: `${(((derived.totalCapacity * height) / 1e6) * 10.764).toFixed(1)} sqft`,
+            },
+          ].map((stat) => (
+            <div key={stat.label} className="stat-card">
+              <div
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: 'var(--text-muted)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.06em',
+                  marginBottom: 6,
+                }}
+              >
                 {stat.label}
               </div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.03em' }}>
+              <div
+                style={{
+                  fontSize: 20,
+                  fontWeight: 700,
+                  color: 'var(--text-primary)',
+                  letterSpacing: '-0.03em',
+                }}
+              >
                 {stat.value}
               </div>
             </div>

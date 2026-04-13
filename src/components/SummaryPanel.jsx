@@ -6,13 +6,14 @@ export const SummaryPanel = ({ state, removeModule, totalPrice, bom }) => {
   const { config, derived } = useConfig();
   const { valuation, validation } = derived;
 
-  const activeModules = useMemo(() =>
-    Object.entries(config.modules)
-      .filter(([, qty]) => qty > 0)
-      .map(([id, qty]) => {
-        const mod = MODULES.find(m => m.id === id);
-        return { ...mod, qty };
-      }),
+  const activeModules = useMemo(
+    () =>
+      Object.entries(config.modules)
+        .filter(([, qty]) => qty > 0)
+        .map(([id, qty]) => {
+          const mod = MODULES.find((m) => m.id === id);
+          return { ...mod, qty };
+        }),
     [config.modules]
   );
 
@@ -24,7 +25,14 @@ export const SummaryPanel = ({ state, removeModule, totalPrice, bom }) => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* Title */}
-      <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+      <h3
+        style={{
+          fontSize: 16,
+          fontWeight: 700,
+          color: 'var(--text-primary)',
+          letterSpacing: '-0.02em',
+        }}
+      >
         Your Configuration
       </h3>
 
@@ -39,7 +47,14 @@ export const SummaryPanel = ({ state, removeModule, totalPrice, bom }) => {
         }}
       >
         {activeModules.length === 0 ? (
-          <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+          <div
+            style={{
+              padding: '24px',
+              textAlign: 'center',
+              color: 'var(--text-muted)',
+              fontSize: 13,
+            }}
+          >
             No modules selected yet
           </div>
         ) : (
@@ -55,7 +70,9 @@ export const SummaryPanel = ({ state, removeModule, totalPrice, bom }) => {
               }}
             >
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{m.name}</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+                  {m.name}
+                </div>
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
                   {m.width} mm × {m.qty}
                 </div>
@@ -89,12 +106,27 @@ export const SummaryPanel = ({ state, removeModule, totalPrice, bom }) => {
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>Width Used</span>
-          <span style={{ fontSize: 12, fontWeight: 700, color: validation.isValid ? 'var(--text-primary)' : 'var(--danger)' }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>
+            Width Used
+          </span>
+          <span
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              color: validation.isValid ? 'var(--text-primary)' : 'var(--danger)',
+            }}
+          >
             {usedWidth} / {totalWidth} mm
           </span>
         </div>
-        <div style={{ height: 6, background: 'var(--bg-tertiary)', borderRadius: 99, overflow: 'hidden' }}>
+        <div
+          style={{
+            height: 6,
+            background: 'var(--bg-tertiary)',
+            borderRadius: 99,
+            overflow: 'hidden',
+          }}
+        >
           <div
             style={{
               height: '100%',
@@ -105,7 +137,15 @@ export const SummaryPanel = ({ state, removeModule, totalPrice, bom }) => {
             }}
           />
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 11, color: 'var(--text-muted)' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            marginTop: 6,
+            fontSize: 11,
+            color: 'var(--text-muted)',
+          }}
+        >
           <span>{remaining} mm remaining</span>
           <span>{Math.round(percentUsed)}%</span>
         </div>
@@ -120,10 +160,26 @@ export const SummaryPanel = ({ state, removeModule, totalPrice, bom }) => {
           padding: '16px 20px',
         }}
       >
-        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        <div
+          style={{
+            fontSize: 12,
+            fontWeight: 600,
+            color: 'var(--accent)',
+            marginBottom: 4,
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+          }}
+        >
           Total Price
         </div>
-        <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--accent)', letterSpacing: '-0.04em' }}>
+        <div
+          style={{
+            fontSize: 28,
+            fontWeight: 800,
+            color: 'var(--accent)',
+            letterSpacing: '-0.04em',
+          }}
+        >
           ₹ {valuation.total.toLocaleString()}
         </div>
         <div style={{ fontSize: 11, color: 'var(--accent)', opacity: 0.7, marginTop: 4 }}>

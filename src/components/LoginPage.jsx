@@ -4,9 +4,10 @@ import { useAuth } from '../store/AuthContext';
 import { Layers, Eye, EyeOff, ArrowRight, Check } from 'lucide-react';
 
 const LoginPage = () => {
-  const { login } = useAuth();
+  const { login, register } = useAuth();
   const navigate = useNavigate();
 
+  const [isRegister, setIsRegister] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
@@ -18,16 +19,22 @@ const LoginPage = () => {
     setError('');
     setLoading(true);
 
-    // Simulate network latency
-    await new Promise(r => setTimeout(r, 600));
+    const result = isRegister ? await register(email, password) : await login(email, password);
 
-    const result = login(email, password);
     setLoading(false);
 
     if (result.ok) {
       navigate('/');
     } else {
-      setError(result.error);
+      // User-friendly error mapping
+      const msg = result.error.includes('auth/invalid-credential')
+        ? 'Invalid email or password.'
+        : result.error.includes('auth/email-already-in-use')
+          ? 'This email is already registered.'
+          : result.error.includes('auth/weak-password')
+            ? 'Password should be at least 6 characters.'
+            : result.error;
+      setError(msg);
     }
   };
 
@@ -60,31 +67,62 @@ const LoginPage = () => {
         }}
       >
         {/* Decorative circles */}
-        <div style={{
-          position: 'absolute', top: -80, right: -80,
-          width: 320, height: 320, borderRadius: '50%',
-          background: 'rgba(255,255,255,0.05)',
-          pointerEvents: 'none',
-        }} />
-        <div style={{
-          position: 'absolute', bottom: -120, left: -60,
-          width: 400, height: 400, borderRadius: '50%',
-          background: 'rgba(255,255,255,0.04)',
-          pointerEvents: 'none',
-        }} />
-        <div style={{
-          position: 'absolute', top: '40%', right: -40,
-          width: 160, height: 160, borderRadius: '50%',
-          background: 'rgba(255,255,255,0.06)',
-          pointerEvents: 'none',
-        }} />
+        <div
+          style={{
+            position: 'absolute',
+            top: -80,
+            right: -80,
+            width: 320,
+            height: 320,
+            borderRadius: '50%',
+            background: 'rgba(255,255,255,0.05)',
+            pointerEvents: 'none',
+          }}
+        />
+        <div
+          style={{
+            position: 'absolute',
+            bottom: -120,
+            left: -60,
+            width: 400,
+            height: 400,
+            borderRadius: '50%',
+            background: 'rgba(255,255,255,0.04)',
+            pointerEvents: 'none',
+          }}
+        />
+        <div
+          style={{
+            position: 'absolute',
+            top: '40%',
+            right: -40,
+            width: 160,
+            height: 160,
+            borderRadius: '50%',
+            background: 'rgba(255,255,255,0.06)',
+            pointerEvents: 'none',
+          }}
+        />
 
         {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 'auto', zIndex: 1 }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            marginBottom: 'auto',
+            zIndex: 1,
+          }}
+        >
           <div
             style={{
-              width: 40, height: 40, background: 'rgba(255,255,255,0.15)',
-              borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              width: 40,
+              height: 40,
+              background: 'rgba(255,255,255,0.15)',
+              borderRadius: 10,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               border: '1px solid rgba(255,255,255,0.2)',
             }}
           >
@@ -125,11 +163,22 @@ const LoginPage = () => {
               marginBottom: 20,
             }}
           >
-            Design better<br />wardrobes, faster.
+            Design better
+            <br />
+            wardrobes, faster.
           </h1>
 
-          <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 15, lineHeight: 1.7, marginBottom: 40, maxWidth: 380 }}>
-            The professional tool for configuring, pricing, and presenting modular wardrobe solutions to your clients.
+          <p
+            style={{
+              color: 'rgba(255,255,255,0.7)',
+              fontSize: 15,
+              lineHeight: 1.7,
+              marginBottom: 40,
+              maxWidth: 380,
+            }}
+          >
+            The professional tool for configuring, pricing, and presenting modular wardrobe
+            solutions to your clients.
           </p>
 
           <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -137,15 +186,22 @@ const LoginPage = () => {
               <li key={i} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div
                   style={{
-                    width: 22, height: 22, borderRadius: '50%',
+                    width: 22,
+                    height: 22,
+                    borderRadius: '50%',
                     background: 'rgba(255,255,255,0.15)',
                     border: '1px solid rgba(255,255,255,0.25)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
                   }}
                 >
                   <Check size={12} color="white" strokeWidth={3} />
                 </div>
-                <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, fontWeight: 500 }}>{f}</span>
+                <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14, fontWeight: 500 }}>
+                  {f}
+                </span>
               </li>
             ))}
           </ul>
@@ -162,23 +218,40 @@ const LoginPage = () => {
             marginTop: 40,
           }}
         >
-          <p style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, lineHeight: 1.6, fontStyle: 'italic', marginBottom: 12 }}>
-            "NirmanBook cut our sales cycle by 40%. Clients love being able to see the configuration live."
+          <p
+            style={{
+              color: 'rgba(255,255,255,0.85)',
+              fontSize: 13,
+              lineHeight: 1.6,
+              fontStyle: 'italic',
+              marginBottom: 12,
+            }}
+          >
+            "NirmanBook cut our sales cycle by 40%. Clients love being able to see the configuration
+            live."
           </p>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div
               style={{
-                width: 32, height: 32, borderRadius: '50%',
+                width: 32,
+                height: 32,
+                borderRadius: '50%',
                 background: 'rgba(255,255,255,0.2)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 12, fontWeight: 700, color: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 12,
+                fontWeight: 700,
+                color: 'white',
               }}
             >
               RK
             </div>
             <div>
               <div style={{ color: 'white', fontSize: 12, fontWeight: 600 }}>Rahul Kapoor</div>
-              <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 11 }}>Interior Designer, Mumbai</div>
+              <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 11 }}>
+                Interior Designer, Mumbai
+              </div>
             </div>
           </div>
         </div>
@@ -208,10 +281,12 @@ const LoginPage = () => {
                 marginBottom: 8,
               }}
             >
-              Welcome back
+              {isRegister ? 'Create an account' : 'Welcome back'}
             </h2>
             <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
-              Sign in to your NirmanBook account
+              {isRegister
+                ? 'Join NirmanBook to start designing'
+                : 'Sign in to your NirmanBook account'}
             </p>
           </div>
 
@@ -234,13 +309,19 @@ const LoginPage = () => {
           )}
 
           {/* Form */}
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <form
+            onSubmit={handleSubmit}
+            style={{ display: 'flex', flexDirection: 'column', gap: 18 }}
+          >
             {/* Email */}
             <div>
               <label
                 style={{
-                  display: 'block', fontSize: 13, fontWeight: 600,
-                  color: 'var(--text-primary)', marginBottom: 6,
+                  display: 'block',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: 'var(--text-primary)',
+                  marginBottom: 6,
                 }}
               >
                 Email address
@@ -249,7 +330,7 @@ const LoginPage = () => {
                 id="login-email"
                 type="email"
                 value={email}
-                onChange={e => setEmail(e.target.value)}
+                onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
                 required
                 style={{
@@ -265,8 +346,8 @@ const LoginPage = () => {
                   transition: 'border-color 0.15s',
                   boxSizing: 'border-box',
                 }}
-                onFocus={e => (e.target.style.borderColor = 'var(--accent)')}
-                onBlur={e => (e.target.style.borderColor = 'var(--border)')}
+                onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
+                onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
               />
             </div>
 
@@ -278,11 +359,14 @@ const LoginPage = () => {
                 </label>
                 <span
                   style={{
-                    fontSize: 12, color: 'var(--accent)', cursor: 'pointer', fontWeight: 600,
+                    fontSize: 12,
+                    color: 'var(--accent)',
+                    cursor: 'pointer',
+                    fontWeight: 600,
                     transition: 'opacity 0.15s',
                   }}
-                  onMouseEnter={e => (e.currentTarget.style.opacity = 0.7)}
-                  onMouseLeave={e => (e.currentTarget.style.opacity = 1)}
+                  onMouseEnter={(e) => (e.currentTarget.style.opacity = 0.7)}
+                  onMouseLeave={(e) => (e.currentTarget.style.opacity = 1)}
                 >
                   Forgot password?
                 </span>
@@ -292,7 +376,7 @@ const LoginPage = () => {
                   id="login-password"
                   type={showPass ? 'text' : 'password'}
                   value={password}
-                  onChange={e => setPassword(e.target.value)}
+                  onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
                   style={{
@@ -308,20 +392,28 @@ const LoginPage = () => {
                     transition: 'border-color 0.15s',
                     boxSizing: 'border-box',
                   }}
-                  onFocus={e => (e.target.style.borderColor = 'var(--accent)')}
-                  onBlur={e => (e.target.style.borderColor = 'var(--border)')}
+                  onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
+                  onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
                 />
                 <button
                   type="button"
-                  onClick={() => setShowPass(v => !v)}
+                  onClick={() => setShowPass((v) => !v)}
                   style={{
-                    position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
-                    background: 'none', border: 'none', cursor: 'pointer',
-                    color: 'var(--text-muted)', display: 'flex', alignItems: 'center',
-                    padding: 2, transition: 'color 0.15s',
+                    position: 'absolute',
+                    right: 12,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: 'var(--text-muted)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: 2,
+                    transition: 'color 0.15s',
                   }}
-                  onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-secondary)')}
-                  onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text-secondary)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
                 >
                   {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
@@ -330,8 +422,13 @@ const LoginPage = () => {
 
             {/* Remember me */}
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-              <input type="checkbox" style={{ accentColor: 'var(--accent)', width: 15, height: 15 }} />
-              <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Keep me signed in</span>
+              <input
+                type="checkbox"
+                style={{ accentColor: 'var(--accent)', width: 15, height: 15 }}
+              />
+              <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                Keep me signed in
+              </span>
             </label>
 
             {/* Submit button */}
@@ -358,22 +455,30 @@ const LoginPage = () => {
                 boxShadow: loading ? 'none' : 'var(--shadow-sm)',
                 marginTop: 4,
               }}
-              onMouseEnter={e => !loading && (e.currentTarget.style.background = 'var(--accent-hover)')}
-              onMouseLeave={e => !loading && (e.currentTarget.style.background = 'var(--accent)')}
+              onMouseEnter={(e) =>
+                !loading && (e.currentTarget.style.background = 'var(--accent-hover)')
+              }
+              onMouseLeave={(e) => !loading && (e.currentTarget.style.background = 'var(--accent)')}
             >
               {loading ? (
                 <>
-                  <span style={{
-                    width: 16, height: 16, borderRadius: '50%',
-                    border: '2px solid rgba(255,255,255,0.3)',
-                    borderTopColor: 'white',
-                    animation: 'spin 0.7s linear infinite',
-                    display: 'inline-block',
-                  }} />
-                  Signing in…
+                  <span
+                    style={{
+                      width: 16,
+                      height: 16,
+                      borderRadius: '50%',
+                      border: '2px solid rgba(255,255,255,0.3)',
+                      borderTopColor: 'white',
+                      animation: 'spin 0.7s linear infinite',
+                      display: 'inline-block',
+                    }}
+                  />
+                  {isRegister ? 'Creating account…' : 'Signing in…'}
                 </>
               ) : (
-                <>Sign In <ArrowRight size={15} /></>
+                <>
+                  {isRegister ? 'Get Started Free' : 'Sign In'} <ArrowRight size={15} />
+                </>
               )}
             </button>
           </form>
@@ -381,7 +486,9 @@ const LoginPage = () => {
           {/* Divider */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '24px 0' }}>
             <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-            <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>or continue with</span>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>
+              or continue with
+            </span>
             <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
           </div>
 
@@ -390,27 +497,31 @@ const LoginPage = () => {
             {[
               { label: 'Google', icon: 'G', color: '#ea4335' },
               { label: 'Microsoft', icon: 'M', color: '#00a1f1' },
-            ].map(s => (
+            ].map((s) => (
               <button
                 key={s.label}
                 type="button"
                 style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
                   padding: '10px',
                   border: '1.5px solid var(--border)',
                   borderRadius: 8,
                   background: 'var(--bg-secondary)',
-                  fontSize: 13, fontWeight: 600,
+                  fontSize: 13,
+                  fontWeight: 600,
                   color: 'var(--text-primary)',
                   cursor: 'pointer',
                   transition: 'all 0.15s',
                   fontFamily: 'var(--font-sans)',
                 }}
-                onMouseEnter={e => {
+                onMouseEnter={(e) => {
                   e.currentTarget.style.borderColor = 'var(--border-strong)';
                   e.currentTarget.style.background = 'var(--bg-primary)';
                 }}
-                onMouseLeave={e => {
+                onMouseLeave={(e) => {
                   e.currentTarget.style.borderColor = 'var(--border)';
                   e.currentTarget.style.background = 'var(--bg-secondary)';
                 }}
@@ -422,24 +533,48 @@ const LoginPage = () => {
           </div>
 
           {/* Sign up link */}
-          <p style={{ textAlign: 'center', marginTop: 28, fontSize: 13, color: 'var(--text-secondary)' }}>
-            Don't have an account?{' '}
-            <Link
-              to="/"
-              style={{
-                color: 'var(--accent)', fontWeight: 600, textDecoration: 'none',
-                transition: 'opacity 0.15s',
+          <p
+            style={{
+              textAlign: 'center',
+              marginTop: 28,
+              fontSize: 13,
+              color: 'var(--text-secondary)',
+            }}
+          >
+            {isRegister ? 'Already have an account?' : "Don't have an account?"}{' '}
+            <button
+              type="button"
+              onClick={() => {
+                setIsRegister(!isRegister);
+                setError('');
               }}
-              onMouseEnter={e => (e.currentTarget.style.opacity = 0.7)}
-              onMouseLeave={e => (e.currentTarget.style.opacity = 1)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--accent)',
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontFamily: 'var(--font-sans)',
+                transition: 'opacity 0.15s',
+                padding: 0,
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.opacity = 0.7)}
+              onMouseLeave={(e) => (e.currentTarget.style.opacity = 1)}
             >
-              Create one free →
-            </Link>
+              {isRegister ? 'Sign in instead →' : 'Create one free →'}
+            </button>
           </p>
         </div>
 
         {/* Footer */}
-        <p style={{ margin: '32px 0 0', fontSize: 11, color: 'var(--text-muted)', textAlign: 'center' }}>
+        <p
+          style={{
+            margin: '32px 0 0',
+            fontSize: 11,
+            color: 'var(--text-muted)',
+            textAlign: 'center',
+          }}
+        >
           By signing in you agree to our{' '}
           <span style={{ color: 'var(--accent)', cursor: 'pointer' }}>Terms</span> and{' '}
           <span style={{ color: 'var(--accent)', cursor: 'pointer' }}>Privacy Policy</span>.

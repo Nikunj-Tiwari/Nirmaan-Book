@@ -26,36 +26,72 @@ const StepFinishes = () => {
   });
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32 }} className="animate-fade-in">
+    <div
+      style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32 }}
+      className="animate-fade-in"
+    >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
         {/* Section header */}
         <div>
-          <h2 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--text-primary)', marginBottom: 4 }}>
+          <h2
+            style={{
+              fontSize: 20,
+              fontWeight: 700,
+              letterSpacing: '-0.03em',
+              color: 'var(--text-primary)',
+              marginBottom: 4,
+            }}
+          >
             Finishes & Materials
           </h2>
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Pick the core material and colour tone</p>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+            Pick the core material and colour tone
+          </p>
         </div>
 
         {/* Material */}
         <div>
           <div className="section-title">Core Material</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {MATERIALS.map(m => (
-              <button key={m.id} onClick={() => actions.setFinish('material', m)} style={selStyle(material.id === m.id)}>
+            {MATERIALS.map((m) => (
+              <button
+                key={m.id}
+                onClick={() => actions.setFinish('material', m)}
+                style={selStyle(material.id === m.id)}
+              >
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: material.id === m.id ? 'var(--accent)' : 'var(--text-primary)' }}>
+                  <div
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 600,
+                      color: material.id === m.id ? 'var(--accent)' : 'var(--text-primary)',
+                    }}
+                  >
                     {m.name}
                   </div>
-                  <div style={{ fontSize: 12, color: material.id === m.id ? 'var(--accent)' : 'var(--text-secondary)', marginTop: 2 }}>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: material.id === m.id ? 'var(--accent)' : 'var(--text-secondary)',
+                      marginTop: 2,
+                    }}
+                  >
                     {m.finish}
                   </div>
                 </div>
                 {material.id === m.id && (
-                  <div style={{
-                    width: 22, height: 22, borderRadius: '50%',
-                    background: 'var(--accent)', display: 'flex',
-                    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                  }}>
+                  <div
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: '50%',
+                      background: 'var(--accent)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
                     <Check size={12} color="white" strokeWidth={3} />
                   </div>
                 )}
@@ -68,7 +104,7 @@ const StepFinishes = () => {
         <div>
           <div className="section-title">Colour Tone</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
-            {COLOURS.map(c => (
+            {COLOURS.map((c) => (
               <button
                 key={c.id}
                 onClick={() => actions.setFinish('colour', c)}
@@ -89,13 +125,23 @@ const StepFinishes = () => {
               >
                 <div
                   style={{
-                    width: 36, height: 36, borderRadius: 8,
+                    width: 36,
+                    height: 36,
+                    borderRadius: 8,
                     background: c.hex,
                     border: '2px solid rgba(0,0,0,0.06)',
                     boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.08)',
                   }}
                 />
-                <span style={{ fontSize: 10, fontWeight: 600, color: colour.id === c.id ? 'var(--accent)' : 'var(--text-secondary)', textAlign: 'center', lineHeight: 1.2 }}>
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 600,
+                    color: colour.id === c.id ? 'var(--accent)' : 'var(--text-secondary)',
+                    textAlign: 'center',
+                    lineHeight: 1.2,
+                  }}
+                >
                   {c.name}
                 </span>
               </button>
@@ -107,7 +153,7 @@ const StepFinishes = () => {
         <div>
           <div className="section-title">Door Style</div>
           <div style={{ display: 'flex', gap: 8 }}>
-            {FASCIAS.map(f => (
+            {FASCIAS.map((f) => (
               <button
                 key={f}
                 onClick={() => actions.setFinish('fascia', f)}
@@ -135,10 +181,20 @@ const StepFinishes = () => {
       {/* Right: Configuration Summary Preview */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div>
-          <h2 style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.03em', color: 'var(--text-primary)', marginBottom: 4 }}>
+          <h2
+            style={{
+              fontSize: 20,
+              fontWeight: 700,
+              letterSpacing: '-0.03em',
+              color: 'var(--text-primary)',
+              marginBottom: 4,
+            }}
+          >
             Style Preview
           </h2>
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Your current finish selections</p>
+          <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+            Your current finish selections
+          </p>
         </div>
 
         {/* Colour swatch */}
@@ -158,21 +214,25 @@ const StepFinishes = () => {
         >
           <div
             style={{
-              position: 'absolute', inset: 0,
-              backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.12) 1px, transparent 1px)',
+              position: 'absolute',
+              inset: 0,
+              backgroundImage:
+                'radial-gradient(circle, rgba(255,255,255,0.12) 1px, transparent 1px)',
               backgroundSize: '20px 20px',
             }}
           />
-          <span style={{
-            background: 'rgba(255,255,255,0.18)',
-            backdropFilter: 'blur(8px)',
-            color: 'white',
-            padding: '6px 16px',
-            borderRadius: 99,
-            fontSize: 11,
-            fontWeight: 600,
-            border: '1px solid rgba(255,255,255,0.3)',
-          }}>
+          <span
+            style={{
+              background: 'rgba(255,255,255,0.18)',
+              backdropFilter: 'blur(8px)',
+              color: 'white',
+              padding: '6px 16px',
+              borderRadius: 99,
+              fontSize: 11,
+              fontWeight: 600,
+              border: '1px solid rgba(255,255,255,0.3)',
+            }}
+          >
             {colour.name} Sample
           </span>
         </div>
@@ -203,7 +263,9 @@ const StepFinishes = () => {
               }}
             >
               <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{row.label}</span>
-              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{row.value}</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+                {row.value}
+              </span>
             </div>
           ))}
         </div>
