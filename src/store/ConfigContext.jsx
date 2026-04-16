@@ -1,4 +1,12 @@
-import React, { createContext, useContext, useReducer, useMemo } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useReducer,
+  useMemo,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { COLOURS, MATERIALS, HANDLES, LIGHTING } from '../data/config';
 import {
   updateModuleQty,
@@ -6,6 +14,7 @@ import {
   updateDimensions,
   getDerivedState,
 } from '../utils/engine';
+import { dataToConfig, saveDraft } from '../utils/storage';
 
 const ConfigContext = createContext();
 
@@ -41,6 +50,8 @@ function configReducer(state, action) {
         newAccessories.add(action.payload.id);
       }
       return { ...state, selectedAccessories: newAccessories };
+    case 'LOAD_CONFIG':
+      return { ...initialState, ...action.payload };
     case 'RESET_CONFIG':
       return initialState;
     default:
@@ -50,9 +61,30 @@ function configReducer(state, action) {
 
 export const ConfigProvider = ({ children }) => {
   const [config, dispatch] = useReducer(configReducer, initialState);
+  const [lastDraftSave, setLastDraftSave] = useState(null);
 
   // Derived metrics are memoized for performance
   const derived = useMemo(() => getDerivedState(config), [config]);
+
+  /* ── Auto-draft: debounced save on every config change ── */
+  const skipFirstRender = useRef(true);
+  const draftTimer = useRef(null);
+
+  useEffect(() => {
+    // Skip the very first mount so we don't overwrite draft with blank initial state
+    if (skipFirstRender.current) {
+      skipFirstRender.current = false;
+      return;
+    }
+    // Debounce — write draft 1.5s after last change burst
+    clearTimeout(draftTimer.current);
+    draftTimer.current = setTimeout(() => {
+      saveDraft(config);
+      setLastDraftSave(new Date().toISOString());
+    }, 1500);
+
+    return () => clearTimeout(draftTimer.current);
+  }, [config]);
 
   // Specialized action helpers
   const actions = {
@@ -61,10 +93,13 @@ export const ConfigProvider = ({ children }) => {
     setModuleQty: (id, delta) => dispatch({ type: 'UPDATE_MODULE_QTY', payload: { id, delta } }),
     toggleAccessory: (id) => dispatch({ type: 'TOGGLE_ACCESSORY', payload: { id } }),
     reset: () => dispatch({ type: 'RESET_CONFIG' }),
+    loadConfig: (data) => dispatch({ type: 'LOAD_CONFIG', payload: dataToConfig(data) }),
   };
 
   return (
-    <ConfigContext.Provider value={{ config, derived, actions }}>{children}</ConfigContext.Provider>
+    <ConfigContext.Provider value={{ config, derived, actions, lastDraftSave }}>
+      {children}
+    </ConfigContext.Provider>
   );
 };
 

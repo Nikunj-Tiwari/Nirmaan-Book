@@ -8,6 +8,7 @@ const LoginPage = () => {
   const navigate = useNavigate();
 
   const [isRegister, setIsRegister] = useState(false);
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
@@ -19,7 +20,9 @@ const LoginPage = () => {
     setError('');
     setLoading(true);
 
-    const result = isRegister ? await register(email, password) : await login(email, password);
+    const result = isRegister
+      ? await register(email, password, name)
+      : await login(email, password);
 
     setLoading(false);
 
@@ -313,9 +316,52 @@ const LoginPage = () => {
             onSubmit={handleSubmit}
             style={{ display: 'flex', flexDirection: 'column', gap: 18 }}
           >
+            {/* Name (register only) */}
+            {isRegister && (
+              <div>
+                <label
+                  htmlFor="login-name"
+                  style={{
+                    display: 'block',
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: 'var(--text-primary)',
+                    marginBottom: 6,
+                  }}
+                >
+                  Full name
+                </label>
+                <input
+                  id="login-name"
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Rahul Kapoor"
+                  required={isRegister}
+                  autoComplete="name"
+                  style={{
+                    width: '100%',
+                    padding: '11px 14px',
+                    borderRadius: 8,
+                    border: '1.5px solid var(--border)',
+                    background: 'var(--bg-primary)',
+                    fontSize: 14,
+                    fontFamily: 'var(--font-sans)',
+                    color: 'var(--text-primary)',
+                    outline: 'none',
+                    transition: 'border-color 0.15s',
+                    boxSizing: 'border-box',
+                  }}
+                  onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
+                  onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
+                />
+              </div>
+            )}
+
             {/* Email */}
             <div>
               <label
+                htmlFor="login-email"
                 style={{
                   display: 'block',
                   fontSize: 13,
@@ -397,6 +443,7 @@ const LoginPage = () => {
                 />
                 <button
                   type="button"
+                  aria-label={showPass ? 'Hide password' : 'Show password'}
                   onClick={() => setShowPass((v) => !v)}
                   style={{
                     position: 'absolute',
@@ -544,9 +591,11 @@ const LoginPage = () => {
             {isRegister ? 'Already have an account?' : "Don't have an account?"}{' '}
             <button
               type="button"
+              aria-label={isRegister ? 'Switch to sign in' : 'Switch to create account'}
               onClick={() => {
                 setIsRegister(!isRegister);
                 setError('');
+                setName('');
               }}
               style={{
                 background: 'none',

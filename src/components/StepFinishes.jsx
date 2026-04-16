@@ -3,6 +3,7 @@ import { Check } from 'lucide-react';
 import { MATERIALS, COLOURS } from '../data/config';
 import { useConfig } from '../store/ConfigContext';
 import { useToast } from './ToastProvider';
+import Tooltip from './Tooltip';
 
 const StepFinishes = () => {
   const { config, actions } = useConfig();
@@ -62,6 +63,7 @@ const StepFinishes = () => {
                   actions.setFinish('material', m);
                   addToast(`Material changed to ${m.name}`, 'success');
                 }}
+                aria-label={`Select ${m.name} material`}
                 style={selStyle(material.id === m.id)}
               >
                 <div>
@@ -73,6 +75,18 @@ const StepFinishes = () => {
                     }}
                   >
                     {m.name}
+                    {m.multiplier > 1 && (
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 500,
+                          color: material.id === m.id ? 'var(--accent)' : 'var(--text-secondary)',
+                          marginLeft: '8px',
+                        }}
+                      >
+                        (+{Math.round((m.multiplier - 1) * 100)}%)
+                      </span>
+                    )}
                   </div>
                   <div
                     style={{
@@ -81,7 +95,7 @@ const StepFinishes = () => {
                       marginTop: 2,
                     }}
                   >
-                    {m.finish}
+                    {m.sub}
                   </div>
                 </div>
                 {material.id === m.id && (
@@ -116,6 +130,7 @@ const StepFinishes = () => {
                   actions.setFinish('colour', c);
                   addToast(`Colour changed to ${c.name}`, 'success');
                 }}
+                aria-label={`Select ${c.name} colour`}
                 style={{
                   padding: '10px 8px',
                   borderRadius: 10,
@@ -131,16 +146,19 @@ const StepFinishes = () => {
                   boxShadow: 'var(--shadow-xs)',
                 }}
               >
-                <div
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 8,
-                    background: c.hex,
-                    border: '2px solid rgba(0,0,0,0.06)',
-                    boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.08)',
-                  }}
-                />
+                <Tooltip text={c.name} position="top">
+                  <div
+                    style={{
+                      width: 36,
+                      height: 36,
+                      borderRadius: 8,
+                      background: c.hex,
+                      border: '2px solid rgba(0,0,0,0.06)',
+                      boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.08)',
+                      cursor: 'pointer',
+                    }}
+                  />
+                </Tooltip>
                 <span
                   style={{
                     fontSize: 10,
@@ -168,6 +186,7 @@ const StepFinishes = () => {
                   actions.setFinish('fascia', f);
                   addToast(`Door style changed to ${f}`, 'success');
                 }}
+                aria-label={`Select ${f} door style`}
                 style={{
                   flex: 1,
                   padding: '10px 12px',

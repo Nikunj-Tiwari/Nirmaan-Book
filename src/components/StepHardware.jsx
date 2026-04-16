@@ -13,6 +13,7 @@ const StepHardware = () => {
     <button
       key={item.name}
       onClick={onClick}
+      aria-label={`Select ${item.name} ${item.sub || ''}`}
       style={{
         padding: '16px',
         borderRadius: 10,
@@ -149,6 +150,7 @@ const StepHardware = () => {
                     const isSelected = selectedAccessories.has(acc.id);
                     addToast(isSelected ? `${acc.name} removed` : `${acc.name} added`, 'success');
                   }}
+                  aria-label={`${isSelected ? 'Remove' : 'Add'} ${acc.name} accessory`}
                   style={{
                     display: 'flex',
                     alignItems: 'center',

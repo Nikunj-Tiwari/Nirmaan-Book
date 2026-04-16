@@ -9,10 +9,10 @@ export const COLOURS = [
 ];
 
 export const MATERIALS = [
-  { name: 'Particle Board', sub: 'Economy grade', multiplier: 1.0 },
-  { name: 'MDF', sub: 'Smooth finish', multiplier: 1.2 },
-  { name: 'BWR', sub: 'Boiling water resistant', multiplier: 1.5 },
-  { name: 'BWP', sub: 'Boiling waterproof — marine grade', multiplier: 1.8 },
+  { id: 'pb', name: 'Particle Board', sub: 'Economy grade', multiplier: 1.0 },
+  { id: 'mdf', name: 'MDF', sub: 'Smooth finish', multiplier: 1.2 },
+  { id: 'bwr', name: 'BWR', sub: 'Boiling water resistant', multiplier: 1.5 },
+  { id: 'bwp', name: 'BWP', sub: 'Boiling waterproof — marine grade', multiplier: 1.8 },
 ];
 
 export const FASCIAS = [

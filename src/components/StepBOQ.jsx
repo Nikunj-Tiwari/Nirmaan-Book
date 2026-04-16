@@ -1,9 +1,23 @@
 import React, { useMemo, useRef, useState, useCallback } from 'react';
 import { MODULES } from '../data/modules';
 import { ACCESSORIES } from '../data/config';
-import { Printer, Download, Share2, FileJson, FileText, Check, Loader2 } from 'lucide-react';
+import {
+  Printer,
+  Download,
+  Share2,
+  FileJson,
+  FileText,
+  Check,
+  Loader2,
+  Bookmark,
+  RefreshCw,
+} from 'lucide-react';
 import { useConfig } from '../store/ConfigContext';
 import { handlePrint, generatePDF, exportQuoteJSON, exportTextSummary } from '../utils/export';
+import { saveConfig, updateConfig, getConfigs, clearDraft } from '../utils/storage';
+
+import SaveDesignModal from './SaveDesignModal';
+import { useToast } from './ToastProvider';
 
 /* ── tiny hook: manage per-button loading + success state ── */
 function useActionState() {
@@ -71,7 +85,12 @@ const ActionButton = ({
   const currentLabel = isLoading ? loadingLabel : isDone ? (doneLabel ?? label) : label;
 
   return (
-    <button style={baseStyle} disabled={isLoading} onClick={() => trigger(onClick)}>
+    <button
+      style={baseStyle}
+      disabled={isLoading}
+      onClick={() => trigger(onClick)}
+      aria-label={label}
+    >
       <CurrentIcon size={15} style={isLoading ? { animation: 'spin 0.8s linear infinite' } : {}} />
       {currentLabel}
     </button>
@@ -81,10 +100,45 @@ const ActionButton = ({
 /* ══════════════════════════════════════════
    StepBOQ — Quote Summary + Export Page
    ══════════════════════════════════════════ */
-const StepBOQ = () => {
+const StepBOQ = ({ activeConfigId, setActiveConfigId, onRefreshCount }) => {
   const { config, derived } = useConfig();
   const { valuation } = derived;
   const printRef = useRef(null);
+  const { addToast } = useToast();
+
+  /* ── Save modal state ── */
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [existingNames, setExistingNames] = useState([]);
+
+  const openSaveModal = () => {
+    setExistingNames(getConfigs().map((c) => c.name));
+    setShowSaveModal(true);
+  };
+
+  const handleSaveName = (name) => {
+    const newList = saveConfig({ name, configState: config, totalPrice: valuation.total });
+    const saved = newList[0]; // newest is first
+    if (setActiveConfigId) setActiveConfigId(saved.id);
+    setShowSaveModal(false);
+    clearDraft(); // draft is now a named save — remove the auto-draft
+    addToast(`“${name}” saved successfully`, 'success');
+    if (onRefreshCount) onRefreshCount();
+  };
+
+  /* ── Update with visual confirmation ── */
+  const [updateDone, setUpdateDone] = useState(false);
+  const handleUpdate = () => {
+    if (!activeConfigId) return;
+    const list = getConfigs();
+    const current = list.find((c) => c.id === activeConfigId);
+    updateConfig(activeConfigId, config, valuation.total);
+    setUpdateDone(true);
+    setTimeout(() => setUpdateDone(false), 2500);
+    addToast(
+      `“${current?.name ?? 'Design'}” updated — your latest changes have been saved`,
+      'success'
+    );
+  };
 
   /* ── Accessories list ── */
   const accessories = useMemo(
@@ -153,7 +207,7 @@ const StepBOQ = () => {
   /* ── Shared export payload ── */
   const exportPayload = { config, boqItems, valuation, totalModulesCount };
 
-  return (
+  const mainContent = (
     <>
       {/* Spinner keyframe injected inline so it works without extra CSS */}
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
@@ -191,6 +245,79 @@ const StepBOQ = () => {
 
           {/* ── Action Buttons Row ── */}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            {/* SAVE / UPDATE */}
+            {activeConfigId ? (
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                  gap: 4,
+                }}
+              >
+                <button
+                  id="boq-update-design-btn"
+                  onClick={handleUpdate}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 7,
+                    padding: '10px 18px',
+                    borderRadius: 8,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    fontFamily: 'var(--font-sans)',
+                    border: `1px solid ${updateDone ? '#16a34a' : 'var(--border)'}`,
+                    background: updateDone ? '#f0fdf4' : 'var(--bg-secondary)',
+                    color: updateDone ? '#16a34a' : 'var(--text-primary)',
+                    transition: 'all 0.2s',
+                    whiteSpace: 'nowrap',
+                    boxShadow: 'var(--shadow-xs)',
+                  }}
+                >
+                  {updateDone ? <Check size={15} /> : <RefreshCw size={15} />}
+                  {updateDone ? 'Updated ✓' : 'Update Design'}
+                </button>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)', paddingLeft: 2 }}>
+                  Overwrites the saved version
+                </span>
+              </div>
+            ) : (
+              <button
+                id="boq-save-design-btn"
+                onClick={openSaveModal}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 7,
+                  padding: '10px 18px',
+                  borderRadius: 8,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontFamily: 'var(--font-sans)',
+                  border: '1px solid var(--accent-border)',
+                  background: 'var(--accent-light)',
+                  color: 'var(--accent)',
+                  transition: 'all 0.15s',
+                  whiteSpace: 'nowrap',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'var(--accent)';
+                  e.currentTarget.style.color = 'white';
+                  e.currentTarget.style.borderColor = 'transparent';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'var(--accent-light)';
+                  e.currentTarget.style.color = 'var(--accent)';
+                  e.currentTarget.style.borderColor = 'var(--accent-border)';
+                }}
+              >
+                <Bookmark size={14} />
+                Save Design
+              </button>
+            )}
             {/* PRINT */}
             <ActionButton
               label="Print"
@@ -614,6 +741,21 @@ const StepBOQ = () => {
         </div>
         {/* end printRef zone */}
       </div>
+    </>
+  );
+
+  return (
+    <>
+      {mainContent}
+      {showSaveModal && (
+        <SaveDesignModal
+          mode="save"
+          initialName=""
+          existingNames={existingNames}
+          onConfirm={handleSaveName}
+          onClose={() => setShowSaveModal(false)}
+        />
+      )}
     </>
   );
 };
