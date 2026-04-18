@@ -44,14 +44,11 @@ const StepIndicator = ({ currentStep = 1, totalSteps = 3 }) => {
 
             {/* Step Label */}
             <span
+              className="step-label"
               style={{
                 fontSize: 13,
                 fontWeight: 500,
                 color: isActive ? '#3b82f6' : isDone ? '#22c55e' : '#9ca3af',
-                display: 'none',
-                '@media (min-width: 768px)': {
-                  display: 'inline',
-                },
               }}
             >
               {label}
@@ -60,21 +57,31 @@ const StepIndicator = ({ currentStep = 1, totalSteps = 3 }) => {
             {/* Separator */}
             {stepNum < totalSteps && (
               <div
+                className="step-separator"
                 style={{
                   width: 24,
                   height: 1,
                   background: isDone ? '#22c55e' : '#e5e7eb',
                   margin: '0 8px',
-                  display: 'none',
-                  '@media (min-width: 768px)': {
-                    display: 'block',
-                  },
                 }}
               />
             )}
           </div>
         );
       })}
+      <style>{`
+        .step-label, .step-separator {
+          display: none;
+        }
+        @media (min-width: 768px) {
+          .step-label {
+            display: inline;
+          }
+          .step-separator {
+            display: block;
+          }
+        }
+      `}</style>
     </div>
   );
 };

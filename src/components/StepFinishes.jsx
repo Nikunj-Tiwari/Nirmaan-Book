@@ -4,11 +4,13 @@ import { MATERIALS, COLOURS } from '../data/config';
 import { useConfig } from '../store/ConfigContext';
 import { useToast } from './ToastProvider';
 import Tooltip from './Tooltip';
+import { useResponsive } from '../hooks/useResponsive';
 
 const StepFinishes = () => {
   const { config, actions } = useConfig();
   const { addToast } = useToast();
   const { material, colour, fascia } = config;
+  const { isMobile } = useResponsive();
 
   const FASCIAS = ['Akila', 'Inline', 'J-Pull'];
 
@@ -30,7 +32,7 @@ const StepFinishes = () => {
 
   return (
     <div
-      style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32 }}
+      style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 32 }}
       className="animate-fade-in"
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
@@ -122,7 +124,13 @@ const StepFinishes = () => {
         {/* Colour */}
         <div>
           <div className="section-title">Colour Tone</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: isMobile ? 'repeat(3, 1fr)' : 'repeat(4, 1fr)',
+              gap: 10,
+            }}
+          >
             {COLOURS.map((c) => (
               <button
                 key={c.id}

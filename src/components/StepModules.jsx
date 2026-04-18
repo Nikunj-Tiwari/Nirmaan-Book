@@ -4,12 +4,14 @@ import { canAddModule } from '../utils/rules';
 import { useConfig } from '../store/ConfigContext';
 import { Search, Grid3X3, List } from 'lucide-react';
 import ModuleCard from './ModuleCard';
+import { useResponsive } from '../hooks/useResponsive';
 
 const StepModules = () => {
   const { config, derived, actions } = useConfig();
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
+  const { isMobile } = useResponsive();
 
   // Keyboard navigation refs
   const moduleRefs = useRef({});
@@ -201,13 +203,28 @@ const StepModules = () => {
         style={{
           display: 'flex',
           flexWrap: 'wrap',
-          gap: 8,
+          gap: 12,
           alignItems: 'center',
           justifyContent: 'space-between',
         }}
       >
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {[{ id: 'all', label: 'All Modules' }, ...CATEGORIES].map((cat) => (
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: isMobile ? 'nowrap' : 'wrap',
+            gap: 8,
+            overflowX: isMobile ? 'auto' : 'visible',
+            paddingBottom: isMobile ? 8 : 0,
+            WebkitOverflowScrolling: 'touch',
+            width: isMobile ? '100%' : 'auto',
+          }}
+          className="no-scrollbar"
+        >
+          <style>{`
+            .no-scrollbar::-webkit-scrollbar { display: none; }
+            .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+          `}</style>
+          {CATEGORIES.map((cat) => (
             <button
               key={cat.id}
               onClick={() => setFilter(cat.id)}
@@ -325,10 +342,15 @@ const StepModules = () => {
       {filteredModules.length > 0 ? (
         viewMode === 'grid' ? (
           <div
+            className="module-grid"
             style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
               gap: '18px',
+              /* Responsive grid via media queries in CSS */
+              /* Desktop: 3-4 columns */
+              /* Tablet: 2 columns */
+              /* Mobile: 1 column */
             }}
           >
             {filteredModules.map((m) => {

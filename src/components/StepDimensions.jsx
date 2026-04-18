@@ -3,11 +3,13 @@ import { WALL_TYPES } from '../data/config';
 import { useConfig } from '../store/ConfigContext';
 import { useToast } from './ToastProvider';
 import { Layout } from 'lucide-react';
+import { useResponsive } from '../hooks/useResponsive';
 
 const StepDimensions = () => {
   const { config, actions, derived } = useConfig();
   const { addToast } = useToast();
   const { wallType, width, height, width2, width3, depth } = config;
+  const { isMobile } = useResponsive();
   const canvasRef = useRef(null);
 
   useEffect(() => {
@@ -263,7 +265,12 @@ const StepDimensions = () => {
 
   return (
     <div
-      style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 32, alignItems: 'start' }}
+      style={{
+        display: 'grid',
+        gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(300px, 1fr))',
+        gap: 32,
+        alignItems: 'start',
+      }}
       className="animate-fade-in"
     >
       {/* Left: Controls */}

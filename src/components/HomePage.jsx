@@ -24,6 +24,8 @@ import SavedDesignsDrawer from './SavedDesignsDrawer';
 import { getConfigs } from '../utils/storage';
 import { useToast } from './ToastProvider';
 import ThemeToggle from './ThemeToggle';
+import { useResponsive } from '../hooks/useResponsive';
+import MobileNav from './MobileNav';
 
 /* ── tiny helpers ── */
 const Tag = ({ children }) => (
@@ -673,6 +675,7 @@ const EnhancedHomePage = ({ onStart, activeConfigId, setActiveConfigId, onLaunch
   const [scrolled, setScrolled] = useState(false);
   const [savedDrawerOpen, setSavedDrawerOpen] = useState(false);
   const [savedCount, setSavedCount] = useState(() => getConfigs().length);
+  const { isMobile } = useResponsive();
 
   // Refresh count whenever drawer closes
   const handleDrawerClose = () => {
@@ -709,11 +712,20 @@ const EnhancedHomePage = ({ onStart, activeConfigId, setActiveConfigId, onLaunch
           position: 'relative',
         }}
       >
+        {isMobile && (
+          <MobileNav
+            user={user}
+            onLogout={logout}
+            onBack={() => {}}
+            onSavedDesigns={() => setSavedDrawerOpen(true)}
+          />
+        )}
         {/* ── Dynamic Background Slider ── */}
         <BackgroundSlider images={BACKGROUND_IMAGES} />
 
         {/* ── Sticky Navbar ── */}
         <nav
+          className="no-print desktop-nav"
           style={{
             position: 'sticky',
             top: 0,
@@ -723,7 +735,7 @@ const EnhancedHomePage = ({ onStart, activeConfigId, setActiveConfigId, onLaunch
             boxShadow: scrolled ? 'var(--shadow-sm)' : 'none',
             padding: '0 48px',
             height: 64,
-            display: 'flex',
+            display: isMobile ? 'none' : 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             transition: 'all 0.2s',

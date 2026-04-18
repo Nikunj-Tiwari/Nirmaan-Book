@@ -3,11 +3,13 @@ import { HANDLES, LIGHTING, ACCESSORIES } from '../data/config';
 import { useConfig } from '../store/ConfigContext';
 import { useToast } from './ToastProvider';
 import { Check } from 'lucide-react';
+import { useResponsive } from '../hooks/useResponsive';
 
 const StepHardware = () => {
   const { config, actions } = useConfig();
   const { addToast } = useToast();
   const { handle, lighting, selectedAccessories } = config;
+  const { isMobile } = useResponsive();
 
   const optionCard = (item, isSelected, onClick) => (
     <button
@@ -70,7 +72,7 @@ const StepHardware = () => {
 
   return (
     <div
-      style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32 }}
+      style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 32 }}
       className="animate-fade-in"
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
@@ -94,7 +96,13 @@ const StepHardware = () => {
         {/* Handles */}
         <div>
           <div className="section-title">Handles</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+              gap: 10,
+            }}
+          >
             {HANDLES.map((h) =>
               optionCard(h, handle.name === h.name, () => {
                 actions.setFinish('handle', h);
@@ -107,7 +115,13 @@ const StepHardware = () => {
         {/* Lighting */}
         <div>
           <div className="section-title">Lighting</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
+              gap: 10,
+            }}
+          >
             {LIGHTING.map((l) =>
               optionCard(l, lighting.name === l.name, () => {
                 actions.setFinish('lighting', l);

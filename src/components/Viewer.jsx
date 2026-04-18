@@ -1,108 +1,38 @@
 import React from 'react';
 import { useConfig } from '../store/ConfigContext';
-import { Zap } from 'lucide-react';
+import Viewer3D from './Viewer3D';
 
 export const Viewer = () => {
   const { config, derived } = useConfig();
-  const { material } = config;
-  const { totalModules } = derived;
+  const { modulesList } = derived;
+  const { colour, width, height, depth } = config;
 
   return (
     <div
+      className="viewer-outer-container"
       style={{
         flex: 1,
         background: '#ffffff',
-        borderRadius: 10,
+        borderRadius: 12,
         border: '1px solid #e5e7eb',
         display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
+        alignItems: 'stretch',
+        justifyContent: 'stretch',
         position: 'relative',
         overflow: 'hidden',
-        minHeight: 450,
+        minHeight: 500,
+        width: '100%',
+        height: '100%',
+        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05)',
       }}
     >
-      {/* Subtle background grid */}
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          backgroundImage: `
-            linear-gradient(#f1f3f5 1px, transparent 1px),
-            linear-gradient(90deg, #f1f3f5 1px, transparent 1px)
-          `,
-          backgroundSize: '40px 40px',
-          opacity: 0.5,
-          pointerEvents: 'none',
-        }}
+      <Viewer3D
+        modules={modulesList}
+        material={colour} // Current app uses 'colour' for the visual finish
+        roomWidth={width}
+        roomHeight={height}
+        roomDepth={depth}
       />
-
-      {/* Content */}
-      <div
-        style={{
-          textAlign: 'center',
-          zIndex: 2,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 16,
-        }}
-      >
-        <div
-          style={{
-            width: 64,
-            height: 64,
-            borderRadius: 12,
-            background: '#eff6ff',
-            border: '2px solid #bfdbfe',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#3b82f6',
-          }}
-        >
-          <Zap size={32} />
-        </div>
-
-        <div>
-          <h3
-            style={{
-              fontSize: 16,
-              fontWeight: 700,
-              color: '#1a1a1a',
-              marginBottom: 6,
-            }}
-          >
-            3D Preview Coming Soon
-          </h3>
-          <p
-            style={{
-              fontSize: 13,
-              color: '#6b7280',
-              maxWidth: 280,
-            }}
-          >
-            Real-time 3D visualization of your wardrobe configuration coming in the next update.
-          </p>
-        </div>
-
-        {totalModules > 0 && (
-          <div
-            style={{
-              marginTop: 12,
-              padding: '12px 16px',
-              background: '#f3f4f6',
-              border: '1px solid #e5e7eb',
-              borderRadius: 8,
-              fontSize: 12,
-              color: '#6b7280',
-              fontWeight: 500,
-            }}
-          >
-            {totalModules} module{totalModules !== 1 ? 's' : ''} • {material?.name}
-          </div>
-        )}
-      </div>
     </div>
   );
 };

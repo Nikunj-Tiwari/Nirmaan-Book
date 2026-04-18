@@ -144,6 +144,7 @@ const Toast = ({ id, message, type, onRemove }) => {
 const ToastContainer = ({ toasts, onRemove }) => {
   return (
     <div
+      className="toast-container"
       style={{
         position: 'fixed',
         bottom: 24,
@@ -168,6 +169,14 @@ const ToastContainer = ({ toasts, onRemove }) => {
           to {
             transform: translateX(0);
             opacity: 1;
+          }
+        }
+        @media (max-width: 767px) {
+          .toast-container {
+            bottom: 110px !important;
+            right: 16px !important;
+            left: 16px !important;
+            max-width: none !important;
           }
         }
       `}</style>

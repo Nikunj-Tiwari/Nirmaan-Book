@@ -12,6 +12,7 @@ import {
   Bookmark,
   RefreshCw,
 } from 'lucide-react';
+import { useResponsive } from '../hooks/useResponsive';
 import { useConfig } from '../store/ConfigContext';
 import { handlePrint, generatePDF, exportQuoteJSON, exportTextSummary } from '../utils/export';
 import { saveConfig, updateConfig, getConfigs, clearDraft } from '../utils/storage';
@@ -102,6 +103,7 @@ const ActionButton = ({
    ══════════════════════════════════════════ */
 const StepBOQ = ({ activeConfigId, setActiveConfigId, onRefreshCount }) => {
   const { config, derived } = useConfig();
+  const { isMobile } = useResponsive();
   const { valuation } = derived;
   const printRef = useRef(null);
   const { addToast } = useToast();
@@ -645,7 +647,7 @@ const StepBOQ = ({ activeConfigId, setActiveConfigId, onRefreshCount }) => {
           {/* ── Bottom cards ── */}
           <div
             className="print-cards-grid"
-            style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}
+            style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}
           >
             {/* Technical Notes */}
             <div
