@@ -197,7 +197,7 @@ const StepDimensions = () => {
     );
   };
 
-  const sliderCard = (label, key, min, max, step, value, unit, hint) => (
+  const sliderCard = (label, key, min, max, step, value, unit) => (
     <div
       style={{
         background: 'var(--bg-secondary)',
@@ -252,10 +252,7 @@ const StepDimensions = () => {
           fontWeight: 500,
         }}
       >
-        <span>
-          {min} {unit}
-        </span>
-        {hint && <span style={{ color: 'var(--accent)', fontWeight: 600 }}>{hint}</span>}
+        <span>{min}</span>
         <span>
           {max} {unit}
         </span>
@@ -274,23 +271,20 @@ const StepDimensions = () => {
       className="animate-fade-in"
     >
       {/* Left: Controls */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
         {/* Section label */}
         <div>
           <h2
             style={{
-              fontSize: 20,
+              fontSize: 18,
               fontWeight: 700,
               letterSpacing: '-0.03em',
               color: 'var(--text-primary)',
-              marginBottom: 4,
+              marginBottom: 0,
             }}
           >
-            Room Setup
+            Choose Layout
           </h2>
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-            Choose layout and set your dimensions
-          </p>
         </div>
 
         {/* Layout Type */}
@@ -372,82 +366,23 @@ const StepDimensions = () => {
         {sliderCard('Internal Depth', 'depth', 300, 1200, 50, depth, 'mm', null)}
       </div>
 
-      {/* Right: Blueprint Preview */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <div>
-          <h2
-            style={{
-              fontSize: 20,
-              fontWeight: 700,
-              letterSpacing: '-0.03em',
-              color: 'var(--text-primary)',
-              marginBottom: 4,
-            }}
-          >
-            Layout Preview
-          </h2>
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-            Live preview of your configuration
-          </p>
-        </div>
-
-        <div
-          style={{
-            background: 'var(--bg-secondary)',
-            border: '1px solid var(--border)',
-            borderRadius: 12,
-            overflow: 'hidden',
-            boxShadow: 'var(--shadow-sm)',
-            aspectRatio: '4/3',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
+      {/* Right: Preview */}
+      {!isMobile && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <canvas
             ref={canvasRef}
-            width={800}
-            height={600}
-            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+            width={400}
+            height={300}
+            style={{
+              background: '#f7f8fa',
+              borderRadius: 12,
+              border: '1px solid var(--border)',
+              maxWidth: '100%',
+              boxShadow: 'var(--shadow-xs)',
+            }}
           />
         </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          {[
-            { label: 'Total Capacity', value: `${derived.totalCapacity} mm` },
-            { label: 'Sections', value: `${Math.floor(derived.totalCapacity / 600)} units` },
-            {
-              label: 'Area',
-              value: `${(((derived.totalCapacity * height) / 1e6) * 10.764).toFixed(1)} sqft`,
-            },
-          ].map((stat) => (
-            <div key={stat.label} className="stat-card">
-              <div
-                style={{
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: 'var(--text-muted)',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.06em',
-                  marginBottom: 6,
-                }}
-              >
-                {stat.label}
-              </div>
-              <div
-                style={{
-                  fontSize: 20,
-                  fontWeight: 700,
-                  color: 'var(--text-primary)',
-                  letterSpacing: '-0.03em',
-                }}
-              >
-                {stat.value}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      )}
     </div>
   );
 };

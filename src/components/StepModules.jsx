@@ -59,144 +59,18 @@ const StepModules = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }} className="animate-fade-in">
-      {/* Header row */}
-      <div
+      {/* Header */}
+      <h2
         style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          gap: 20,
-          flexWrap: 'wrap',
+          fontSize: 20,
+          fontWeight: 700,
+          letterSpacing: '-0.03em',
+          color: 'var(--text-primary)',
+          marginBottom: 0,
         }}
       >
-        <div>
-          <h2
-            style={{
-              fontSize: 20,
-              fontWeight: 700,
-              letterSpacing: '-0.03em',
-              color: 'var(--text-primary)',
-              marginBottom: 4,
-            }}
-          >
-            Choose Modules
-          </h2>
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-            Select the components for your wardrobe
-          </p>
-        </div>
-
-        {/* Capacity bar */}
-        <div
-          style={{
-            background: 'var(--bg-secondary)',
-            border: '1px solid var(--border)',
-            borderRadius: 10,
-            padding: '14px 18px',
-            minWidth: 240,
-            boxShadow: 'var(--shadow-xs)',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: 8,
-            }}
-          >
-            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>
-              Space Available
-            </span>
-            <span
-              style={{
-                fontSize: 15,
-                fontWeight: 700,
-                color: !validation.isValid ? 'var(--danger)' : 'var(--text-primary)',
-                letterSpacing: '-0.02em',
-              }}
-            >
-              {remainingWidth} mm
-            </span>
-          </div>
-          <div
-            style={{
-              height: 6,
-              background: 'var(--bg-tertiary)',
-              borderRadius: 99,
-              overflow: 'hidden',
-            }}
-          >
-            <div
-              style={{
-                height: '100%',
-                width: `${Math.min(validation.percentUsed, 100)}%`,
-                background: !validation.isValid ? 'var(--danger)' : 'var(--accent)',
-                borderRadius: 99,
-                transition: 'width 0.4s ease',
-              }}
-            />
-          </div>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              marginTop: 6,
-              fontSize: 11,
-              color: 'var(--text-muted)',
-            }}
-          >
-            <span>{usedWidth} mm used</span>
-            <span>{Math.round(validation.percentUsed)}%</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Search Input */}
-      <div
-        style={{
-          position: 'relative',
-          maxWidth: 400,
-        }}
-      >
-        <Search
-          size={16}
-          style={{
-            position: 'absolute',
-            left: 12,
-            top: '50%',
-            transform: 'translateY(-50%)',
-            color: 'var(--text-muted)',
-            pointerEvents: 'none',
-          }}
-        />
-        <input
-          type="text"
-          placeholder="Search modules by name or ID..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          style={{
-            width: '100%',
-            padding: '10px 12px 10px 38px',
-            borderRadius: 9,
-            border: '1px solid var(--border)',
-            background: 'var(--bg-secondary)',
-            fontSize: 13,
-            fontFamily: 'var(--font-sans)',
-            color: 'var(--text-primary)',
-            outline: 'none',
-            transition: 'all 0.15s',
-          }}
-          onFocus={(e) => {
-            e.currentTarget.style.borderColor = 'var(--accent)';
-            e.currentTarget.style.boxShadow = '0 0 0 3px var(--accent-light)';
-          }}
-          onBlur={(e) => {
-            e.currentTarget.style.borderColor = 'var(--border)';
-            e.currentTarget.style.boxShadow = 'none';
-          }}
-        />
-      </div>
+        Choose Modules
+      </h2>
 
       {/* Filter pills + View Toggle */}
       <div

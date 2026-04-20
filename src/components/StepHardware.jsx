@@ -72,7 +72,7 @@ const StepHardware = () => {
 
   return (
     <div
-      style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 32 }}
+      style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr', gap: 32 }}
       className="animate-fade-in"
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
@@ -83,14 +83,11 @@ const StepHardware = () => {
               fontWeight: 700,
               letterSpacing: '-0.03em',
               color: 'var(--text-primary)',
-              marginBottom: 4,
+              marginBottom: 24,
             }}
           >
             Hardware & Lighting
           </h2>
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-            Choose handles and lighting for your wardrobe
-          </p>
         </div>
 
         {/* Handles */}
@@ -141,14 +138,11 @@ const StepHardware = () => {
               fontWeight: 700,
               letterSpacing: '-0.03em',
               color: 'var(--text-primary)',
-              marginBottom: 4,
+              marginBottom: 24,
             }}
           >
             Accessories
           </h2>
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-            Add internal accessories to your wardrobe
-          </p>
         </div>
 
         <div>

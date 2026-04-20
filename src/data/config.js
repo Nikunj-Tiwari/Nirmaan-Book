@@ -102,10 +102,11 @@ export const ACCESSORIES = [
 ];
 
 export const STEPS = [
-  { id: 1, title: 'Entrance Studio', sub: 'Linear Entry & Branding' },
-  { id: 2, title: 'Project Geometry', sub: 'Space & Module Configuration' },
-  { id: 3, title: 'Aesthetic Palette', sub: 'Finishes & Hardware Selection' },
-  { id: 4, title: 'Summary Report', sub: 'Final Valuation & BOQ' },
+  { id: 1, title: 'Dimensions', sub: 'Set your wall type and size' },
+  { id: 2, title: 'Select Modules', sub: 'Choose wardrobe components' },
+  { id: 3, title: 'Materials', sub: 'Pick finishes and colours' },
+  { id: 4, title: 'Hardware', sub: 'Choose handles and accessories' },
+  { id: 5, title: 'Summary', sub: 'Review and finalize' },
 ];
 
 export const WALL_TYPES = [

@@ -32,3 +32,9 @@ dist-ssr
 .eslintcache
 .stylelintcache
 .npm
+
+# Firebase
+.firebase/
+
+# Local Archives
+Archive/
