@@ -64,6 +64,7 @@ export function Viewer3D({
   roomWidth,
   roomHeight = 2400,
   roomDepth = 600,
+  darkMode = false,
 }) {
   const { actions } = useConfig();
   const [viewPreset, setViewPreset] = useState('perspective');
@@ -83,7 +84,7 @@ export function Viewer3D({
         height: '100%',
         minHeight: 450,
         position: 'relative',
-        background: '#f8fafc',
+        background: darkMode ? '#1a1a1a' : '#f8fafc',
       }}
     >
       <Canvas
@@ -137,11 +138,13 @@ export function Viewer3D({
           position: 'absolute',
           top: 20,
           left: 20,
-          background: 'rgba(255, 255, 255, 0.9)',
+          background: darkMode ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.9)',
           backdropFilter: 'blur(10px)',
           padding: '12px 16px',
           borderRadius: 14,
-          border: '1px solid rgba(226, 232, 240, 0.8)',
+          border: darkMode
+            ? '1px solid rgba(255, 255, 255, 0.1)'
+            : '1px solid rgba(226, 232, 240, 0.8)',
           boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
           pointerEvents: 'none',
           zIndex: 10,
@@ -159,11 +162,18 @@ export function Viewer3D({
         >
           Live Interactive 3D
         </div>
-        <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a' }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: darkMode ? '#ffffff' : '#0f172a' }}>
           {modules.length} {modules.length === 1 ? 'Module' : 'Modules'} Configured
         </div>
         {hoveredModule && (
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 4, fontWeight: 600 }}>
+          <div
+            style={{
+              fontSize: 11,
+              color: darkMode ? '#cbd5e1' : '#64748b',
+              marginTop: 4,
+              fontWeight: 600,
+            }}
+          >
             Hovering: {hoveredModule.name}
           </div>
         )}
@@ -183,14 +193,16 @@ export function Viewer3D({
       >
         <div
           style={{
-            background: 'rgba(255, 255, 255, 0.9)',
+            background: darkMode ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.9)',
             padding: 6,
             borderRadius: 12,
             display: 'flex',
             flexDirection: 'column',
             gap: 4,
-            border: '1px solid rgba(226, 232, 240, 0.8)',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+            border: darkMode
+              ? '1px solid rgba(255, 255, 255, 0.1)'
+              : '1px solid rgba(226, 232, 240, 0.8)',
+            boxShadow: darkMode ? '0 4px 12px rgba(0,0,0,0.3)' : '0 4px 12px rgba(0,0,0,0.05)',
           }}
         >
           {['perspective', 'front', 'side', 'top'].map((preset) => (
@@ -202,7 +214,7 @@ export function Viewer3D({
                 borderRadius: 8,
                 border: 'none',
                 background: viewPreset === preset ? '#3b82f6' : 'transparent',
-                color: viewPreset === preset ? 'white' : '#64748b',
+                color: viewPreset === preset ? 'white' : darkMode ? '#94a3b8' : '#64748b',
                 fontSize: 11,
                 fontWeight: 700,
                 textTransform: 'capitalize',
@@ -222,12 +234,14 @@ export function Viewer3D({
           position: 'absolute',
           bottom: 24,
           right: 24,
-          background: 'rgba(255, 255, 255, 0.95)',
+          background: darkMode ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.95)',
           backdropFilter: 'blur(10px)',
           padding: '12px',
           borderRadius: 16,
-          border: '1px solid rgba(226, 232, 240, 0.8)',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+          border: darkMode
+            ? '1px solid rgba(255, 255, 255, 0.1)'
+            : '1px solid rgba(226, 232, 240, 0.8)',
+          boxShadow: darkMode ? '0 8px 32px rgba(0,0,0,0.3)' : '0 8px 32px rgba(0,0,0,0.1)',
           zIndex: 10,
           maxWidth: 320,
         }}
@@ -236,7 +250,7 @@ export function Viewer3D({
           style={{
             fontSize: 10,
             fontWeight: 800,
-            color: '#64748b',
+            color: darkMode ? '#cbd5e1' : '#64748b',
             textTransform: 'uppercase',
             letterSpacing: '0.05em',
             marginBottom: 10,
@@ -256,7 +270,12 @@ export function Viewer3D({
                 height: 32,
                 borderRadius: '50%',
                 background: swatch.hex,
-                border: material?.name === swatch.name ? '3px solid #3b82f6' : '2px solid white',
+                border:
+                  material?.name === swatch.name
+                    ? '3px solid #3b82f6'
+                    : darkMode
+                      ? '2px solid rgba(255, 255, 255, 0.2)'
+                      : '2px solid white',
                 boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
                 cursor: 'pointer',
                 padding: 0,

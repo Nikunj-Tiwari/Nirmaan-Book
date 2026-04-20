@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../store/AuthContext';
 import { Layers, Eye, EyeOff, ArrowRight, Check } from 'lucide-react';
 
 const LoginPage = () => {
   const { login, register } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Where to send user after login
+  const from = location.state?.from?.pathname || '/';
 
   const [isRegister, setIsRegister] = useState(false);
   const [name, setName] = useState('');
@@ -27,7 +31,7 @@ const LoginPage = () => {
     setLoading(false);
 
     if (result.ok) {
-      navigate('/');
+      navigate(from, { replace: true });
     } else {
       // User-friendly error mapping
       const msg = result.error.includes('auth/invalid-credential')

@@ -1,24 +1,40 @@
 import React, { useState } from 'react';
 import { X, Layers, Check, FileText } from 'lucide-react';
 import { useAuth } from '../store/AuthContext';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useStepGuard } from '../hooks/useStepGuard';
 
 export const MobileSidebar = ({
   isOpen,
   onClose,
-  currentStep,
-  canNavigateTo,
-  goToStep,
   valuation,
   totalModules,
   config,
   derived,
   user,
 }) => {
-  const steps = [
-    { id: 1, title: 'Dimensions & Modules' },
-    { id: 2, title: 'Finishes & Hardware' },
-    { id: 3, title: 'Quote & Export' },
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { canNavigateTo } = useStepGuard();
+
+  const STEP_ROUTES = [
+    { id: 1, path: '/configure/dimensions', title: 'Dimensions' },
+    { id: 2, path: '/configure/modules', title: 'Modules' },
+    { id: 3, path: '/configure/materials', title: 'Materials' },
+    { id: 4, path: '/configure/hardware', title: 'Hardware' },
+    { id: 5, path: '/configure/summary', title: 'Summary' },
   ];
+
+  // Derive current step from URL
+  const currentStep = STEP_ROUTES.find((s) => s.path === location.pathname)?.id || 1;
+
+  const goToStep = (stepId) => {
+    const route = STEP_ROUTES.find((s) => s.id === stepId);
+    if (route) {
+      navigate(route.path);
+      onClose();
+    }
+  };
 
   return (
     <>
@@ -107,7 +123,7 @@ export const MobileSidebar = ({
               Steps
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {steps.map((step) => {
+              {STEP_ROUTES.map((step) => {
                 const isLocked = !canNavigateTo(step.id);
                 const isActive = currentStep === step.id;
                 const isDone = currentStep > step.id;

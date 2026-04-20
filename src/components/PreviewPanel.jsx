@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Maximize2, Box } from 'lucide-react';
 import { useConfig } from '../store/ConfigContext';
 import FullscreenPreviewModal from './FullscreenPreviewModal';
+import Viewer3D from './Viewer3D';
 
 /**
  * PreviewPanel Component
@@ -59,8 +60,9 @@ const PreviewPanel = ({ currentStep }) => {
     }
 
     // Draw simple cabinet outline
+    // Draw cabinet skeleton
     const padding = 30;
-    const scale = 0.5; // Scale down for preview
+    const scale = 0.5;
     const width = Math.min(config.width * scale, cw - padding * 2);
     const height = Math.min(config.height * scale, ch - padding * 2);
     const x = (cw - width) / 2;
@@ -69,24 +71,75 @@ const PreviewPanel = ({ currentStep }) => {
     // Cabinet body
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(x, y, width, height);
-    ctx.strokeStyle = '#3b82f6';
+    ctx.strokeStyle = '#2563eb';
     ctx.lineWidth = 2;
     ctx.strokeRect(x, y, width, height);
 
-    // Module slots indicator
-    if (Object.values(config.modules).some((qty) => qty > 0)) {
-      ctx.fillStyle = '#dbeafe';
-      ctx.font = '600 11px Inter, sans-serif';
-      ctx.fillStyle = '#3b82f6';
-      ctx.textAlign = 'center';
-      ctx.fillText(`${totalModules} module${totalModules !== 1 ? 's' : ''}`, cw / 2, y - 10);
+    // Render individual modules internally
+    const { modulesList } = derived;
+    if (modulesList.length > 0) {
+      const totalW = modulesList.reduce((sum, m) => sum + m.width, 0);
+      const scaleW = width / totalW;
+      let currentX = x;
+
+      modulesList.forEach((mod) => {
+        const modW = mod.width * scaleW;
+
+        // Module divider lines
+        ctx.strokeStyle = '#e2e8f0';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(currentX + modW, y);
+        ctx.lineTo(currentX + modW, y + height);
+        ctx.stroke();
+
+        // Type-specific internal layout indicators
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.lineWidth = 1;
+        const type = mod.type?.toLowerCase() || '';
+
+        if (type.includes('shelf')) {
+          // Draw 4 shelves
+          for (let i = 1; i <= 4; i++) {
+            const sY = y + (height / 5) * i;
+            ctx.beginPath();
+            ctx.moveTo(currentX + 2, sY);
+            ctx.lineTo(currentX + modW - 2, sY);
+            ctx.stroke();
+          }
+        } else if (type.includes('hanging')) {
+          // Draw rod
+          const rY = y + height * 0.15;
+          ctx.setLineDash([3, 3]);
+          ctx.beginPath();
+          ctx.moveTo(currentX + 4, rY);
+          ctx.lineTo(currentX + modW - 4, rY);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        } else if (type.includes('drawer')) {
+          // Draw drawer line at bottom
+          const dY = y + height * 0.75;
+          ctx.beginPath();
+          ctx.moveTo(currentX + 2, dY);
+          ctx.lineTo(currentX + modW - 2, dY);
+          ctx.stroke();
+        }
+
+        currentX += modW;
+      });
     }
 
-    // Dimensions label
-    ctx.fillStyle = '#6b7280';
-    ctx.font = '500 10px Inter, sans-serif';
+    // Dimensions labels
+    ctx.fillStyle = '#64748b';
+    ctx.font = '600 11px var(--font-sans)';
     ctx.textAlign = 'center';
-    ctx.fillText(`${config.width}W × ${config.height}H mm`, cw / 2, ch - 12);
+    ctx.fillText(`${config.width} mm`, cw / 2, y - 10);
+
+    ctx.save();
+    ctx.translate(x - 12, ch / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText(`${config.height} mm`, 0, 0);
+    ctx.restore();
   }, [viewMode, config, totalModules]);
 
   return (
@@ -237,9 +290,14 @@ const PreviewPanel = ({ currentStep }) => {
             }}
           >
             {totalModules > 0 ? (
-              <div style={{ width: '100%', height: '100%' }} id="preview-3d-container">
-                {/* Will be populated by FullscreenPreviewModal */}
-              </div>
+              <Viewer3D
+                modules={derived.modulesList}
+                material={config.material}
+                roomWidth={config.width}
+                roomHeight={config.height}
+                roomDepth={config.depth}
+                darkMode={true}
+              />
             ) : (
               <div
                 style={{

@@ -1,17 +1,22 @@
 import React from 'react';
-import { X } from 'lucide-react';
+import { X, GripVertical } from 'lucide-react';
 import Viewer3D from './Viewer3D';
 import FullscreenToolbar from './FullscreenToolbar';
 import { useConfig } from '../store/ConfigContext';
 
 /**
  * FullscreenPreviewModal
- * Fullscreen view with 70% viewer + 30% toolbar for live editing
+ * Fullscreen view with adjustable viewer + toolbar for live editing
  */
 const FullscreenPreviewModal = ({ currentStep, viewMode, setViewMode, onClose }) => {
   const { config, derived } = useConfig();
-  const { totalModules } = derived;
+  const { totalModules, modulesList } = derived;
   const canvasRef = React.useRef(null);
+  const containerRef = React.useRef(null);
+
+  // State for resizable toolbar width
+  const [toolbarWidth, setToolbarWidth] = React.useState(380);
+  const [isDragging, setIsDragging] = React.useState(false);
 
   // Draw 2D blueprint for fullscreen
   React.useEffect(() => {
@@ -57,6 +62,7 @@ const FullscreenPreviewModal = ({ currentStep, viewMode, setViewMode, onClose })
     }
 
     // Draw cabinet
+    // Draw cabinet skeleton
     const padding = 60;
     const scale = 1.2;
     const width = Math.min(config.width * scale, cw - padding * 2);
@@ -67,24 +73,110 @@ const FullscreenPreviewModal = ({ currentStep, viewMode, setViewMode, onClose })
     // Cabinet body
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(x, y, width, height);
-    ctx.strokeStyle = '#3b82f6';
+    ctx.strokeStyle = '#2563eb';
     ctx.lineWidth = 3;
     ctx.strokeRect(x, y, width, height);
 
-    // Module count
-    if (Object.values(config.modules).some((qty) => qty > 0)) {
-      ctx.fillStyle = '#3b82f6';
-      ctx.font = 'bold 16px Inter, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(`${totalModules} module${totalModules !== 1 ? 's' : ''}`, cw / 2, y - 20);
+    // Render individual modules internally
+    if (modulesList && modulesList.length > 0) {
+      const totalW = modulesList.reduce((sum, m) => sum + m.width, 0);
+      const scaleW = width / totalW;
+      let currentX = x;
+
+      modulesList.forEach((mod) => {
+        const modW = mod.width * scaleW;
+
+        // Module divider lines
+        ctx.strokeStyle = '#e2e8f0';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(currentX + modW, y);
+        ctx.lineTo(currentX + modW, y + height);
+        ctx.stroke();
+
+        // Type-specific internal layout indicators
+        ctx.strokeStyle = '#94a3b8';
+        ctx.lineWidth = 1.5;
+        const type = mod.type?.toLowerCase() || '';
+
+        if (type.includes('shelf')) {
+          for (let i = 1; i <= 4; i++) {
+            const sY = y + (height / 5) * i;
+            ctx.beginPath();
+            ctx.moveTo(currentX + 4, sY);
+            ctx.lineTo(currentX + modW - 4, sY);
+            ctx.stroke();
+          }
+        } else if (type.includes('hanging')) {
+          const rY = y + height * 0.15;
+          ctx.setLineDash([5, 5]);
+          ctx.beginPath();
+          ctx.moveTo(currentX + 8, rY);
+          ctx.lineTo(currentX + modW - 8, rY);
+          ctx.stroke();
+          ctx.setLineDash([]);
+        } else if (type.includes('drawer')) {
+          const dY = y + height * 0.75;
+          ctx.beginPath();
+          ctx.moveTo(currentX + 4, dY);
+          ctx.lineTo(currentX + modW - 4, dY);
+          ctx.stroke();
+        }
+
+        currentX += modW;
+      });
     }
 
-    // Dimensions
-    ctx.fillStyle = '#6b7280';
-    ctx.font = '600 14px Inter, sans-serif';
+    // Dimensions labels
+    ctx.fillStyle = '#475569';
+    ctx.font = 'bold 16px var(--font-display)';
     ctx.textAlign = 'center';
-    ctx.fillText(`${config.width}W × ${config.height}H × ${config.depth}D mm`, cw / 2, ch - 20);
-  }, [viewMode, config, totalModules]);
+    ctx.fillText(`${config.width} mm Width`, cw / 2, y - 25);
+
+    ctx.save();
+    ctx.translate(x - 30, ch / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText(`${config.height} mm Height`, 0, 0);
+    ctx.restore();
+  }, [viewMode, config, totalModules, modulesList]);
+
+  // Handle divider drag
+  const handleMouseDown = (e) => {
+    setIsDragging(true);
+    e.preventDefault();
+  };
+
+  React.useEffect(() => {
+    if (!isDragging) return;
+
+    const handleMouseMove = (e) => {
+      if (!containerRef.current) return;
+
+      const container = containerRef.current;
+      const containerRect = container.getBoundingClientRect();
+      const newToolbarWidth = containerRect.right - e.clientX;
+
+      // Min width: 280px, Max width: 60% of container
+      const minWidth = 280;
+      const maxWidth = containerRect.width * 0.6;
+
+      if (newToolbarWidth >= minWidth && newToolbarWidth <= maxWidth) {
+        setToolbarWidth(newToolbarWidth);
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging]);
 
   return (
     <div
@@ -202,8 +294,9 @@ const FullscreenPreviewModal = ({ currentStep, viewMode, setViewMode, onClose })
         </div>
       </div>
 
-      {/* Main Content: 70% Viewer + 30% Toolbar */}
+      {/* Main Content: Adjustable Viewer + Toolbar */}
       <div
+        ref={containerRef}
         style={{
           flex: 1,
           display: 'flex',
@@ -220,6 +313,7 @@ const FullscreenPreviewModal = ({ currentStep, viewMode, setViewMode, onClose })
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            border: '1px solid rgba(255, 255, 255, 0.15)',
           }}
         >
           {viewMode === '2d' ? (
@@ -236,7 +330,14 @@ const FullscreenPreviewModal = ({ currentStep, viewMode, setViewMode, onClose })
           ) : (
             <div style={{ width: '100%', height: '100%' }}>
               {totalModules > 0 ? (
-                <Viewer3D />
+                <Viewer3D
+                  modules={modulesList || []}
+                  material={config.material}
+                  roomWidth={config.width}
+                  roomHeight={config.height}
+                  roomDepth={config.depth}
+                  darkMode={true}
+                />
               ) : (
                 <div
                   style={{
@@ -257,20 +358,96 @@ const FullscreenPreviewModal = ({ currentStep, viewMode, setViewMode, onClose })
           )}
         </div>
 
-        {/* RIGHT: 30% - Toolbar */}
+        {/* Resizable Divider */}
+        <div
+          onMouseDown={handleMouseDown}
+          style={{
+            width: 4,
+            background: isDragging ? 'rgba(59, 130, 246, 0.6)' : 'rgba(255, 255, 255, 0.1)',
+            cursor: 'col-resize',
+            transition: isDragging ? 'none' : 'background 0.2s',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            userSelect: 'none',
+            flexShrink: 0,
+            '&:hover': {
+              background: 'rgba(59, 130, 246, 0.4)',
+            },
+          }}
+          onMouseEnter={(e) => {
+            if (!isDragging) {
+              e.currentTarget.style.background = 'rgba(59, 130, 246, 0.4)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!isDragging) {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+            }
+          }}
+          title="Drag to resize"
+        />
+
+        {/* RIGHT: Toolbar with dynamic width */}
         <div
           style={{
-            width: '30%',
-            minWidth: 320,
-            maxWidth: 400,
+            width: toolbarWidth,
+            minWidth: 280,
+            maxWidth: '60%',
             borderLeft: '1px solid rgba(255, 255, 255, 0.1)',
             background: 'rgba(0, 0, 0, 0.7)',
             overflowY: 'auto',
             display: 'flex',
             flexDirection: 'column',
+            flexShrink: 0,
           }}
         >
-          <FullscreenToolbar currentStep={currentStep} />
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            <FullscreenToolbar currentStep={currentStep} />
+          </div>
+
+          {/* Exit Button at Bottom */}
+          <div
+            style={{
+              padding: 20,
+              borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+              background: 'rgba(0, 0, 0, 0.5)',
+              flexShrink: 0,
+            }}
+          >
+            <button
+              onClick={onClose}
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                borderRadius: 8,
+                border: '1px solid rgba(239, 68, 68, 0.5)',
+                background: 'rgba(239, 68, 68, 0.1)',
+                color: 'rgba(239, 68, 68, 0.9)',
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+                fontFamily: 'var(--font-sans)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)';
+                e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.7)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
+                e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.5)';
+              }}
+              title="Exit fullscreen preview mode"
+            >
+              <span>←</span>
+              Exit Fullscreen
+            </button>
+          </div>
         </div>
       </div>
     </div>

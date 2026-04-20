@@ -22,6 +22,7 @@ import SavedDesignsDrawer from './components/SavedDesignsDrawer';
 import ThemeToggle from './components/ThemeToggle';
 import MobileNav from './components/MobileNav';
 import MobileSidebar from './components/MobileSidebar';
+import ProtectedRoute from './components/ProtectedRoute';
 
 // Global State
 import { useConfig } from './store/ConfigContext';
@@ -40,8 +41,10 @@ const DraftBanner = ({ draft, onResume, onDismiss }) => {
         margin: '0 0 24px',
         padding: '14px 18px',
         background: 'linear-gradient(135deg, #1e3a5f 0%, #162d48 100%)',
-        border: '1px solid #2d5a8e',
+        border: '1px solid var(--accent-border)',
         borderRadius: 12,
+        position: 'relative',
+        zIndex: 100,
         display: 'flex',
         alignItems: 'center',
         gap: 14,
@@ -323,51 +326,6 @@ const ConfiguratorApp = ({ setConfigured, activeConfigId, setActiveConfigId }) =
                 </div>
               ))}
             </nav>
-
-            {/* Live Price Tracker */}
-            <div
-              style={{
-                background: 'var(--accent-light)',
-                border: '1px solid var(--accent-border)',
-                borderRadius: 10,
-                padding: '14px 14px',
-                marginTop: 12,
-                marginBottom: 20,
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: 'var(--accent)',
-                  marginBottom: 6,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
-                }}
-              >
-                Total Price
-              </div>
-              <div
-                style={{
-                  fontSize: 20,
-                  fontWeight: 800,
-                  color: 'var(--accent)',
-                  letterSpacing: '-0.03em',
-                }}
-              >
-                ₹{valuation.total.toLocaleString()}
-              </div>
-              <div
-                style={{
-                  fontSize: 10,
-                  color: 'var(--accent)',
-                  marginTop: 4,
-                  opacity: 0.7,
-                }}
-              >
-                {totalModules} module{totalModules !== 1 ? 's' : ''} selected
-              </div>
-            </div>
 
             {/* Bottom section */}
             <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -818,11 +776,13 @@ const App = () => {
           path="/"
           element={
             configured ? (
-              <ConfiguratorApp
-                setConfigured={setConfigured}
-                activeConfigId={activeConfigId}
-                setActiveConfigId={setActiveConfigId}
-              />
+              <ProtectedRoute>
+                <ConfiguratorApp
+                  setConfigured={setConfigured}
+                  activeConfigId={activeConfigId}
+                  setActiveConfigId={setActiveConfigId}
+                />
+              </ProtectedRoute>
             ) : (
               <HomePage
                 onStart={() => setConfigured(true)}
@@ -837,11 +797,13 @@ const App = () => {
         <Route
           path="/configure/*"
           element={
-            <ConfiguratorApp
-              setConfigured={setConfigured}
-              activeConfigId={activeConfigId}
-              setActiveConfigId={setActiveConfigId}
-            />
+            <ProtectedRoute>
+              <ConfiguratorApp
+                setConfigured={setConfigured}
+                activeConfigId={activeConfigId}
+                setActiveConfigId={setActiveConfigId}
+              />
+            </ProtectedRoute>
           }
         />
         <Route path="*" element={<Navigate to="/" replace />} />
