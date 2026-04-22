@@ -69,7 +69,16 @@ export function ModuleMesh({ module, material, position, onHover }) {
   const innerD = Math.max(depth - pt * 2, depth * 0.92);
 
   const baseColor = material?.hex || '#F0EDE8';
-  const roughness = material?.roughness || 0.72;
+
+  // Dynamically adjust roughness based on finish type for realism
+  const finishType = (material?.sub || '').toLowerCase();
+  const baseRoughness = finishType.includes('textured')
+    ? 0.82
+    : finishType.includes('wood')
+      ? 0.45
+      : 0.72; // Default for solid
+
+  const roughness = material?.roughness || baseRoughness;
   const moduleType = (module.type || '').toLowerCase();
   const layout = module.layout || {};
 

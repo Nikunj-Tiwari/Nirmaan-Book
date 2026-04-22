@@ -238,7 +238,7 @@ const FullscreenPreviewModal = ({ currentStep, viewMode, setViewMode, onClose })
               {totalModules > 0 ? (
                 <Viewer3D
                   modules={modulesList || []}
-                  material={config.material}
+                  material={config.colour}
                   roomWidth={config.width}
                   roomHeight={config.height}
                   roomDepth={config.depth}
