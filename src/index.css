@@ -502,44 +502,47 @@ input[type='range'] {
   overflow: hidden;
   width: 100%;
   position: relative;
+  cursor: grab;
+}
+.marquee-wrapper:active {
+  cursor: grabbing;
 }
 
-/* Fade edges */
+/* Wider fade edges for a more premium look */
 .marquee-wrapper::before,
 .marquee-wrapper::after {
   content: '';
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 120px;
+  width: 160px;
   z-index: 2;
   pointer-events: none;
 }
 .marquee-wrapper::before {
   left: 0;
-  background: linear-gradient(to right, var(--bg-primary), transparent);
+  background: linear-gradient(to right, var(--bg-primary) 0%, transparent 100%);
 }
 .marquee-wrapper::after {
   right: 0;
-  background: linear-gradient(to left, var(--bg-primary), transparent);
+  background: linear-gradient(to left, var(--bg-primary) 0%, transparent 100%);
 }
 
 .marquee-track {
   display: flex;
-  gap: 16px;
+  gap: 18px;
   width: max-content;
   will-change: transform;
+  padding: 8px 0;
 }
 
+/* Single continuous left-scroll. translateX(-25%) = 1 of 4 copies */
 .marquee-track.scroll-left {
-  animation: marqueeLeft 40s linear infinite;
+  animation: marqueeLeft 55s linear infinite;
 }
 
-.marquee-track.scroll-right {
-  animation: marqueeRight 48s linear infinite;
-}
-
-.marquee-track:hover {
+.marquee-track:hover,
+.marquee-wrapper:hover .marquee-track {
   animation-play-state: paused;
 }
 
@@ -548,36 +551,32 @@ input[type='range'] {
     transform: translateX(0);
   }
   100% {
-    transform: translateX(-50%);
-  }
-}
-
-@keyframes marqueeRight {
-  0% {
-    transform: translateX(-50%);
-  }
-  100% {
-    transform: translateX(0);
+    transform: translateX(-25%);
   }
 }
 
 .marquee-img {
-  height: 220px;
+  height: 240px;
   width: auto;
-  border-radius: 12px;
+  border-radius: 14px;
   object-fit: cover;
   flex-shrink: 0;
   border: 1px solid var(--border);
   box-shadow: var(--shadow-sm);
   transition:
-    transform 0.3s ease,
-    box-shadow 0.3s ease;
+    transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.3s ease,
+    border-color 0.2s ease;
   cursor: pointer;
+  user-select: none;
 }
 
 .marquee-img:hover {
-  transform: scale(1.03) translateY(-3px);
-  box-shadow: var(--shadow-lg);
+  transform: scale(1.05) translateY(-5px);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.15);
+  border-color: var(--accent-border);
+  z-index: 3;
+  position: relative;
 }
 
 .print-only {

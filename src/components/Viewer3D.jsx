@@ -1,63 +1,114 @@
-import React, { Suspense, useMemo, useRef, useState, useEffect } from 'react';
-import { Canvas, useThree } from '@react-three/fiber';
-import { ContactShadows, OrbitControls, PerspectiveCamera, Environment } from '@react-three/drei';
+import React, { Suspense, useMemo, useRef, useState, useCallback } from 'react';
+import { Canvas, useThree, useFrame } from '@react-three/fiber';
+import { ContactShadows, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import RoomEnvironment from './three/RoomEnvironment';
 import WardrobeAssembly from './three/WardrobeAssembly';
-import { COLOURS } from '../data/config';
 import { useConfig } from '../store/ConfigContext';
 
-const mmToMeters = (value) => value / 1000;
+const mmToMeters = (v) => v / 1000;
 
-function CameraRig({ roomWidth, roomHeight, roomDepth, modules, viewPreset }) {
+// ─── View preset positions ────────────────────────────────────────────────────
+function getPresetPositions(modules, roomWidth, roomHeight, roomDepth) {
+  const totalW = modules.reduce((s, m) => s + m.width, 0);
+  const w = mmToMeters(totalW || roomWidth);
+  const h = mmToMeters(roomHeight);
+  const d = mmToMeters(roomDepth);
+
+  return {
+    center: new THREE.Vector3(0, h * 0.46, 0),
+    perspective: new THREE.Vector3(Math.max(w * 0.9, 1.8), h * 0.62, Math.max(d * 2.6, 3.2)),
+    front: new THREE.Vector3(0, h * 0.52, Math.max(d * 3.2, 3.8)),
+    side: new THREE.Vector3(Math.max(w * 2.4, 3.2), h * 0.5, 0.6),
+    top: new THREE.Vector3(0.01, Math.max(h * 2.8, 3.5), 0.02),
+  };
+}
+
+// ─── Smooth camera rig (lerps toward target every frame) ─────────────────────
+function CameraRig({ modules, roomWidth, roomHeight, roomDepth, viewPreset }) {
   const { camera, controls } = useThree();
+  const targetPos = useRef(new THREE.Vector3());
+  const targetLookAt = useRef(new THREE.Vector3());
+  const initialized = useRef(false);
 
-  // Calculate auto-fit parameters
-  const fitParams = useMemo(() => {
-    const totalW = modules.reduce((sum, mod) => sum + mod.width, 0);
-    const w = mmToMeters(totalW || roomWidth);
-    const h = mmToMeters(roomHeight);
-    const d = mmToMeters(roomDepth);
+  const presets = useMemo(
+    () => getPresetPositions(modules, roomWidth, roomHeight, roomDepth),
+    [modules, roomWidth, roomHeight, roomDepth]
+  );
 
-    return {
-      center: [0, h / 2, 0],
-      defaultPos: [Math.max(w * 0.8, 2), h * 0.6, Math.max(d * 2.5, 3)],
-      frontPos: [0, h / 2, Math.max(d * 3, 3.5)],
-      sidePos: [Math.max(w * 2, 3), h / 2, 0],
-      topPos: [0, Math.max(h * 3, 4), 0.01], // Slight offset to avoid gimbal lock
-    };
-  }, [roomWidth, roomHeight, roomDepth, modules]);
+  // Update targets whenever preset changes
+  React.useEffect(() => {
+    const pos = presets[viewPreset] || presets.perspective;
+    targetPos.current.copy(pos);
+    targetLookAt.current.copy(presets.center);
 
-  // Handle View Preset changes
-  useEffect(() => {
-    if (!camera || !fitParams) return;
-
-    let targetPos;
-    switch (viewPreset) {
-      case 'front':
-        targetPos = fitParams.frontPos;
-        break;
-      case 'side':
-        targetPos = fitParams.sidePos;
-        break;
-      case 'top':
-        targetPos = fitParams.topPos;
-        break;
-      default:
-        targetPos = fitParams.defaultPos;
+    if (!initialized.current) {
+      // Snap immediately on first render
+      camera.position.copy(pos);
+      if (controls) {
+        controls.target.copy(presets.center);
+        controls.update();
+      }
+      initialized.current = true;
     }
+  }, [viewPreset, presets, camera, controls]);
 
-    // Smooth transition could be added here, but direct set is more reliable without extra libs
-    camera.position.set(...targetPos);
+  useFrame(() => {
+    // Smoothly lerp camera to target (only when not being manually dragged)
+    const lerpFactor = 0.055;
+    camera.position.lerp(targetPos.current, lerpFactor);
+
     if (controls) {
-      controls.target.set(...fitParams.center);
+      controls.target.lerp(targetLookAt.current, lerpFactor);
       controls.update();
     }
-  }, [viewPreset, camera, controls, fitParams]);
+  });
 
   return null;
 }
 
+// ─── Loading spinner overlay ──────────────────────────────────────────────────
+function LoadingOverlay({ darkMode }) {
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        inset: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: darkMode ? '#111' : '#f8fafc',
+        zIndex: 8,
+      }}
+    >
+      <div style={{ textAlign: 'center', color: darkMode ? '#94a3b8' : '#64748b' }}>
+        <div
+          style={{
+            width: 32,
+            height: 32,
+            border: '3px solid rgba(59,130,246,0.3)',
+            borderTop: '3px solid #3b82f6',
+            borderRadius: '50%',
+            animation: 'spin 0.8s linear infinite',
+            margin: '0 auto 10px',
+          }}
+        />
+        <div style={{ fontSize: 12, fontWeight: 600 }}>Building 3D model…</div>
+      </div>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
+
+// ─── View preset button ───────────────────────────────────────────────────────
+const VIEW_PRESETS = [
+  { id: 'perspective', label: '3D', icon: '◈' },
+  { id: 'front', label: 'Front', icon: '▭' },
+  { id: 'side', label: 'Side', icon: '▯' },
+  { id: 'top', label: 'Top', icon: '⊡' },
+];
+
+// ─── Main Viewer3D component ──────────────────────────────────────────────────
 export function Viewer3D({
   modules = [],
   material,
@@ -66,15 +117,11 @@ export function Viewer3D({
   roomDepth = 600,
   darkMode = false,
 }) {
-  const { actions } = useConfig();
   const [viewPreset, setViewPreset] = useState('perspective');
   const [hoveredModule, setHoveredModule] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  if (!modules) return null;
-
-  const handleColorSelect = (swatch) => {
-    actions.setFinish('colour', swatch);
-  };
+  const bgColor = darkMode ? '#0f1115' : '#f4f5f7';
 
   return (
     <div
@@ -82,42 +129,50 @@ export function Viewer3D({
       style={{
         width: '100%',
         height: '100%',
-        minHeight: 450,
         position: 'relative',
-        background: darkMode ? '#1a1a1a' : '#f8fafc',
+        background: bgColor,
+        borderRadius: 'inherit',
+        overflow: 'hidden',
       }}
     >
       <Canvas
         shadows
-        dpr={[1, 1.5]}
-        camera={{ position: [2, 1.5, 3], fov: 42 }}
+        dpr={[1, 2]}
+        camera={{ position: [2, 1.6, 3.2], fov: 40 }}
         gl={{
-          alpha: true,
+          alpha: false,
           antialias: true,
           stencil: false,
           depth: true,
           preserveDrawingBuffer: true,
+          toneMapping: THREE.ACESFilmicToneMapping,
+          toneMappingExposure: 0.95,
         }}
+        onCreated={() => setIsLoading(false)}
       >
+        <color attach="background" args={[bgColor]} />
+
         <CameraRig
+          modules={modules}
           roomWidth={roomWidth}
           roomHeight={roomHeight}
           roomDepth={roomDepth}
-          modules={modules}
           viewPreset={viewPreset}
         />
 
         <OrbitControls
           makeDefault
           enableDamping
-          dampingFactor={0.08}
-          maxDistance={10}
-          minDistance={0.5}
-          maxPolarAngle={Math.PI / 2.1}
+          dampingFactor={0.07}
+          maxDistance={12}
+          minDistance={0.4}
+          maxPolarAngle={Math.PI / 2.05}
+          enablePan={true}
         />
 
         <Suspense fallback={null}>
           <RoomEnvironment width={roomWidth || 2400} height={roomHeight} depth={roomDepth} />
+
           {modules.length > 0 && (
             <WardrobeAssembly
               modules={modules}
@@ -126,170 +181,147 @@ export function Viewer3D({
               onModuleHover={setHoveredModule}
             />
           )}
-          <ContactShadows position={[0, 0.01, 0]} opacity={0.3} scale={15} blur={2.5} far={4} />
+
+          <ContactShadows
+            position={[0, 0.005, 0]}
+            opacity={darkMode ? 0.45 : 0.28}
+            scale={14}
+            blur={2.2}
+            far={5}
+            color={darkMode ? '#000' : '#7a8090'}
+          />
         </Suspense>
       </Canvas>
 
-      {/* --- HUD OVERLAYS --- */}
+      {/* Loading overlay */}
+      {isLoading && <LoadingOverlay darkMode={darkMode} />}
 
-      {/* Top Left: Info */}
+      {/* ── HUD: Top-left info badge ─────────────────────────────────── */}
       <div
         style={{
           position: 'absolute',
-          top: 20,
-          left: 20,
-          background: darkMode ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.9)',
-          backdropFilter: 'blur(10px)',
-          padding: '12px 16px',
-          borderRadius: 14,
-          border: darkMode
-            ? '1px solid rgba(255, 255, 255, 0.1)'
-            : '1px solid rgba(226, 232, 240, 0.8)',
-          boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
+          top: 14,
+          left: 14,
+          background: darkMode ? 'rgba(15,17,21,0.75)' : 'rgba(255,255,255,0.88)',
+          backdropFilter: 'blur(12px)',
+          padding: '9px 14px',
+          borderRadius: 12,
+          border: darkMode ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(209,213,219,0.7)',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
           pointerEvents: 'none',
           zIndex: 10,
+          minWidth: 130,
         }}
       >
         <div
           style={{
-            fontSize: 10,
+            fontSize: 9,
             fontWeight: 800,
             color: '#3b82f6',
             textTransform: 'uppercase',
-            letterSpacing: '0.1em',
-            marginBottom: 4,
+            letterSpacing: '0.12em',
+            marginBottom: 3,
           }}
         >
-          Live Interactive 3D
+          Live 3D Preview
         </div>
-        <div style={{ fontSize: 15, fontWeight: 700, color: darkMode ? '#ffffff' : '#0f172a' }}>
-          {modules.length} {modules.length === 1 ? 'Module' : 'Modules'} Configured
+        <div
+          style={{
+            fontSize: 14,
+            fontWeight: 700,
+            color: darkMode ? '#f1f5f9' : '#0f172a',
+          }}
+        >
+          {modules.length === 0
+            ? 'No modules yet'
+            : `${modules.length} Module${modules.length !== 1 ? 's' : ''}`}
         </div>
         {hoveredModule && (
           <div
             style={{
-              fontSize: 11,
-              color: darkMode ? '#cbd5e1' : '#64748b',
-              marginTop: 4,
+              fontSize: 10,
+              color: '#3b82f6',
+              marginTop: 3,
               fontWeight: 600,
+              maxWidth: 150,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
             }}
           >
-            Hovering: {hoveredModule.name}
+            ↗ {hoveredModule.id}
           </div>
         )}
       </div>
 
-      {/* Top Right: View Controls */}
+      {/* ── HUD: Top-right view controls ─────────────────────────────── */}
       <div
         style={{
           position: 'absolute',
-          top: 20,
-          right: 20,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 8,
+          top: 14,
+          right: 14,
           zIndex: 10,
         }}
       >
         <div
           style={{
-            background: darkMode ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.9)',
-            padding: 6,
+            background: darkMode ? 'rgba(15,17,21,0.75)' : 'rgba(255,255,255,0.88)',
+            backdropFilter: 'blur(12px)',
+            padding: '5px',
             borderRadius: 12,
             display: 'flex',
             flexDirection: 'column',
-            gap: 4,
+            gap: 3,
             border: darkMode
-              ? '1px solid rgba(255, 255, 255, 0.1)'
-              : '1px solid rgba(226, 232, 240, 0.8)',
-            boxShadow: darkMode ? '0 4px 12px rgba(0,0,0,0.3)' : '0 4px 12px rgba(0,0,0,0.05)',
+              ? '1px solid rgba(255,255,255,0.08)'
+              : '1px solid rgba(209,213,219,0.7)',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
           }}
         >
-          {['perspective', 'front', 'side', 'top'].map((preset) => (
+          {VIEW_PRESETS.map((p) => (
             <button
-              key={preset}
-              onClick={() => setViewPreset(preset)}
+              key={p.id}
+              onClick={() => setViewPreset(p.id)}
+              title={`Switch to ${p.label} view`}
               style={{
-                padding: '6px 12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '6px 10px',
                 borderRadius: 8,
                 border: 'none',
-                background: viewPreset === preset ? '#3b82f6' : 'transparent',
-                color: viewPreset === preset ? 'white' : darkMode ? '#94a3b8' : '#64748b',
+                background: viewPreset === p.id ? '#3b82f6' : 'transparent',
+                color: viewPreset === p.id ? '#fff' : darkMode ? '#94a3b8' : '#64748b',
                 fontSize: 11,
                 fontWeight: 700,
-                textTransform: 'capitalize',
                 cursor: 'pointer',
-                transition: 'all 0.2s ease',
+                transition: 'background 0.15s, color 0.15s',
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
+                whiteSpace: 'nowrap',
+              }}
+              onMouseEnter={(e) => {
+                if (viewPreset !== p.id) {
+                  e.currentTarget.style.background = darkMode
+                    ? 'rgba(59,130,246,0.18)'
+                    : 'rgba(59,130,246,0.08)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (viewPreset !== p.id) {
+                  e.currentTarget.style.background = 'transparent';
+                }
               }}
             >
-              {preset}
+              <span style={{ fontSize: 13 }}>{p.icon}</span>
+              {p.label}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Bottom Right: Color Selector Swatches */}
-      <div
-        style={{
-          position: 'absolute',
-          bottom: 24,
-          right: 24,
-          background: darkMode ? 'rgba(0, 0, 0, 0.7)' : 'rgba(255, 255, 255, 0.95)',
-          backdropFilter: 'blur(10px)',
-          padding: '12px',
-          borderRadius: 16,
-          border: darkMode
-            ? '1px solid rgba(255, 255, 255, 0.1)'
-            : '1px solid rgba(226, 232, 240, 0.8)',
-          boxShadow: darkMode ? '0 8px 32px rgba(0,0,0,0.3)' : '0 8px 32px rgba(0,0,0,0.1)',
-          zIndex: 10,
-          maxWidth: 320,
-        }}
-      >
-        <div
-          style={{
-            fontSize: 10,
-            fontWeight: 800,
-            color: darkMode ? '#cbd5e1' : '#64748b',
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-            marginBottom: 10,
-            textAlign: 'center',
-          }}
-        >
-          Quick Finish Swatches
-        </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
-          {COLOURS.map((swatch) => (
-            <button
-              key={swatch.name}
-              onClick={() => handleColorSelect(swatch)}
-              title={swatch.name}
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: '50%',
-                background: swatch.hex,
-                border:
-                  material?.name === swatch.name
-                    ? '3px solid #3b82f6'
-                    : darkMode
-                      ? '2px solid rgba(255, 255, 255, 0.2)'
-                      : '2px solid white',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                cursor: 'pointer',
-                padding: 0,
-                transition: 'transform 0.2s',
-              }}
-              onMouseEnter={(e) => (e.target.style.transform = 'scale(1.2)')}
-              onMouseLeave={(e) => (e.target.style.transform = 'scale(1)')}
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* Empty State Logic */}
-      {modules.length === 0 && (
+      {/* ── Empty state ───────────────────────────────────────────────── */}
+      {modules.length === 0 && !isLoading && (
         <div
           style={{
             position: 'absolute',
@@ -297,19 +329,18 @@ export function Viewer3D({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: 'rgba(248, 250, 252, 0.6)',
-            backdropFilter: 'blur(4px)',
-            zIndex: 5,
-            color: '#64748b',
-            fontSize: 14,
-            fontWeight: 600,
+            flexDirection: 'column',
+            gap: 10,
+            color: darkMode ? '#475569' : '#94a3b8',
             textAlign: 'center',
             padding: 40,
+            pointerEvents: 'none',
+            zIndex: 6,
           }}
         >
-          <div>
-            <div style={{ fontSize: 24, marginBottom: 12 }}>📐</div>
-            Add modules in Step 1 to begin visualization
+          <div style={{ fontSize: 38, opacity: 0.5 }}>📐</div>
+          <div style={{ fontSize: 13, fontWeight: 600 }}>
+            Add modules in Step 2 to see the 3D model
           </div>
         </div>
       )}

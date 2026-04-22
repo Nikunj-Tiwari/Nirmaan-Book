@@ -155,23 +155,24 @@ const ConfiguratorFlow = ({ activeConfigId, setActiveConfigId, onRefreshCount })
             </div>
           </div>
 
-          {/* RIGHT: Preview Panel (Sticky, Desktop Only) */}
+          {/* RIGHT: Preview Panel (Desktop Only) — fixed height, no sticky wrapper */}
           {!isMobile && (
             <div
               style={{
                 width: '35%',
                 minWidth: 320,
                 maxWidth: 450,
-                padding: '24px 20px',
-                overflowY: 'auto',
-                overflowX: 'hidden',
+                padding: '20px 16px',
                 background: 'var(--bg-primary)',
                 borderLeft: '1px solid var(--border)',
-                minHeight: 0,
                 flexShrink: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
               }}
             >
-              <div style={{ position: 'sticky', top: 20 }}>
+              {/* PreviewPanel fills the entire column height */}
+              <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
                 <PreviewPanel currentStep={currentStep} />
               </div>
             </div>

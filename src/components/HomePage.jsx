@@ -350,13 +350,14 @@ const ImageGallery = () => {
     'Wardrobe_Catalogue_Nirmanbook_20260408_170333[1]_page-0005.jpg',
   ];
 
-  // URL encode fixed strings for safety with [ ] characters
   const getPath = (name) => `/images/${name.replace('[', '%5B').replace(']', '%5D')}`;
+  // Quadruple for perfectly seamless loop at any viewport width
+  const loopImages = [...images, ...images, ...images, ...images];
 
   return (
     <div
       style={{
-        padding: '60px 0',
+        padding: '56px 0',
         borderTop: '1px solid var(--border)',
         background: 'var(--bg-primary)',
         overflow: 'hidden',
@@ -364,21 +365,41 @@ const ImageGallery = () => {
         zIndex: 2,
       }}
     >
-      <div
-        className="marquee-wrapper"
-        style={{ display: 'flex', flexDirection: 'column', gap: 20 }}
-      >
-        {/* Row 1 - Scroll Left */}
-        <div className="marquee-track scroll-left">
-          {[...images, ...images].map((img, idx) => (
-            <img key={idx} src={getPath(img)} className="marquee-img" alt="Wardrobe Design" />
-          ))}
+      {/* Section header */}
+      <div style={{ textAlign: 'center', marginBottom: 32, padding: '0 24px' }}>
+        <div
+          style={{
+            display: 'inline-block',
+            background: 'var(--accent-light)',
+            border: '1px solid var(--accent-border)',
+            borderRadius: 99,
+            padding: '4px 14px',
+            fontSize: 11,
+            fontWeight: 700,
+            color: 'var(--accent)',
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase',
+            marginBottom: 10,
+          }}
+        >
+          Design Catalogue
         </div>
+        <p style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 500 }}>
+          Hover to pause • Click to explore
+        </p>
+      </div>
 
-        {/* Row 2 - Scroll Right */}
-        <div className="marquee-track scroll-right">
-          {[...images, ...images].reverse().map((img, idx) => (
-            <img key={idx} src={getPath(img)} className="marquee-img" alt="Wardrobe Layout" />
+      {/* Single continuous marquee strip */}
+      <div className="marquee-wrapper" style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+        <div className="marquee-track scroll-left">
+          {loopImages.map((img, idx) => (
+            <img
+              key={idx}
+              src={getPath(img)}
+              className="marquee-img"
+              alt={`Wardrobe Design ${(idx % images.length) + 1}`}
+              loading="lazy"
+            />
           ))}
         </div>
       </div>
@@ -699,6 +720,11 @@ const EnhancedHomePage = ({ onStart, activeConfigId, setActiveConfigId, onLaunch
   }, []);
 
   const handleStart = () => {
+    if (!user) {
+      // Not logged in — redirect to login, then come back
+      navigate('/login', { state: { from: { pathname: '/' } } });
+      return;
+    }
     if (onStart) onStart();
   };
 

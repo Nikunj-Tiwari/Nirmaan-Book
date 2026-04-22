@@ -1,280 +1,201 @@
-import React from 'react';
-import { X, GripVertical } from 'lucide-react';
+import React, { useRef, useCallback, useEffect } from 'react';
+import { X } from 'lucide-react';
 import Viewer3D from './Viewer3D';
 import FullscreenToolbar from './FullscreenToolbar';
 import { useConfig } from '../store/ConfigContext';
+import { drawBlueprintLight } from '../utils/visuals';
 
 /**
  * FullscreenPreviewModal
- * Fullscreen view with adjustable viewer + toolbar for live editing
+ * Fullscreen 2-panel view: adjustable viewer (left) + live-edit toolbar (right).
  */
 const FullscreenPreviewModal = ({ currentStep, viewMode, setViewMode, onClose }) => {
   const { config, derived } = useConfig();
   const { totalModules, modulesList } = derived;
-  const canvasRef = React.useRef(null);
-  const containerRef = React.useRef(null);
 
-  // State for resizable toolbar width
+  const canvasRef = useRef(null);
+  const containerRef = useRef(null); // main flex container
+  const viewerRef = useRef(null); // left viewer area
+
   const [toolbarWidth, setToolbarWidth] = React.useState(380);
   const [isDragging, setIsDragging] = React.useState(false);
 
-  // Draw 2D blueprint for fullscreen
-  React.useEffect(() => {
-    if (viewMode !== '2d' || !canvasRef.current) return;
-
+  // ── Responsive canvas drawing ──────────────────────────────────────────
+  const draw = useCallback(() => {
     const canvas = canvasRef.current;
+    const viewer = viewerRef.current;
+    if (!canvas || !viewer || viewMode !== '2d') return;
+
+    const dpr = window.devicePixelRatio || 1;
+    const rect = viewer.getBoundingClientRect();
+    const cw = Math.floor(rect.width);
+    const ch = Math.floor(rect.height);
+    if (cw < 1 || ch < 1) return;
+
+    canvas.width = cw * dpr;
+    canvas.height = ch * dpr;
+    canvas.style.width = `${cw}px`;
+    canvas.style.height = `${ch}px`;
+
     const ctx = canvas.getContext('2d');
-    const cw = canvas.width;
-    const ch = canvas.height;
+    ctx.scale(dpr, dpr);
 
-    ctx.clearRect(0, 0, cw, ch);
+    drawBlueprintLight(ctx, cw, ch, config, modulesList);
+  }, [viewMode, config, modulesList]);
 
-    // Background
-    ctx.fillStyle = '#f7f8fa';
-    ctx.fillRect(0, 0, cw, ch);
+  useEffect(() => {
+    draw();
+  }, [draw]);
 
-    // Grid
-    ctx.strokeStyle = '#e5e7eb';
-    ctx.lineWidth = 0.5;
-    const gridSize = 32;
-    for (let x = 0; x < cw; x += gridSize) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, ch);
-      ctx.stroke();
-    }
-    for (let y = 0; y < ch; y += gridSize) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(cw, y);
-      ctx.stroke();
-    }
+  // Redraw on viewer area resize (also fires when toolbar is dragged)
+  useEffect(() => {
+    if (viewMode !== '2d') return;
+    const el = viewerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(draw);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [viewMode, draw]);
 
-    if (totalModules === 0) {
-      ctx.fillStyle = '#9ca3af';
-      ctx.font = 'bold 18px Inter, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('Add modules to preview', cw / 2, ch / 2 - 20);
-      ctx.font = '400 14px Inter, sans-serif';
-      ctx.fillStyle = '#d1d5db';
-      ctx.fillText('(dimensions visible after module selection)', cw / 2, ch / 2 + 20);
-      return;
-    }
-
-    // Draw cabinet
-    // Draw cabinet skeleton
-    const padding = 60;
-    const scale = 1.2;
-    const width = Math.min(config.width * scale, cw - padding * 2);
-    const height = Math.min(config.height * scale, ch - padding * 2);
-    const x = (cw - width) / 2;
-    const y = (ch - height) / 2;
-
-    // Cabinet body
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(x, y, width, height);
-    ctx.strokeStyle = '#2563eb';
-    ctx.lineWidth = 3;
-    ctx.strokeRect(x, y, width, height);
-
-    // Render individual modules internally
-    if (modulesList && modulesList.length > 0) {
-      const totalW = modulesList.reduce((sum, m) => sum + m.width, 0);
-      const scaleW = width / totalW;
-      let currentX = x;
-
-      modulesList.forEach((mod) => {
-        const modW = mod.width * scaleW;
-
-        // Module divider lines
-        ctx.strokeStyle = '#e2e8f0';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.moveTo(currentX + modW, y);
-        ctx.lineTo(currentX + modW, y + height);
-        ctx.stroke();
-
-        // Type-specific internal layout indicators
-        ctx.strokeStyle = '#94a3b8';
-        ctx.lineWidth = 1.5;
-        const type = mod.type?.toLowerCase() || '';
-
-        if (type.includes('shelf')) {
-          for (let i = 1; i <= 4; i++) {
-            const sY = y + (height / 5) * i;
-            ctx.beginPath();
-            ctx.moveTo(currentX + 4, sY);
-            ctx.lineTo(currentX + modW - 4, sY);
-            ctx.stroke();
-          }
-        } else if (type.includes('hanging')) {
-          const rY = y + height * 0.15;
-          ctx.setLineDash([5, 5]);
-          ctx.beginPath();
-          ctx.moveTo(currentX + 8, rY);
-          ctx.lineTo(currentX + modW - 8, rY);
-          ctx.stroke();
-          ctx.setLineDash([]);
-        } else if (type.includes('drawer')) {
-          const dY = y + height * 0.75;
-          ctx.beginPath();
-          ctx.moveTo(currentX + 4, dY);
-          ctx.lineTo(currentX + modW - 4, dY);
-          ctx.stroke();
-        }
-
-        currentX += modW;
-      });
-    }
-
-    // Dimensions labels
-    ctx.fillStyle = '#475569';
-    ctx.font = 'bold 16px var(--font-display)';
-    ctx.textAlign = 'center';
-    ctx.fillText(`${config.width} mm Width`, cw / 2, y - 25);
-
-    ctx.save();
-    ctx.translate(x - 30, ch / 2);
-    ctx.rotate(-Math.PI / 2);
-    ctx.fillText(`${config.height} mm Height`, 0, 0);
-    ctx.restore();
-  }, [viewMode, config, totalModules, modulesList]);
-
-  // Handle divider drag
+  // ── Divider drag logic ─────────────────────────────────────────────────
   const handleMouseDown = (e) => {
     setIsDragging(true);
     e.preventDefault();
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!isDragging) return;
 
     const handleMouseMove = (e) => {
-      if (!containerRef.current) return;
-
       const container = containerRef.current;
-      const containerRect = container.getBoundingClientRect();
-      const newToolbarWidth = containerRect.right - e.clientX;
-
-      // Min width: 280px, Max width: 60% of container
-      const minWidth = 280;
-      const maxWidth = containerRect.width * 0.6;
-
-      if (newToolbarWidth >= minWidth && newToolbarWidth <= maxWidth) {
-        setToolbarWidth(newToolbarWidth);
-      }
+      if (!container) return;
+      const rect = container.getBoundingClientRect();
+      const newWidth = rect.right - e.clientX;
+      const minW = 280;
+      const maxW = rect.width * 0.55;
+      if (newWidth >= minW && newWidth <= maxW) setToolbarWidth(newWidth);
     };
 
-    const handleMouseUp = () => {
-      setIsDragging(false);
-    };
+    const handleMouseUp = () => setIsDragging(false);
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('mouseup', handleMouseUp);
-
     return () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
   }, [isDragging]);
 
+  // ── Keyboard: Escape closes ───────────────────────────────────────────
+  useEffect(() => {
+    const handleKey = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [onClose]);
+
   return (
     <div
       style={{
         position: 'fixed',
         inset: 0,
-        background: 'rgba(0, 0, 0, 0.95)',
+        background: 'rgba(0,0,0,0.97)',
         zIndex: 9999,
         display: 'flex',
         flexDirection: 'column',
       }}
     >
-      {/* Top Bar */}
+      {/* ── Top chrome bar ───────────────────────────────────────────── */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '16px 24px',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-          background: 'rgba(0, 0, 0, 0.5)',
+          padding: '14px 20px',
+          borderBottom: '1px solid rgba(255,255,255,0.08)',
+          background: 'rgba(10,12,16,0.8)',
+          backdropFilter: 'blur(16px)',
+          flexShrink: 0,
         }}
       >
-        <h2
-          style={{
-            fontSize: 18,
-            fontWeight: 700,
-            color: 'white',
-            margin: 0,
-          }}
-        >
-          Live Preview Editor
-        </h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
+              background: '#3b82f6',
+              boxShadow: '0 0 8px rgba(59,130,246,0.6)',
+            }}
+          />
+          <h2 style={{ fontSize: 15, fontWeight: 700, color: '#f1f5f9', margin: 0 }}>
+            Fullscreen Preview
+          </h2>
+          {totalModules > 0 && (
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                color: '#64748b',
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+              }}
+            >
+              {totalModules} module{totalModules !== 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
 
-        {/* View Toggle */}
-        <div
-          style={{
-            display: 'flex',
-            gap: 8,
-            alignItems: 'center',
-          }}
-        >
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {/* 2D / 3D toggle */}
           <div
             style={{
               display: 'flex',
-              gap: 4,
-              background: 'rgba(255, 255, 255, 0.1)',
+              gap: 3,
+              background: 'rgba(255,255,255,0.07)',
               padding: 4,
-              borderRadius: 8,
-              border: '1px solid rgba(255, 255, 255, 0.2)',
+              borderRadius: 9,
+              border: '1px solid rgba(255,255,255,0.12)',
             }}
           >
-            <button
-              onClick={() => setViewMode('2d')}
-              style={{
-                padding: '8px 16px',
-                borderRadius: 6,
-                border: 'none',
-                background: viewMode === '2d' ? 'rgba(59, 130, 246, 0.9)' : 'transparent',
-                color: viewMode === '2d' ? 'white' : 'rgba(255, 255, 255, 0.6)',
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.15s',
-                fontFamily: 'var(--font-sans)',
-              }}
-            >
-              2D
-            </button>
-            <button
-              onClick={() => setViewMode('3d')}
-              style={{
-                padding: '8px 16px',
-                borderRadius: 6,
-                border: 'none',
-                background: viewMode === '3d' ? 'rgba(59, 130, 246, 0.9)' : 'transparent',
-                color: viewMode === '3d' ? 'white' : 'rgba(255, 255, 255, 0.6)',
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: 'pointer',
-                transition: 'all 0.15s',
-                fontFamily: 'var(--font-sans)',
-              }}
-            >
-              3D
-            </button>
+            {[
+              { id: '2d', label: '2D Blueprint' },
+              { id: '3d', label: '3D Model' },
+            ].map((m) => (
+              <button
+                key={m.id}
+                onClick={() => setViewMode(m.id)}
+                style={{
+                  padding: '7px 14px',
+                  borderRadius: 7,
+                  border: 'none',
+                  background: viewMode === m.id ? '#3b82f6' : 'transparent',
+                  color: viewMode === m.id ? '#fff' : 'rgba(255,255,255,0.45)',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                  fontFamily: 'var(--font-sans)',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {m.label}
+              </button>
+            ))}
           </div>
 
-          {/* Close Button */}
+          {/* Close */}
           <button
             onClick={onClose}
+            title="Close fullscreen (Esc)"
             style={{
-              width: 40,
-              height: 40,
+              width: 36,
+              height: 36,
               borderRadius: 8,
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              background: 'rgba(255, 255, 255, 0.1)',
-              color: 'white',
+              border: '1px solid rgba(255,255,255,0.15)',
+              background: 'rgba(255,255,255,0.07)',
+              color: 'rgba(255,255,255,0.7)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
@@ -282,51 +203,36 @@ const FullscreenPreviewModal = ({ currentStep, viewMode, setViewMode, onClose })
               transition: 'all 0.15s',
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+              e.currentTarget.style.background = 'rgba(239,68,68,0.2)';
+              e.currentTarget.style.color = '#f87171';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+              e.currentTarget.style.background = 'rgba(255,255,255,0.07)';
+              e.currentTarget.style.color = 'rgba(255,255,255,0.7)';
             }}
-            title="Close fullscreen"
           >
-            <X size={18} />
+            <X size={16} />
           </button>
         </div>
       </div>
 
-      {/* Main Content: Adjustable Viewer + Toolbar */}
-      <div
-        ref={containerRef}
-        style={{
-          flex: 1,
-          display: 'flex',
-          overflow: 'hidden',
-          gap: 0,
-        }}
-      >
-        {/* LEFT: 70% - Viewer */}
+      {/* ── Body: Viewer + Toolbar ───────────────────────────────────── */}
+      <div ref={containerRef} style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+        {/* Left: viewer */}
         <div
+          ref={viewerRef}
           style={{
             flex: 1,
             overflow: 'hidden',
-            background: '#1a1a1a',
+            background: viewMode === '2d' ? '#f4f5f7' : '#0f1115',
+            position: 'relative',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            border: '1px solid rgba(255, 255, 255, 0.15)',
           }}
         >
           {viewMode === '2d' ? (
-            <canvas
-              ref={canvasRef}
-              width={1200}
-              height={800}
-              style={{
-                maxWidth: '100%',
-                maxHeight: '100%',
-                display: 'block',
-              }}
-            />
+            <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, display: 'block' }} />
           ) : (
             <div style={{ width: '100%', height: '100%' }}>
               {totalModules > 0 ? (
@@ -346,57 +252,75 @@ const FullscreenPreviewModal = ({ currentStep, viewMode, setViewMode, onClose })
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: 'rgba(255, 255, 255, 0.3)',
-                    fontSize: 18,
-                    textAlign: 'center',
+                    flexDirection: 'column',
+                    gap: 12,
+                    color: 'rgba(255,255,255,0.2)',
                   }}
                 >
-                  <div>Add modules to view 3D model</div>
+                  <div style={{ fontSize: 40 }}>📦</div>
+                  <div style={{ fontSize: 14, fontWeight: 500 }}>
+                    Add modules to see the 3D model
+                  </div>
                 </div>
               )}
             </div>
           )}
         </div>
 
-        {/* Resizable Divider */}
+        {/* Drag divider */}
         <div
           onMouseDown={handleMouseDown}
           style={{
-            width: 4,
-            background: isDragging ? 'rgba(59, 130, 246, 0.6)' : 'rgba(255, 255, 255, 0.1)',
+            width: 5,
+            background: isDragging ? 'rgba(59,130,246,0.7)' : 'rgba(255,255,255,0.07)',
             cursor: 'col-resize',
             transition: isDragging ? 'none' : 'background 0.2s',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            userSelect: 'none',
             flexShrink: 0,
-            '&:hover': {
-              background: 'rgba(59, 130, 246, 0.4)',
-            },
+            position: 'relative',
           }}
           onMouseEnter={(e) => {
-            if (!isDragging) {
-              e.currentTarget.style.background = 'rgba(59, 130, 246, 0.4)';
-            }
+            if (!isDragging) e.currentTarget.style.background = 'rgba(59,130,246,0.4)';
           }}
           onMouseLeave={(e) => {
-            if (!isDragging) {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
-            }
+            if (!isDragging) e.currentTarget.style.background = 'rgba(255,255,255,0.07)';
           }}
-          title="Drag to resize"
-        />
+        >
+          {/* Centre grip dots */}
+          <div
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 4,
+              pointerEvents: 'none',
+            }}
+          >
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                style={{
+                  width: 3,
+                  height: 3,
+                  borderRadius: '50%',
+                  background: 'rgba(255,255,255,0.25)',
+                }}
+              />
+            ))}
+          </div>
+        </div>
 
-        {/* RIGHT: Toolbar with dynamic width */}
+        {/* Right: toolbar */}
         <div
           style={{
             width: toolbarWidth,
             minWidth: 280,
-            maxWidth: '60%',
-            borderLeft: '1px solid rgba(255, 255, 255, 0.1)',
-            background: 'rgba(0, 0, 0, 0.7)',
-            overflowY: 'auto',
+            maxWidth: '55%',
+            background: 'rgba(6,8,14,0.85)',
+            backdropFilter: 'blur(12px)',
+            borderLeft: '1px solid rgba(255,255,255,0.07)',
             display: 'flex',
             flexDirection: 'column',
             flexShrink: 0,
@@ -406,12 +330,11 @@ const FullscreenPreviewModal = ({ currentStep, viewMode, setViewMode, onClose })
             <FullscreenToolbar currentStep={currentStep} />
           </div>
 
-          {/* Exit Button at Bottom */}
+          {/* Close at bottom of toolbar */}
           <div
             style={{
-              padding: 20,
-              borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-              background: 'rgba(0, 0, 0, 0.5)',
+              padding: 16,
+              borderTop: '1px solid rgba(255,255,255,0.07)',
               flexShrink: 0,
             }}
           >
@@ -419,12 +342,12 @@ const FullscreenPreviewModal = ({ currentStep, viewMode, setViewMode, onClose })
               onClick={onClose}
               style={{
                 width: '100%',
-                padding: '12px 16px',
+                padding: '11px 16px',
                 borderRadius: 8,
-                border: '1px solid rgba(239, 68, 68, 0.5)',
-                background: 'rgba(239, 68, 68, 0.1)',
-                color: 'rgba(239, 68, 68, 0.9)',
-                fontSize: 13,
+                border: '1px solid rgba(239,68,68,0.4)',
+                background: 'rgba(239,68,68,0.08)',
+                color: 'rgba(239,68,68,0.85)',
+                fontSize: 12,
                 fontWeight: 600,
                 cursor: 'pointer',
                 transition: 'all 0.15s',
@@ -435,17 +358,15 @@ const FullscreenPreviewModal = ({ currentStep, viewMode, setViewMode, onClose })
                 gap: 8,
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)';
-                e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.7)';
+                e.currentTarget.style.background = 'rgba(239,68,68,0.18)';
+                e.currentTarget.style.borderColor = 'rgba(239,68,68,0.7)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)';
-                e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.5)';
+                e.currentTarget.style.background = 'rgba(239,68,68,0.08)';
+                e.currentTarget.style.borderColor = 'rgba(239,68,68,0.4)';
               }}
-              title="Exit fullscreen preview mode"
             >
-              <span>←</span>
-              Exit Fullscreen
+              ← Exit Fullscreen
             </button>
           </div>
         </div>
