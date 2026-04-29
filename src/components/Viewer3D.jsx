@@ -193,6 +193,7 @@ export function Viewer3D({
   const { actions, config } = useConfig();
   const [viewPreset, setViewPreset] = useState('perspective');
   const [hoveredModule, setHoveredModule] = useState(null);
+  const [selectedModule, setSelectedModule] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showWallPanel, setShowWallPanel] = useState(false);
   const orbitRef = useRef();
@@ -205,6 +206,21 @@ export function Viewer3D({
     setViewPreset('_reset_' + Date.now()); // force re-effect
     setTimeout(() => setViewPreset('perspective'), 50);
   }, []);
+
+  const handleRotate = () => {
+    if (!selectedModule) return;
+    const currentRot = selectedModule.rotation || 0;
+    const nextRot = (currentRot + 90) % 360;
+    actions.setModuleOverride(selectedModule.wallKey, 'rotation', nextRot);
+    // Update local selection to reflect state change immediately
+    setSelectedModule({ ...selectedModule, rotation: nextRot });
+  };
+
+  const handleWallChange = (newWall) => {
+    if (!selectedModule) return;
+    actions.setModuleWall(selectedModule.wallKey, newWall);
+    setSelectedModule({ ...selectedModule, wall: newWall });
+  };
 
   const bgColor = '#0d1117';
 
@@ -260,11 +276,11 @@ export function Viewer3D({
           ref={orbitRef}
           makeDefault
           enableDamping
-          dampingFactor={0.07}
-          maxDistance={18}
-          minDistance={0.4}
+          dampingFactor={0.05}
+          maxDistance={15}
+          minDistance={0.01}
           minPolarAngle={0}
-          maxPolarAngle={Math.PI / 1.9}
+          maxPolarAngle={Math.PI} // Full freedom
           enablePan={true}
           target={[0, 1.1, 0.3]}
         />
@@ -292,6 +308,7 @@ export function Viewer3D({
                 width3,
               }}
               onModuleHover={setHoveredModule}
+              onModuleClick={setSelectedModule}
             />
           )}
 
@@ -484,6 +501,174 @@ export function Viewer3D({
           </button>
         </div>
       </div>
+
+      {/* ── CENTER-RIGHT: Module Inspector ────────────────────────────── */}
+      {selectedModule && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '50%',
+            right: 12,
+            transform: 'translateY(-50%)',
+            ...glass,
+            padding: '16px',
+            width: 200,
+            zIndex: 100,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 12,
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div
+              style={{ fontSize: 11, fontWeight: 800, color: '#3b82f6', letterSpacing: '0.1em' }}
+            >
+              MODULE SETTINGS
+            </div>
+            <button
+              onClick={() => setSelectedModule(null)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: 'rgba(255,255,255,0.4)',
+                cursor: 'pointer',
+                padding: 4,
+              }}
+            >
+              ✕
+            </button>
+          </div>
+
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'white', marginBottom: 2 }}>
+              {selectedModule.id}
+            </div>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>
+              {selectedModule.width}x{selectedModule.height}x{selectedModule.depth}mm
+            </div>
+          </div>
+
+          <div style={{ height: 1, background: 'rgba(255,255,255,0.08)' }} />
+
+          {/* Rotation Control */}
+          <div>
+            <div
+              style={{
+                fontSize: 10,
+                fontWeight: 600,
+                color: 'rgba(255,255,255,0.6)',
+                marginBottom: 8,
+              }}
+            >
+              ORIENTATION
+            </div>
+            <button
+              onClick={handleRotate}
+              style={{
+                width: '100%',
+                padding: '8px',
+                borderRadius: 8,
+                background: 'rgba(59,130,246,0.15)',
+                border: '1px solid rgba(59,130,246,0.3)',
+                color: '#60a5fa',
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(59,130,246,0.25)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(59,130,246,0.15)')}
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M23 4v6h-6" />
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+              </svg>
+              Rotate 90°
+              <span style={{ opacity: 0.5 }}>({selectedModule.rotation || 0}°)</span>
+            </button>
+          </div>
+
+          {/* Wall Control */}
+          {isMultiWall && (
+            <div>
+              <div
+                style={{
+                  fontSize: 10,
+                  fontWeight: 600,
+                  color: 'rgba(255,255,255,0.6)',
+                  marginBottom: 8,
+                }}
+              >
+                ASSIGN TO WALL
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 4 }}>
+                {availableWalls.map((w) => {
+                  const isActive = (selectedModule.wall || 'A') === w;
+                  return (
+                    <button
+                      key={w}
+                      onClick={() => handleWallChange(w)}
+                      style={{
+                        padding: '6px',
+                        borderRadius: 6,
+                        border: isActive ? '1px solid #3b82f6' : '1px solid rgba(255,255,255,0.1)',
+                        background: isActive ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.05)',
+                        color: isActive ? '#60a5fa' : 'rgba(255,255,255,0.4)',
+                        fontSize: 11,
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {w}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          <div style={{ height: 1, background: 'rgba(255,255,255,0.08)' }} />
+
+          <button
+            onClick={() => actions.setModuleQty(selectedModule.id, -1)}
+            style={{
+              width: '100%',
+              padding: '8px',
+              borderRadius: 8,
+              background: 'transparent',
+              border: '1px solid rgba(239,68,68,0.2)',
+              color: '#f87171',
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.15s',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(239,68,68,0.1)';
+              e.currentTarget.style.borderColor = 'rgba(239,68,68,0.4)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'transparent';
+              e.currentTarget.style.borderColor = 'rgba(239,68,68,0.2)';
+            }}
+          >
+            Remove Module
+          </button>
+        </div>
+      )}
 
       {/* ── BOTTOM: Wall Assignment Panel (L/U shape only) ─────────────── */}
       {isMultiWall && modules.length > 0 && (

@@ -19,7 +19,13 @@ const mm = (v) => v / 1000;
  * Wall B (left):  rotated +90°Y, running along +Z from the left corner
  * Wall C (right): rotated -90°Y, running along +Z from the right corner
  */
-export function WardrobeAssembly({ modules, material, roomDimensions, onModuleHover }) {
+export function WardrobeAssembly({
+  modules,
+  material,
+  roomDimensions,
+  onModuleHover,
+  onModuleClick,
+}) {
   const {
     width = 2400,
     height = 2400,
@@ -38,56 +44,44 @@ export function WardrobeAssembly({ modules, material, roomDimensions, onModuleHo
     if (!modules || modules.length === 0) return { wallA: [], wallB: [], wallC: [] };
 
     const modsA = modules.filter((m) => !m.wall || m.wall === 'A');
-    const modsB = isMulti ? modules.filter((m) => m.wall === 'B') : [];
+    const modsB = wallType !== 'single' ? modules.filter((m) => m.wall === 'B') : [];
     const modsC = wallType === 'u-shape' ? modules.filter((m) => m.wall === 'C') : [];
 
-    // Layout a row of modules along X, centered at 0
-    const layoutRow = (mods) => {
-      const totalW = mods.reduce((s, m) => s + m.width, 0);
+    // Wall A: Centered at x=0, runs along X
+    const layoutA = (mods) => {
+      const totalW = mods.reduce((s, m) => s + (m.width || 600), 0);
       let cursor = -mm(totalW) / 2;
       return mods.map((mod, i) => {
-        const halfW = mm(mod.width) / 2;
+        const mmWidth = mm(mod.width || 600);
+        const halfW = mmWidth / 2;
         const xCenter = cursor + halfW;
-        cursor += mm(mod.width);
-        return { module: mod, xCenter, key: mod.wallKey || `${mod.id}-${i}` };
+        cursor += mmWidth;
+        return { module: mod, xCenter, key: mod.wallKey || `A-${mod.id}-${i}` };
       });
     };
 
-    return { wallA: layoutRow(modsA), wallB: layoutRow(modsB), wallC: layoutRow(modsC) };
-  }, [modules, isMulti, wallType]);
+    // Wall B & C: Start from corner (z=0) and run forward towards camera (+Z)
+    const layoutPerp = (mods, prefix) => {
+      let cursor = 0;
+      return mods.map((mod, i) => {
+        const mmWidth = mm(mod.width || 600);
+        const halfW = mmWidth / 2;
+        const zCenter = cursor + halfW;
+        cursor += mmWidth;
+        return { module: mod, zCenter, key: mod.wallKey || `${prefix}-${mod.id}-${i}` };
+      });
+    };
 
-  /**
-   * ModuleMesh local convention (unchanged):
-   *   - Width centred on local X=0
-   *   - Height bottom at Y=0, top at Y=height
-   *   - Depth centred on Z=0 (back panel at z=-depth/2, front face at z=+depth/2)
-   *
-   * To place Wall A with FRONT FACE toward camera (+Z):
-   *   position = [xCenter, 0, +depthM/2]
-   *   (back panel sits at z=0, front face at z=+depthM — facing the camera)
-   *
-   * To place Wall B modules (left side, perpendicular):
-   *   After rotation [0, +PI/2, 0]:
-   *     local X → world -Z (width runs away from back wall toward camera)
-   *     local Z → world +X (depth runs toward the left side wall)
-   *   position:
-   *     x = -(widthAM/2) - depthM/2  => places back of module flush against left side wall
-   *     z = -xCenter                  => distributes modules along Z (away from corner)
-   *                                      Note: xCenter is negative at the start (left end)
-   *                                      so -xCenter is positive = toward camera. Good.
-   *
-   * Wall C (right side):
-   *   After rotation [0, -PI/2, 0]:
-   *     local X → world +Z
-   *     local Z → world -X
-   *   position:
-   *     x = +(widthAM/2) + depthM/2
-   *     z = -xCenter  (same logic)
-   */
+    return {
+      wallA: layoutA(modsA),
+      wallB: layoutPerp(modsB, 'B'),
+      wallC: layoutPerp(modsC, 'C'),
+    };
+  }, [modules, wallType, depthM]);
 
   return (
     <group>
-      {/* ── Wall A — back wall, interior faces camera ─────────────────── */}
+      {/* ── Wall A — Main back wall ───────────────────────────────────── */}
       <group>
         {wallA.map(({ module, xCenter, key }) => (
           <ModuleMesh
@@ -95,44 +89,54 @@ export function WardrobeAssembly({ modules, material, roomDimensions, onModuleHo
             material={material}
             module={module}
             position={[xCenter, 0, depthM / 2]}
+            rotationY={(module.rotation || 0) * (Math.PI / 180)}
             onHover={onModuleHover}
+            onClick={onModuleClick}
           />
         ))}
       </group>
 
-      {/* ── Wall B — left perpendicular, runs along +Z into room ──────── */}
+      {/* ── Wall B — Left side wall ───────────────────────────────────── */}
       {wallB.length > 0 && (
         <group>
-          {wallB.map(({ module, xCenter, key }) => (
-            <ModuleMesh
-              key={key}
-              material={material}
-              module={module}
-              position={[
-                -(widthAM / 2) - depthM / 2, // flush against left side wall
-                0,
-                -xCenter, // distribute along Z (into room)
-              ]}
-              rotation={[0, Math.PI / 2, 0]}
-              onHover={onModuleHover}
-            />
-          ))}
+          {wallB.map(({ module, zCenter, key }) => {
+            // Face inwards towards center
+            const baseRot = Math.PI / 2;
+            const extraRot = (module.rotation || 0) * (Math.PI / 180);
+            return (
+              <ModuleMesh
+                key={key}
+                material={material}
+                module={module}
+                position={[-(widthAM / 2) + depthM / 2, 0, zCenter]}
+                rotationY={baseRot + extraRot}
+                onHover={onModuleHover}
+                onClick={onModuleClick}
+              />
+            );
+          })}
         </group>
       )}
 
-      {/* ── Wall C — right perpendicular, runs along +Z into room ─────── */}
+      {/* ── Wall C — Right side wall ──────────────────────────────────── */}
       {wallC.length > 0 && (
         <group>
-          {wallC.map(({ module, xCenter, key }) => (
-            <ModuleMesh
-              key={key}
-              material={material}
-              module={module}
-              position={[widthAM / 2 + depthM / 2, 0, -xCenter]}
-              rotation={[0, -Math.PI / 2, 0]}
-              onHover={onModuleHover}
-            />
-          ))}
+          {wallC.map(({ module, zCenter, key }) => {
+            // Face inwards towards center
+            const baseRot = -Math.PI / 2;
+            const extraRot = (module.rotation || 0) * (Math.PI / 180);
+            return (
+              <ModuleMesh
+                key={key}
+                material={material}
+                module={module}
+                position={[widthAM / 2 - depthM / 2, 0, zCenter]}
+                rotationY={baseRot + extraRot}
+                onHover={onModuleHover}
+                onClick={onModuleClick}
+              />
+            );
+          })}
         </group>
       )}
     </group>

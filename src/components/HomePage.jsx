@@ -1525,31 +1525,32 @@ const EnhancedHomePage = ({ onStart, activeConfigId, setActiveConfigId, onLaunch
           }}
         >
           <div style={{ textAlign: 'center', marginBottom: 52 }}>
-            <Tag>Why NirmanBook?</Tag>
+            <Tag>Features & Benefits</Tag>
             <h2
               style={{
-                fontSize: 'clamp(28px, 4vw, 40px)',
+                fontSize: 'clamp(32px, 5vw, 48px)',
                 fontWeight: 800,
                 letterSpacing: '-0.04em',
                 color: '#ffffff',
                 marginTop: 16,
-                marginBottom: 12,
-                textShadow: '0 2px 8px rgba(0,0,0,0.4)',
+                marginBottom: 16,
+                textShadow: '0 2px 12px rgba(0,0,0,0.4)',
               }}
             >
-              Everything your design workflow needs
+              Why Nirmanbook?
             </h2>
             <p
               style={{
-                fontSize: 15,
+                fontSize: 16,
                 color: '#f0f0f0',
-                maxWidth: 500,
+                maxWidth: 600,
                 margin: '0 auto',
                 lineHeight: 1.6,
                 textShadow: '0 1px 4px rgba(0,0,0,0.5)',
+                opacity: 0.9,
               }}
             >
-              From first measurement to final quote — designed for speed and accuracy.
+              Experience the future of wardrobe design with our end-to-end professional platform.
             </p>
           </div>
 
@@ -1582,7 +1583,7 @@ const EnhancedHomePage = ({ onStart, activeConfigId, setActiveConfigId, onLaunch
             />
             <FeatureCard
               icon={<Star size={20} />}
-              title="Manufactured from state of the art machineries"
+              title="Manufactured from state of the art machineries."
               desc="High precision and quality guaranteed through our advanced manufacturing processes."
             />
           </div>

@@ -82,14 +82,16 @@ export const getDerivedState = (config) => {
 
   // Flat list for visualization/bom — each entry carries wallKey + wall assignment
   const moduleWalls = config.moduleWalls || {};
+  const moduleOverrides = config.moduleOverrides || {};
   const modulesList = [];
   Object.entries(config.modules).forEach(([id, qty]) => {
     const mod = MODULES.find((m) => m.id === id);
     if (mod) {
       for (let i = 0; i < qty; i++) {
         const wallKey = `${id}:${i}`;
-        const wall = moduleWalls[wallKey] || 'A'; // default to main wall
-        modulesList.push({ ...mod, wallKey, wall });
+        const wall = moduleWalls[wallKey] || 'A';
+        const overrides = moduleOverrides[wallKey] || {};
+        modulesList.push({ ...mod, wallKey, wall, ...overrides });
       }
     }
   });

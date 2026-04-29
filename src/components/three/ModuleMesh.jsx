@@ -58,7 +58,7 @@ function Door({ color, roughness, x, yCenter, w, h, depth }) {
   );
 }
 
-export function ModuleMesh({ module, material, position, onHover }) {
+export function ModuleMesh({ module, material, position, rotationY = 0, onHover, onClick }) {
   const [hovered, setHovered] = React.useState(false);
 
   const width = mmToMeters(module.width);
@@ -162,6 +162,7 @@ export function ModuleMesh({ module, material, position, onHover }) {
     return (
       <group
         position={position}
+        rotation-y={rotationY}
         onPointerOver={(e) => {
           e.stopPropagation();
           setHovered(true);
@@ -170,6 +171,10 @@ export function ModuleMesh({ module, material, position, onHover }) {
         onPointerOut={() => {
           setHovered(false);
           onHover?.(null);
+        }}
+        onPointerDown={(e) => {
+          e.stopPropagation();
+          onClick?.(module);
         }}
       >
         {/* Left arm — horizontal */}
@@ -221,6 +226,7 @@ export function ModuleMesh({ module, material, position, onHover }) {
   return (
     <group
       position={position}
+      rotation-y={rotationY}
       onPointerOver={(e) => {
         e.stopPropagation();
         setHovered(true);
@@ -229,6 +235,10 @@ export function ModuleMesh({ module, material, position, onHover }) {
       onPointerOut={() => {
         setHovered(false);
         onHover?.(null);
+      }}
+      onPointerDown={(e) => {
+        e.stopPropagation();
+        onClick?.(module);
       }}
     >
       {/* ── Carcass ────────────────────────────────────────────────── */}

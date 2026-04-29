@@ -29,6 +29,8 @@ const initialState = {
   // moduleWalls: maps "moduleId:instanceIndex" -> 'A' | 'B' | 'C'
   // 'A' = main/center wall, 'B' = left wall, 'C' = right wall
   moduleWalls: {},
+  // moduleOverrides: maps "moduleId:instanceIndex" -> { rotation: 0|90|180|270, ... }
+  moduleOverrides: {},
   colour: COLOURS[0],
   material: MATERIALS[0],
   fascia: 'Akila',
@@ -69,6 +71,13 @@ function configReducer(state, action) {
         newWalls[wallKey] = wall;
       }
       return { ...state, moduleWalls: newWalls };
+    }
+    case 'SET_MODULE_OVERRIDE': {
+      const { wallKey, key, value } = action.payload;
+      const newOverrides = { ...state.moduleOverrides };
+      const current = newOverrides[wallKey] || {};
+      newOverrides[wallKey] = { ...current, [key]: value };
+      return { ...state, moduleOverrides: newOverrides };
     }
     case 'TOGGLE_ACCESSORY': {
       const newAccessories = new Set(state.selectedAccessories);
@@ -124,6 +133,8 @@ export const ConfigProvider = ({ children }) => {
     setModuleQty: (id, delta) => dispatch({ type: 'UPDATE_MODULE_QTY', payload: { id, delta } }),
     setModuleWall: (wallKey, wall) =>
       dispatch({ type: 'SET_MODULE_WALL', payload: { wallKey, wall } }),
+    setModuleOverride: (wallKey, key, value) =>
+      dispatch({ type: 'SET_MODULE_OVERRIDE', payload: { wallKey, key, value } }),
     toggleAccessory: (id) => dispatch({ type: 'TOGGLE_ACCESSORY', payload: { id } }),
     reset: () => dispatch({ type: 'RESET_CONFIG' }),
     loadConfig: (data) => dispatch({ type: 'LOAD_CONFIG', payload: dataToConfig(data) }),

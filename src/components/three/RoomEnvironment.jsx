@@ -39,8 +39,8 @@ export function RoomEnvironment({ width, height, depth, wallType, width2 = 0, wi
   const wallCenterZ = roomD / 2;
 
   // Left edge of total wardrobe (for placing left side wall)
-  const leftEdge = isU ? -(w / 2 + w2) : isL ? -(w / 2 + w2) : -w / 2;
-  const rightEdge = isU ? w / 2 + w3 : w / 2;
+  const leftEdge = -w / 2;
+  const rightEdge = w / 2;
 
   // Floor material — warm oak wood tone
   const floorColor = '#c8b89a';
@@ -158,30 +158,30 @@ export function RoomEnvironment({ width, height, depth, wallType, width2 = 0, wi
       </mesh>
 
       {/* ── L-SHAPE: extra left side wall behind Wall B ───────────────── */}
-      {(isL || isU) && w2 > 0 && (
+      {(isL || isU) && (
         <>
-          {/* The left side wall that Wall B modules back onto */}
-          <mesh receiveShadow position={[-(w / 2 + w2) - 0.03, h / 2, d * 0.5]}>
-            <boxGeometry args={[0.06, roomH + 0.1, d + 0.3]} />
+          {/* The left side wall that Wall B modules back onto (at -w/2) */}
+          <mesh receiveShadow position={[-(w / 2) - 0.03, h / 2, (d + w2) * 0.5]}>
+            <boxGeometry args={[0.06, roomH + 0.1, d + w2 + 0.3]} />
             <meshStandardMaterial color={wallColor} roughness={wallRoughness} />
           </mesh>
           {/* Baseboard */}
-          <mesh position={[-(w / 2 + w2 - bt / 2), bh / 2, d * 0.5]}>
-            <boxGeometry args={[bt, bh, d + 0.3]} />
+          <mesh position={[-(w / 2 - bt / 2), bh / 2, (d + w2) * 0.5]}>
+            <boxGeometry args={[bt, bh, d + w2 + 0.3]} />
             <meshStandardMaterial color="#e8e3db" roughness={0.75} />
           </mesh>
         </>
       )}
 
       {/* ── U-SHAPE: extra right side wall behind Wall C ──────────────── */}
-      {isU && w3 > 0 && (
+      {isU && (
         <>
-          <mesh receiveShadow position={[w / 2 + w3 + 0.03, h / 2, d * 0.5]}>
-            <boxGeometry args={[0.06, roomH + 0.1, d + 0.3]} />
+          <mesh receiveShadow position={[w / 2 + 0.03, h / 2, (d + w3) * 0.5]}>
+            <boxGeometry args={[0.06, roomH + 0.1, d + w3 + 0.3]} />
             <meshStandardMaterial color={wallColor} roughness={wallRoughness} />
           </mesh>
-          <mesh position={[w / 2 + w3 - bt / 2, bh / 2, d * 0.5]}>
-            <boxGeometry args={[bt, bh, d + 0.3]} />
+          <mesh position={[w / 2 - bt / 2, bh / 2, (d + w3) * 0.5]}>
+            <boxGeometry args={[bt, bh, d + w3 + 0.3]} />
             <meshStandardMaterial color="#e8e3db" roughness={0.75} />
           </mesh>
         </>
