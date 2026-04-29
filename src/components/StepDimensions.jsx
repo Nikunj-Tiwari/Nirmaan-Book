@@ -7,155 +7,8 @@ import { useResponsive } from '../hooks/useResponsive';
 
 const StepDimensions = () => {
   const { config, actions, derived } = useConfig();
-  const { addToast } = useToast();
-  const { wallType, width, height, width2, width3, depth } = config;
   const { isMobile } = useResponsive();
-  const canvasRef = useRef(null);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const cw = canvas.width;
-    const ch = canvas.height;
-
-    ctx.clearRect(0, 0, cw, ch);
-
-    // Light background
-    ctx.fillStyle = '#f7f8fa';
-    ctx.fillRect(0, 0, cw, ch);
-
-    // Light grid
-    ctx.strokeStyle = '#e5e7eb';
-    ctx.lineWidth = 0.5;
-    for (let x = 0; x < cw; x += 32) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, ch);
-      ctx.stroke();
-    }
-    for (let y = 0; y < ch; y += 32) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(cw, y);
-      ctx.stroke();
-    }
-
-    if (!width || !height) {
-      ctx.fillStyle = '#9ca3af';
-      ctx.font = '600 13px Inter, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('Enter dimensions to preview', cw / 2, ch / 2);
-      return;
-    }
-
-    const pad = 56;
-    const slots = Math.floor(width / 600);
-
-    const drawBox = (x, y, w, h, slts, label, sublabel) => {
-      // Shadow
-      ctx.fillStyle = 'rgba(0,0,0,0.04)';
-      ctx.fillRect(x + 4, y + 4, w, h);
-
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(x, y, w, h);
-      ctx.strokeStyle = '#3b82f6';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(x, y, w, h);
-
-      if (slts > 0) {
-        ctx.strokeStyle = '#e5e7eb';
-        ctx.lineWidth = 1;
-        for (let i = 1; i < slts; i++) {
-          ctx.beginPath();
-          ctx.moveTo(x + i * (w / slts), y);
-          ctx.lineTo(x + i * (w / slts), y + h);
-          ctx.stroke();
-        }
-      }
-
-      ctx.fillStyle = '#1a1a1a';
-      ctx.font = '700 12px Inter, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(label, x + w / 2, y + h + 22);
-
-      if (sublabel) {
-        ctx.fillStyle = '#6b7280';
-        ctx.font = '500 10px Inter, sans-serif';
-        ctx.fillText(sublabel, x + w / 2, y + h + 38);
-      }
-    };
-
-    const heightLabel = (x, y, h2) => {
-      ctx.save();
-      ctx.translate(x, y + h2 / 2);
-      ctx.rotate(-Math.PI / 2);
-      ctx.fillStyle = '#6b7280';
-      ctx.font = '600 11px Inter, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(height + ' mm', 0, 0);
-      ctx.restore();
-    };
-
-    if (wallType === 'single') {
-      const mW = cw - pad * 2,
-        mH = ch - pad * 2 - 48;
-      const r = Math.min(mW / width, mH / height);
-      const rw = width * r,
-        rh = height * r,
-        rx = (cw - rw) / 2,
-        ry = (ch - rh) / 2 - 10;
-      heightLabel(rx - 28, ry, rh);
-      drawBox(rx, ry, rw, rh, Math.floor(width / 600), width + ' mm', 'Main Wall');
-    } else if (wallType === 'l-shape') {
-      const B = width2 || 1200;
-      const r = Math.min((cw - pad * 3) / (width + B), (ch - pad * 2 - 48) / height, 0.12);
-      const aW = width * r,
-        aH = height * r,
-        bW = B * r;
-      const ox = (cw - (aW + bW + 20)) / 2,
-        oy = (ch - aH) / 2 - 10;
-      drawBox(ox, oy, aW, aH, Math.floor(width / 600), width + ' mm', 'Wall 1');
-      drawBox(ox + aW + 20, oy, bW, aH, Math.floor(B / 600), B + ' mm', 'Wall 2');
-    } else if (wallType === 'u-shape') {
-      const w1 = width,
-        w2 = width2,
-        w3 = width3 || 1200;
-      const r = Math.min((cw - pad * 4) / (w1 + w2 + w3), (ch - pad * 2 - 48) / height, 0.09);
-      const aW = w1 * r,
-        bW = w2 * r,
-        cW = w3 * r,
-        aH = height * r;
-      const ox = (cw - (aW + bW + cW + 40)) / 2,
-        oy = (ch - aH) / 2 - 10;
-      drawBox(ox, oy, aW, aH, Math.floor(w1 / 600), w1 + ' mm', 'Wall 1');
-      drawBox(ox + aW + 20, oy, bW, aH, Math.floor(w2 / 600), w2 + ' mm', 'Wall 2');
-      drawBox(ox + aW + bW + 40, oy, cW, aH, Math.floor(w3 / 600), w3 + ' mm', 'Wall 3');
-    } else {
-      const r = Math.min(
-        (cw - pad * 2) / width,
-        (ch - pad * 2 - 48) / Math.max(width * 0.6, 400),
-        0.15
-      );
-      const rw = width * r,
-        rd = depth * 4 * r;
-      const rx = (cw - rw) / 2,
-        ry = (ch - rd) / 2 - 10;
-      ctx.strokeStyle = '#3b82f6';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(rx, ry, rw, rd);
-      ctx.fillStyle = '#f1f3f5';
-      ctx.fillRect(rx, ry, depth * r * 0.7, rd);
-      ctx.fillRect(rx + rw - depth * r * 0.7, ry, depth * r * 0.7, rd);
-      ctx.strokeStyle = '#e5e7eb';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(rx, ry, rw, rd);
-      ctx.fillStyle = '#6b7280';
-      ctx.font = '600 12px Inter, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('Walk-in Closet', rx + rw / 2, ry + rd / 2 + 5);
-    }
-  }, [width, height, wallType, width2, width3, depth]);
+  const { wallType, width, width2, width3, height, depth } = config;
 
   const NumericInput = ({ value, min, max, onChange, label }) => {
     const [temp, setTemp] = React.useState(value);
@@ -169,7 +22,6 @@ const StepDimensions = () => {
       setTemp(v);
       if (v !== value) {
         onChange(v);
-        addToast(`${label} updated to ${v} mm`, 'success');
       }
     };
 
@@ -239,7 +91,6 @@ const StepDimensions = () => {
         onChange={(e) => {
           const v = parseInt(e.target.value);
           actions.setDimension(key, v);
-          addToast(`${label} updated to ${v} ${unit}`, 'success');
         }}
       />
       <div
@@ -319,7 +170,6 @@ const StepDimensions = () => {
                 key={w.id}
                 onClick={() => {
                   actions.setDimension('wallType', w.id);
-                  addToast(`Layout changed to ${w.label}`, 'success');
                 }}
                 style={{
                   flex: 1,
@@ -365,24 +215,6 @@ const StepDimensions = () => {
         {sliderCard('Wardrobe Height', 'height', 1800, 3000, 100, height, 'mm', null)}
         {sliderCard('Internal Depth', 'depth', 300, 1200, 50, depth, 'mm', null)}
       </div>
-
-      {/* Right: Preview */}
-      {!isMobile && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <canvas
-            ref={canvasRef}
-            width={400}
-            height={300}
-            style={{
-              background: '#f7f8fa',
-              borderRadius: 12,
-              border: '1px solid var(--border)',
-              maxWidth: '100%',
-              boxShadow: 'var(--shadow-xs)',
-            }}
-          />
-        </div>
-      )}
     </div>
   );
 };

@@ -311,22 +311,11 @@ const ModuleCard = React.forwardRef(
             style={{
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-between',
+              justifyContent: 'flex-end',
               marginTop: 'auto',
               paddingTop: '8px',
             }}
           >
-            <span
-              style={{
-                fontSize: '16px',
-                fontWeight: '700',
-                color: 'var(--accent)',
-                letterSpacing: '-0.02em',
-              }}
-            >
-              ₹{(module.basePrice || 0).toLocaleString()}
-            </span>
-
             {/* Quantity Controls */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <button

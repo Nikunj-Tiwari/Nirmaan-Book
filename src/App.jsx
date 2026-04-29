@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { STEPS } from './data/config';
 import {
   Layers,
@@ -30,6 +30,7 @@ import { useAuth } from './store/AuthContext';
 import { useToast } from './components/ToastProvider';
 import { getDraft, clearDraft, relativeTime, getConfigs } from './utils/storage';
 import { useResponsive } from './hooks/useResponsive';
+import { useStepGuard } from './hooks/useStepGuard';
 
 /* ── Draft Restore Banner ── */
 const DraftBanner = ({ draft, onResume, onDismiss }) => {
@@ -139,6 +140,31 @@ const ConfiguratorApp = ({ setConfigured, activeConfigId, setActiveConfigId }) =
   const { totalModules, valuation, validation } = derived;
   const { user, logout } = useAuth();
   const { addToast } = useToast();
+  const location = useLocation();
+  const { isStepLocked, getLockReason, canNavigateTo } = useStepGuard();
+
+  const STEP_ROUTES = [
+    { id: 1, path: '/configure/project' },
+    { id: 2, path: '/configure/dimensions' },
+    { id: 3, path: '/configure/modules' },
+    { id: 4, path: '/configure/materials' },
+    { id: 5, path: '/configure/hardware' },
+    { id: 6, path: '/configure/summary' },
+  ];
+  const currentPath = location.pathname;
+  const currentStepObj = STEP_ROUTES.find((s) => s.path === currentPath);
+  const currentStep = currentStepObj?.id || 1;
+
+  const handleStepClick = (stepId) => {
+    if (!canNavigateTo(stepId)) {
+      addToast(getLockReason(stepId), 'warning');
+      return;
+    }
+    const route = STEP_ROUTES.find((s) => s.id === stepId);
+    if (route) {
+      navigate(route.path);
+    }
+  };
 
   // Reactive saved-design count — re-read localStorage on demand
   const [savedCount, setSavedCount] = useState(() => getConfigs().length);
@@ -291,40 +317,61 @@ const ConfiguratorApp = ({ setConfigured, activeConfigId, setActiveConfigId }) =
               >
                 Steps
               </div>
-              {STEPS.map((step) => (
-                <div
-                  key={step.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    padding: '8px 10px',
-                    fontSize: 12,
-                    color: 'var(--text-secondary)',
-                    opacity: 0.7,
-                  }}
-                >
-                  <span
+              {STEPS.map((step) => {
+                const isActive = currentStep === step.id;
+                const isLocked = isStepLocked(step.id);
+                return (
+                  <button
+                    key={step.id}
+                    onClick={() => handleStepClick(step.id)}
+                    disabled={isLocked && !isActive}
                     style={{
-                      width: 24,
-                      height: 24,
-                      borderRadius: '50%',
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: 11,
-                      fontWeight: 700,
-                      flexShrink: 0,
-                      border: `2px solid var(--border)`,
-                      background: 'transparent',
-                      color: 'var(--text-secondary)',
+                      gap: 8,
+                      padding: '8px 10px',
+                      fontSize: 12,
+                      color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
+                      opacity: isLocked && !isActive ? 0.5 : 1,
+                      cursor: isLocked && !isActive ? 'not-allowed' : 'pointer',
+                      background: isActive ? 'var(--accent-light)' : 'transparent',
+                      border: 'none',
+                      borderRadius: 8,
+                      textAlign: 'left',
+                      fontFamily: 'var(--font-sans)',
+                      fontWeight: isActive ? 600 : 500,
+                      transition: 'all 0.15s',
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isActive && !isLocked)
+                        e.currentTarget.style.background = 'var(--bg-primary)';
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isActive) e.currentTarget.style.background = 'transparent';
                     }}
                   >
-                    {step.id}
-                  </span>
-                  <span style={{ lineHeight: 1.25 }}>{step.title}</span>
-                </div>
-              ))}
+                    <span
+                      style={{
+                        width: 24,
+                        height: 24,
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 11,
+                        fontWeight: 700,
+                        flexShrink: 0,
+                        border: `2px solid ${isActive ? 'var(--accent)' : 'var(--border)'}`,
+                        background: isActive ? 'var(--accent)' : 'transparent',
+                        color: isActive ? 'white' : 'var(--text-secondary)',
+                      }}
+                    >
+                      {step.id}
+                    </span>
+                    <span style={{ lineHeight: 1.25 }}>{step.title}</span>
+                  </button>
+                );
+              })}
             </nav>
 
             {/* Bottom section */}
@@ -332,30 +379,32 @@ const ConfiguratorApp = ({ setConfigured, activeConfigId, setActiveConfigId }) =
               {/* Price card */}
               <div
                 style={{
-                  background: 'var(--bg-primary)',
-                  border: '1px solid var(--border)',
+                  background: 'var(--accent)',
+                  border: '1px solid var(--accent-border)',
                   borderRadius: 10,
-                  padding: '14px 14px',
+                  padding: '18px 14px',
+                  boxShadow: '0 4px 12px rgba(96, 213, 255, 0.2)',
                 }}
               >
                 <div
                   style={{
-                    fontSize: 10,
-                    color: 'var(--text-muted)',
+                    fontSize: 11,
+                    color: 'white',
                     fontWeight: 600,
                     textTransform: 'uppercase',
                     letterSpacing: '0.06em',
-                    marginBottom: 3,
+                    marginBottom: 4,
+                    opacity: 0.9,
                   }}
                 >
                   Total Price
                 </div>
                 <div
                   style={{
-                    fontSize: 24,
+                    fontSize: 28,
                     fontWeight: 800,
                     letterSpacing: '-0.04em',
-                    color: 'var(--accent)',
+                    color: 'white',
                     lineHeight: 1,
                   }}
                 >

@@ -42,12 +42,15 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const register = async (email, password, name = '') => {
+  const register = async (email, password, name = '', extraData = {}) => {
     try {
       const cred = await createUserWithEmailAndPassword(auth, email, password);
       if (name.trim()) {
         await updateProfile(cred.user, { displayName: name.trim() });
       }
+      // Note: extraData (firmName, contactNumber, city, profession)
+      // can be saved to Firestore here if needed.
+      console.log('Registration extra data:', extraData);
       return { ok: true };
     } catch (error) {
       return { ok: false, error: error.message };

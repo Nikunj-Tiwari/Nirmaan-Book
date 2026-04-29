@@ -269,7 +269,7 @@ const StepModules = () => {
                   key={m.id}
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: '60px 1fr 100px 120px 120px',
+                    gridTemplateColumns: '60px 1fr 100px 120px',
                     gap: '14px',
                     padding: '14px 16px',
                     borderBottom:
@@ -336,21 +336,6 @@ const StepModules = () => {
                     }}
                   >
                     {m.width}mm
-                  </div>
-
-                  {/* Price */}
-                  <div
-                    style={{
-                      fontSize: 13,
-                      fontWeight: 700,
-                      color: 'var(--accent)',
-                      textAlign: 'center',
-                      padding: '6px 10px',
-                      background: 'rgba(37, 99, 235, 0.1)',
-                      borderRadius: 6,
-                    }}
-                  >
-                    ₹{m.basePrice.toLocaleString()}
                   </div>
 
                   {/* Quantity Controls */}

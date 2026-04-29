@@ -13,6 +13,10 @@ const LoginPage = () => {
 
   const [isRegister, setIsRegister] = useState(false);
   const [name, setName] = useState('');
+  const [firmName, setFirmName] = useState('');
+  const [contactNumber, setContactNumber] = useState('');
+  const [city, setCity] = useState('');
+  const [profession, setProfession] = useState('Interior Designer');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
@@ -25,7 +29,7 @@ const LoginPage = () => {
     setLoading(true);
 
     const result = isRegister
-      ? await register(email, password, name)
+      ? await register(email, password, name, { firmName, contactNumber, city, profession })
       : await login(email, password);
 
     setLoading(false);
@@ -322,44 +326,197 @@ const LoginPage = () => {
           >
             {/* Name (register only) */}
             {isRegister && (
-              <div>
-                <label
-                  htmlFor="login-name"
-                  style={{
-                    display: 'block',
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: 'var(--text-primary)',
-                    marginBottom: 6,
-                  }}
-                >
-                  Full name
-                </label>
-                <input
-                  id="login-name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Rahul Kapoor"
-                  required={isRegister}
-                  autoComplete="name"
-                  style={{
-                    width: '100%',
-                    padding: '11px 14px',
-                    borderRadius: 8,
-                    border: '1.5px solid var(--border)',
-                    background: 'var(--bg-primary)',
-                    fontSize: 14,
-                    fontFamily: 'var(--font-sans)',
-                    color: 'var(--text-primary)',
-                    outline: 'none',
-                    transition: 'border-color 0.15s',
-                    boxSizing: 'border-box',
-                  }}
-                  onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
-                  onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
-                />
-              </div>
+              <>
+                <div>
+                  <label
+                    htmlFor="login-name"
+                    style={{
+                      display: 'block',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      marginBottom: 6,
+                    }}
+                  >
+                    Full name
+                  </label>
+                  <input
+                    id="login-name"
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Rahul Kapoor"
+                    required={isRegister}
+                    autoComplete="name"
+                    style={{
+                      width: '100%',
+                      padding: '11px 14px',
+                      borderRadius: 8,
+                      border: '1.5px solid var(--border)',
+                      background: 'var(--bg-primary)',
+                      fontSize: 14,
+                      fontFamily: 'var(--font-sans)',
+                      color: 'var(--text-primary)',
+                      outline: 'none',
+                      transition: 'border-color 0.15s',
+                      boxSizing: 'border-box',
+                    }}
+                    onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
+                    onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="login-firm"
+                    style={{
+                      display: 'block',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      marginBottom: 6,
+                    }}
+                  >
+                    Firm Name
+                  </label>
+                  <input
+                    id="login-firm"
+                    type="text"
+                    value={firmName}
+                    onChange={(e) => setFirmName(e.target.value)}
+                    placeholder="Kapoor Designs"
+                    required={isRegister}
+                    style={{
+                      width: '100%',
+                      padding: '11px 14px',
+                      borderRadius: 8,
+                      border: '1.5px solid var(--border)',
+                      background: 'var(--bg-primary)',
+                      fontSize: 14,
+                      fontFamily: 'var(--font-sans)',
+                      color: 'var(--text-primary)',
+                      outline: 'none',
+                      transition: 'border-color 0.15s',
+                      boxSizing: 'border-box',
+                    }}
+                    onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
+                    onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="login-contact"
+                    style={{
+                      display: 'block',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      marginBottom: 6,
+                    }}
+                  >
+                    Contact Number
+                  </label>
+                  <input
+                    id="login-contact"
+                    type="tel"
+                    value={contactNumber}
+                    onChange={(e) => setContactNumber(e.target.value)}
+                    placeholder="+91 98765 43210"
+                    required={isRegister}
+                    style={{
+                      width: '100%',
+                      padding: '11px 14px',
+                      borderRadius: 8,
+                      border: '1.5px solid var(--border)',
+                      background: 'var(--bg-primary)',
+                      fontSize: 14,
+                      fontFamily: 'var(--font-sans)',
+                      color: 'var(--text-primary)',
+                      outline: 'none',
+                      transition: 'border-color 0.15s',
+                      boxSizing: 'border-box',
+                    }}
+                    onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
+                    onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="login-city"
+                    style={{
+                      display: 'block',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      marginBottom: 6,
+                    }}
+                  >
+                    City
+                  </label>
+                  <input
+                    id="login-city"
+                    type="text"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    placeholder="Mumbai"
+                    required={isRegister}
+                    style={{
+                      width: '100%',
+                      padding: '11px 14px',
+                      borderRadius: 8,
+                      border: '1.5px solid var(--border)',
+                      background: 'var(--bg-primary)',
+                      fontSize: 14,
+                      fontFamily: 'var(--font-sans)',
+                      color: 'var(--text-primary)',
+                      outline: 'none',
+                      transition: 'border-color 0.15s',
+                      boxSizing: 'border-box',
+                    }}
+                    onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
+                    onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="login-profession"
+                    style={{
+                      display: 'block',
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      marginBottom: 6,
+                    }}
+                  >
+                    Profession
+                  </label>
+                  <select
+                    id="login-profession"
+                    value={profession}
+                    onChange={(e) => setProfession(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '11px 14px',
+                      borderRadius: 8,
+                      border: '1.5px solid var(--border)',
+                      background: 'var(--bg-primary)',
+                      fontSize: 14,
+                      fontFamily: 'var(--font-sans)',
+                      color: 'var(--text-primary)',
+                      outline: 'none',
+                      transition: 'border-color 0.15s',
+                      boxSizing: 'border-box',
+                      appearance: 'auto',
+                    }}
+                    onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
+                    onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
+                  >
+                    <option value="Architect">Architect</option>
+                    <option value="Interior Designer">Interior Designer</option>
+                    <option value="Manufacturer">Manufacturer</option>
+                    <option value="Retailer">Retailer</option>
+                  </select>
+                </div>
+              </>
             )}
 
             {/* Email */}
@@ -600,6 +757,10 @@ const LoginPage = () => {
                 setIsRegister(!isRegister);
                 setError('');
                 setName('');
+                setFirmName('');
+                setContactNumber('');
+                setCity('');
+                setProfession('Interior Designer');
               }}
               style={{
                 background: 'none',

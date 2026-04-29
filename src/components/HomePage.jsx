@@ -382,7 +382,7 @@ const ImageGallery = () => {
             marginBottom: 10,
           }}
         >
-          Design Catalogue
+          Shutter Catalogue
         </div>
         <p style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 500 }}>
           Hover to pause • Click to explore
@@ -1027,14 +1027,14 @@ const EnhancedHomePage = ({ onStart, activeConfigId, setActiveConfigId, onLaunch
               textShadow: '0 2px 12px rgba(0, 0, 0, 0.3)',
             }}
           >
-            Design Your Perfect{' '}
+            Instant price for your{' '}
             <span
               style={{
                 color: '#60d5ff',
                 textShadow: '0 0 20px rgba(96, 213, 255, 0.4)',
               }}
             >
-              Wardrobe
+              wardrobes
             </span>
           </h1>
 
@@ -1048,8 +1048,7 @@ const EnhancedHomePage = ({ onStart, activeConfigId, setActiveConfigId, onLaunch
               textShadow: '0 1px 8px rgba(0, 0, 0, 0.25)',
             }}
           >
-            Configure, customize, and get instant pricing — all in one place. Built for interior
-            designers and sales professionals.
+            Built for interior designers & architects
           </p>
 
           {/* CTA Buttons */}
@@ -1562,34 +1561,29 @@ const EnhancedHomePage = ({ onStart, activeConfigId, setActiveConfigId, onLaunch
             }}
           >
             <FeatureCard
-              icon={<Ruler size={20} />}
-              title="Space-aware Geometry"
-              desc="Enter your room dimensions and the system automatically calculates module slots, spacing, and constraints."
-            />
-            <FeatureCard
-              icon={<Package size={20} />}
-              title="47 Catalogue Modules"
-              desc="Every module from the NirmanBook catalogue — precision-engineered, pre-priced, and ready to place."
+              icon={<Layers size={20} />}
+              title="Flexible input material & finishes"
+              desc="Choose from a wide variety of materials and premium finishes to suit every design requirement."
             />
             <FeatureCard
               icon={<Zap size={20} />}
-              title="Instant Pricing Engine"
-              desc="Real-time price calculation as you build. Material multipliers, accessories, and hardware — all factored in."
-            />
-            <FeatureCard
-              icon={<FileText size={20} />}
-              title="One-click BOM Export"
-              desc="Generate a professional bill of materials PDF, ready to share with clients or procurement teams."
+              title="Instant quotation"
+              desc="Get accurate, real-time pricing as you configure the wardrobe with our smart pricing engine."
             />
             <FeatureCard
               icon={<BarChart3 size={20} />}
-              title="Smart Width Validation"
-              desc="The engine prevents over-configuration. You'll always know how much space is left before adding the next module."
+              title="Transparent pricing"
+              desc="Clear breakdown of costs for modules, hardware, and accessories with no hidden fees."
             />
             <FeatureCard
-              icon={<Users size={20} />}
-              title="Built for Sales Teams"
-              desc="Walk clients through the configurator live. Pick finishes, hardware, and accessories together — close faster."
+              icon={<CheckCircle size={20} />}
+              title="Ready to manufacture designs"
+              desc="Designs are production-ready from the start, accelerating the transition from concept to creation."
+            />
+            <FeatureCard
+              icon={<Star size={20} />}
+              title="Manufactured from state of the art machineries"
+              desc="High precision and quality guaranteed through our advanced manufacturing processes."
             />
           </div>
         </section>
@@ -1714,20 +1708,19 @@ const EnhancedHomePage = ({ onStart, activeConfigId, setActiveConfigId, onLaunch
                 textShadow: '0 2px 8px rgba(0,0,0,0.4)',
               }}
             >
-              One tool, every wardrobe project
+              Pricing Model
             </h2>
             <p
               style={{
                 fontSize: 15,
                 color: '#f0f0f0',
-                maxWidth: 480,
+                maxWidth: 580,
                 margin: '0 auto',
                 lineHeight: 1.6,
                 textShadow: '0 1px 4px rgba(0,0,0,0.5)',
               }}
             >
-              Start free, upgrade when you grow. All plans include the full module catalogue and
-              instant BOM export.
+              Choose the engagement model that works best for your business.
             </p>
           </div>
 
@@ -1740,60 +1733,27 @@ const EnhancedHomePage = ({ onStart, activeConfigId, setActiveConfigId, onLaunch
               margin: '0 auto',
             }}
           >
-            {/* Starter */}
+            {/* Turnkey projects */}
             <PricingCard
-              plan="Starter"
-              price="Free"
+              plan="Turnkey projects"
+              price="Turnkey"
               period=""
-              description="Perfect for independent designers exploring the tool."
-              features={[
-                'Up to 5 configurations / month',
-                'All 47 catalogue modules',
-                'Instant pricing engine',
-                'PDF BOM export',
-                'Email support',
-              ]}
-              cta="Get started free"
-              onCta={handleStart}
-              highlighted={false}
-            />
-
-            {/* Professional */}
-            <PricingCard
-              plan="Professional"
-              price="₹999"
-              period="/ month"
-              description="For active designers and small studios closing deals daily."
-              features={[
-                'Unlimited configurations',
-                'Priority customer support',
-                'Client-ready branded exports',
-                'Saved project history',
-                'Multi-wall & U-shape layouts',
-                'Custom finish & hardware uploads',
-              ]}
-              cta="Start free trial"
-              onCta={handleStart}
-              highlighted={true}
-              badge="Most popular"
-            />
-
-            {/* Enterprise */}
-            <PricingCard
-              plan="Enterprise"
-              price="Custom"
-              period=""
-              description="For dealerships, manufacturers, and large interior firms."
-              features={[
-                'Everything in Professional',
-                'Dedicated account manager',
-                'Custom module catalogues',
-                'ERP / CRM integrations',
-                'Team seat management',
-                'SLA-backed support',
-              ]}
+              description="Flexible materials, measurement & installation services, manufactured by experts."
+              features={[]}
               cta="Contact sales"
               onCta={() => window.open('mailto:sales@nirmanbook.com', '_blank')}
+              highlighted={true}
+            />
+
+            {/* Job work projects */}
+            <PricingCard
+              plan="Job work projects"
+              price="Job Work"
+              period=""
+              description="Bulk manufacturing for designers, builders & retailers."
+              features={[]}
+              cta="Visit our retail partners"
+              onCta={() => {}}
               highlighted={false}
             />
           </div>

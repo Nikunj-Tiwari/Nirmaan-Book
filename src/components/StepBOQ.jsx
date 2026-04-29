@@ -16,6 +16,7 @@ import { useResponsive } from '../hooks/useResponsive';
 import { useConfig } from '../store/ConfigContext';
 import { handlePrint, generatePDF, exportQuoteJSON, exportTextSummary } from '../utils/export';
 import { saveConfig, updateConfig, getConfigs, clearDraft } from '../utils/storage';
+import { drawBlueprintLight } from '../utils/visuals';
 
 import SaveDesignModal from './SaveDesignModal';
 import { useToast } from './ToastProvider';
@@ -106,7 +107,30 @@ const StepBOQ = ({ activeConfigId, setActiveConfigId, onRefreshCount }) => {
   const { isMobile } = useResponsive();
   const { valuation } = derived;
   const printRef = useRef(null);
+  const canvasRef = useRef(null);
   const { addToast } = useToast();
+
+  React.useEffect(() => {
+    if (!canvasRef.current) return;
+    const canvas = canvasRef.current;
+    const cw = 700; // Fixed width for high quality print
+    const ch = 450; // Fixed height
+
+    const dpr = 2; // High resolution for PDF
+    canvas.width = cw * dpr;
+    canvas.height = ch * dpr;
+    canvas.style.width = `${cw}px`;
+    canvas.style.height = `${ch}px`;
+
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+
+    // Fill white background for print
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, cw, ch);
+
+    drawBlueprintLight(ctx, cw, ch, config, derived.modulesList);
+  }, [config, derived.modulesList]);
 
   /* ── Save modal state ── */
   const [showSaveModal, setShowSaveModal] = useState(false);
@@ -441,6 +465,38 @@ const StepBOQ = ({ activeConfigId, setActiveConfigId, onRefreshCount }) => {
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* ── 2D Blueprint ── */}
+          <div
+            style={{
+              background: '#ffffff',
+              border: '1px solid var(--border)',
+              borderRadius: 12,
+              padding: '16px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              boxShadow: 'var(--shadow-xs)',
+            }}
+          >
+            <h4
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                color: 'var(--text-muted)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+                marginBottom: 16,
+                alignSelf: 'flex-start',
+              }}
+            >
+              2D Layout Plan
+            </h4>
+            <canvas
+              ref={canvasRef}
+              style={{ display: 'block', maxWidth: '100%', height: 'auto' }}
+            />
           </div>
 
           {/* ── BOM Table ── */}

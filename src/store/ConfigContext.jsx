@@ -7,7 +7,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { COLOURS, MATERIALS, HANDLES, LIGHTING } from '../data/config';
+import { COLOURS, MATERIALS, HANDLES, LIGHTING, BRANDS } from '../data/config';
 import {
   updateModuleQty,
   updateFinishes,
@@ -34,13 +34,25 @@ const initialState = {
   fascia: 'Akila',
   handle: HANDLES[0],
   lighting: LIGHTING[0],
+  brand: BRANDS[0],
   selectedAccessories: new Set(),
+  projectInfo: {
+    name: '',
+    type: 'Consultation',
+    city: '',
+    startDate: '',
+  },
 };
 
 function configReducer(state, action) {
   switch (action.type) {
     case 'UPDATE_DIMENSION':
       return updateDimensions(state, action.payload.key, action.payload.value);
+    case 'UPDATE_PROJECT_INFO':
+      return {
+        ...state,
+        projectInfo: { ...state.projectInfo, [action.payload.key]: action.payload.value },
+      };
     case 'UPDATE_FINISH':
       return updateFinishes(state, action.payload.key, action.payload.value);
     case 'UPDATE_MODULE_QTY': {
@@ -106,6 +118,8 @@ export const ConfigProvider = ({ children }) => {
   // Specialized action helpers
   const actions = {
     setDimension: (key, value) => dispatch({ type: 'UPDATE_DIMENSION', payload: { key, value } }),
+    setProjectInfo: (key, value) =>
+      dispatch({ type: 'UPDATE_PROJECT_INFO', payload: { key, value } }),
     setFinish: (key, value) => dispatch({ type: 'UPDATE_FINISH', payload: { key, value } }),
     setModuleQty: (id, delta) => dispatch({ type: 'UPDATE_MODULE_QTY', payload: { id, delta } }),
     setModuleWall: (wallKey, wall) =>

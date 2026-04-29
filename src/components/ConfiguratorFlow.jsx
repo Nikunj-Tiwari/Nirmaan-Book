@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ChevronRight, ChevronLeft } from 'lucide-react';
 import StepIndicator from './StepIndicator';
+import StepProject from './StepProject';
 import PreviewPanel from './PreviewPanel';
 import StepDimensions from './StepDimensions';
 import StepModules from './StepModules';
@@ -14,11 +15,12 @@ import { useConfig } from '../store/ConfigContext';
 import { useToast } from './ToastProvider';
 
 const STEP_ROUTES = [
-  { id: 1, path: '/configure/dimensions', name: 'Dimensions' },
-  { id: 2, path: '/configure/modules', name: 'Modules' },
-  { id: 3, path: '/configure/materials', name: 'Materials' },
-  { id: 4, path: '/configure/hardware', name: 'Hardware' },
-  { id: 5, path: '/configure/summary', name: 'Summary' },
+  { id: 1, path: '/configure/project', name: 'Project Info' },
+  { id: 2, path: '/configure/dimensions', name: 'Dimensions' },
+  { id: 3, path: '/configure/modules', name: 'Modules' },
+  { id: 4, path: '/configure/materials', name: 'Materials' },
+  { id: 5, path: '/configure/hardware', name: 'Hardware' },
+  { id: 6, path: '/configure/summary', name: 'Summary' },
 ];
 
 /**
@@ -39,10 +41,10 @@ const ConfiguratorFlow = ({ activeConfigId, setActiveConfigId, onRefreshCount })
   const currentStepObj = STEP_ROUTES.find((s) => s.path === currentPath);
   const currentStep = currentStepObj?.id || 1;
 
-  // Redirect from /configure to /configure/dimensions
+  // Redirect from /configure to /configure/project
   useEffect(() => {
     if (currentPath === '/configure' || currentPath === '/configure/') {
-      navigate('/configure/dimensions', { replace: true });
+      navigate('/configure/project', { replace: true });
     }
   }, [currentPath, navigate]);
 
@@ -63,9 +65,9 @@ const ConfiguratorFlow = ({ activeConfigId, setActiveConfigId, onRefreshCount })
 
   // Navigation handlers
   const handleNext = useCallback(() => {
-    if (currentStep < 5 && canNavigateTo(currentStep + 1)) {
+    if (currentStep < 6 && canNavigateTo(currentStep + 1)) {
       navigateToStep(currentStep + 1);
-    } else if (currentStep < 5) {
+    } else if (currentStep < 6) {
       addToast(getLockReason(currentStep + 1), 'warning');
     }
   }, [currentStep, canNavigateTo, navigateToStep, getLockReason, addToast]);
@@ -80,14 +82,16 @@ const ConfiguratorFlow = ({ activeConfigId, setActiveConfigId, onRefreshCount })
   const renderStepContent = () => {
     switch (currentStep) {
       case 1:
-        return <StepDimensions />;
+        return <StepProject />;
       case 2:
-        return <StepModules />;
+        return <StepDimensions />;
       case 3:
-        return <StepMaterials />;
+        return <StepModules />;
       case 4:
-        return <StepHardware />;
+        return <StepMaterials />;
       case 5:
+        return <StepHardware />;
+      case 6:
         return (
           <StepBOQ
             activeConfigId={activeConfigId}
@@ -119,10 +123,7 @@ const ConfiguratorFlow = ({ activeConfigId, setActiveConfigId, onRefreshCount })
         }
       `}</style>
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
-        {/* Step Indicator */}
-        {!isMobile && (
-          <StepIndicator currentStep={currentStep} totalSteps={5} onStepClick={navigateToStep} />
-        )}
+        {/* Step Indicator (moved to sidebar) */}
 
         {/* 2-Column Layout: Content + Preview */}
         <div
@@ -234,14 +235,14 @@ const ConfiguratorFlow = ({ activeConfigId, setActiveConfigId, onRefreshCount })
                 color: 'var(--text-secondary)',
               }}
             >
-              Step {currentStep} of 5
+              Step {currentStep} of 6
             </span>
           </div>
 
           {/* Continue Button */}
           <button
             onClick={handleNext}
-            disabled={currentStep === 5 || isStepLocked(currentStep + 1)}
+            disabled={currentStep === 6 || isStepLocked(currentStep + 1)}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -249,18 +250,18 @@ const ConfiguratorFlow = ({ activeConfigId, setActiveConfigId, onRefreshCount })
               padding: isMobile ? '12px 24px' : '10px 16px',
               borderRadius: 8,
               border: 'none',
-              background: currentStep === 5 ? 'var(--bg-tertiary)' : 'var(--accent)',
-              color: currentStep === 5 ? 'var(--text-tertiary)' : 'white',
+              background: currentStep === 6 ? 'var(--bg-tertiary)' : 'var(--accent)',
+              color: currentStep === 6 ? 'var(--text-tertiary)' : 'white',
               fontSize: isMobile ? 14 : 13,
               fontWeight: 700,
-              cursor: currentStep === 5 ? 'default' : 'pointer',
+              cursor: currentStep === 6 ? 'default' : 'pointer',
               transition: 'all 0.15s',
-              opacity: currentStep === 5 || isStepLocked(currentStep + 1) ? 0.5 : 1,
+              opacity: currentStep === 6 || isStepLocked(currentStep + 1) ? 0.5 : 1,
               boxShadow: 'var(--shadow-sm)',
               fontFamily: 'var(--font-sans)',
             }}
             onMouseEnter={(e) => {
-              if (currentStep < 5 && !isStepLocked(currentStep + 1)) {
+              if (currentStep < 6 && !isStepLocked(currentStep + 1)) {
                 e.currentTarget.style.background = 'var(--accent-dark)';
               }
             }}
@@ -270,13 +271,13 @@ const ConfiguratorFlow = ({ activeConfigId, setActiveConfigId, onRefreshCount })
             title={
               isStepLocked(currentStep + 1)
                 ? getLockReason(currentStep + 1)
-                : currentStep === 5
+                : currentStep === 6
                   ? 'You are on the final step'
                   : 'Continue to next step'
             }
           >
-            {currentStep === 5 ? 'Complete' : 'Continue'}
-            {currentStep < 5 && <ChevronRight size={14} />}
+            {currentStep === 6 ? 'Complete' : 'Continue'}
+            {currentStep < 6 && <ChevronRight size={14} />}
           </button>
         </div>
       </div>

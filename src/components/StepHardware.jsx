@@ -1,5 +1,5 @@
 import React from 'react';
-import { HANDLES, LIGHTING, ACCESSORIES } from '../data/config';
+import { HANDLES, LIGHTING, ACCESSORIES, BRANDS } from '../data/config';
 import { useConfig } from '../store/ConfigContext';
 import { useToast } from './ToastProvider';
 import { Check } from 'lucide-react';
@@ -8,7 +8,7 @@ import { useResponsive } from '../hooks/useResponsive';
 const StepHardware = () => {
   const { config, actions } = useConfig();
   const { addToast } = useToast();
-  const { handle, lighting, selectedAccessories } = config;
+  const { handle, lighting, brand, selectedAccessories } = config;
   const { isMobile } = useResponsive();
 
   const optionCard = (item, isSelected, onClick) => (
@@ -88,6 +88,65 @@ const StepHardware = () => {
           >
             Hardware & Lighting
           </h2>
+        </div>
+
+        {/* Brands */}
+        <div>
+          <div className="section-title">Hardware Brand</div>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3, 1fr)',
+              gap: 10,
+              marginBottom: 16,
+            }}
+          >
+            {BRANDS.map((b) => (
+              <button
+                key={b}
+                onClick={() => {
+                  actions.setFinish('brand', b);
+                  addToast(`Brand changed to ${b}`, 'success');
+                }}
+                style={{
+                  padding: '16px',
+                  borderRadius: 10,
+                  border: `1.5px solid ${brand === b ? 'var(--accent)' : 'var(--border)'}`,
+                  background: brand === b ? 'var(--accent-light)' : 'var(--bg-secondary)',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  fontSize: 14,
+                  textAlign: 'center',
+                  color: brand === b ? 'var(--accent)' : 'var(--text-primary)',
+                  transition: 'all 0.15s',
+                  boxShadow: 'var(--shadow-xs)',
+                }}
+              >
+                {b}
+              </button>
+            ))}
+          </div>
+
+          {/* Media placeholder */}
+          <div
+            style={{
+              width: '100%',
+              height: 200,
+              background: 'var(--bg-tertiary)',
+              borderRadius: 12,
+              border: '1px dashed var(--border-strong)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexDirection: 'column',
+              gap: 8,
+              color: 'var(--text-muted)',
+            }}
+          >
+            <div style={{ fontSize: 32 }}>📺</div>
+            <div style={{ fontSize: 13, fontWeight: 500 }}>{brand} Informational Video/Image</div>
+            <div style={{ fontSize: 11 }}>Media placeholder</div>
+          </div>
         </div>
 
         {/* Handles */}

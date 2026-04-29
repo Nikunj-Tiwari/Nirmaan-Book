@@ -1,18 +1,24 @@
 export const COLOURS = [
   { name: 'White', sub: 'Solid', hex: '#F0EDE8' },
   { name: 'Grey', sub: 'Solid', hex: '#9EA09E' },
+  { name: 'Charcoal', sub: 'Solid', hex: '#36454F' },
+  { name: 'Navy Blue', sub: 'Solid', hex: '#2C3E50' },
   { name: 'Twist Ivory', sub: 'Textured', hex: '#D5CAAD' },
   { name: 'Twist Grey', sub: 'Textured', hex: '#8E8F88' },
+  { name: 'Linen', sub: 'Textured', hex: '#E9E5CE' },
   { name: 'Virginia Walnut', sub: 'Wood Grain', hex: '#5C3822' },
   { name: 'Swiss Chestnut', sub: 'Wood Grain', hex: '#6E5342' },
   { name: 'Iconic Chestnut', sub: 'Wood Grain', hex: '#4A3325' },
+  { name: 'Oak Light', sub: 'Wood Grain', hex: '#D7BA89' },
+  { name: 'Mahogany Dark', sub: 'Wood Grain', hex: '#4B2A22' },
 ];
 
 export const MATERIALS = [
   { id: 'pb', name: 'Particle Board', sub: 'Economy grade', multiplier: 1.0 },
   { id: 'mdf', name: 'MDF', sub: 'Smooth finish', multiplier: 1.2 },
-  { id: 'bwr', name: 'BWR', sub: 'Boiling water resistant', multiplier: 1.5 },
-  { id: 'bwp', name: 'BWP', sub: 'Boiling waterproof — marine grade', multiplier: 1.8 },
+  { id: 'hdmr', name: 'HDMR', sub: 'High density moisture resistant', multiplier: 1.35 },
+  { id: 'bwr', name: 'BWR Ply', sub: 'Boiling water resistant', multiplier: 1.5 },
+  { id: 'bwp', name: 'BWP Ply', sub: 'Boiling waterproof — marine grade', multiplier: 1.8 },
 ];
 
 export const FASCIAS = [
@@ -40,6 +46,8 @@ export const LIGHTING = [
   { name: 'Motion Sensor', icon: '◈', sub: 'Auto on/off, 30s delay', price: 4500 },
   { name: 'No Lighting', icon: '○', sub: 'Skip lighting', price: 0 },
 ];
+
+export const BRANDS = ['Olive', 'Laranza', 'EBCO', 'HETTICH', 'BLUM', 'Haffele'];
 
 export const ACCESSORIES = [
   {
@@ -102,11 +110,12 @@ export const ACCESSORIES = [
 ];
 
 export const STEPS = [
-  { id: 1, title: 'Dimensions', sub: 'Set your wall type and size' },
-  { id: 2, title: 'Select Modules', sub: 'Choose wardrobe components' },
-  { id: 3, title: 'Materials', sub: 'Pick finishes and colours' },
-  { id: 4, title: 'Hardware', sub: 'Choose handles and accessories' },
-  { id: 5, title: 'Summary', sub: 'Review and finalize' },
+  { id: 1, title: 'Project Info', sub: 'Enter project details' },
+  { id: 2, title: 'Dimensions', sub: 'Set your wall type and size' },
+  { id: 3, title: 'Select Modules', sub: 'Choose wardrobe components' },
+  { id: 4, title: 'Materials', sub: 'Pick finishes and colours' },
+  { id: 5, title: 'Hardware', sub: 'Choose handles and accessories' },
+  { id: 6, title: 'Summary', sub: 'Review and finalize' },
 ];
 
 export const WALL_TYPES = [

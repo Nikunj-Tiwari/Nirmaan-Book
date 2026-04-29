@@ -18,27 +18,29 @@ export const useStepGuard = () => {
   // Check if a step is locked
   const isStepLocked = (stepId) => {
     switch (stepId) {
-      case 1: // Dimensions - always accessible
+      case 1: // Project - always accessible
+      case 2: // Dimensions - always accessible
         return false;
 
-      case 2: // Modules - require dimensions
+      case 3: // Modules - require dimensions
         const hasDimensions = config.width && config.height && config.depth;
         return !hasDimensions;
 
-      case 3: // Materials - require modules selected
+      case 4: // Materials - require modules selected
         return totalModules === 0;
 
-      case 4: // Hardware - require materials selected (any material/colour set)
+      case 5: // Hardware - require materials selected
         return !config.material || !config.colour;
 
-      case 5: // Summary - require all steps complete
+      case 6: // Summary - require all previous steps complete
         const allComplete =
           config.width &&
           config.height &&
           config.depth &&
           totalModules > 0 &&
           config.material &&
-          config.colour;
+          config.colour &&
+          config.brand;
         return !allComplete;
 
       default:
@@ -49,13 +51,13 @@ export const useStepGuard = () => {
   // Get lock reason for UI messaging
   const getLockReason = (stepId) => {
     switch (stepId) {
-      case 2:
-        return 'Complete dimensions first';
       case 3:
-        return 'Select modules first';
+        return 'Complete dimensions first';
       case 4:
-        return 'Select materials first';
+        return 'Select modules first';
       case 5:
+        return 'Select materials first';
+      case 6:
         return 'Complete all steps first';
       default:
         return null;
