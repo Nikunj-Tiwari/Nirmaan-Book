@@ -242,6 +242,9 @@ const FullscreenPreviewModal = ({ currentStep, viewMode, setViewMode, onClose })
                   roomWidth={config.width}
                   roomHeight={config.height}
                   roomDepth={config.depth}
+                  wallType={config.wallType}
+                  width2={config.width2}
+                  width3={config.width3}
                   darkMode={true}
                 />
               ) : (
@@ -327,7 +330,12 @@ const FullscreenPreviewModal = ({ currentStep, viewMode, setViewMode, onClose })
           }}
         >
           <div style={{ flex: 1, overflowY: 'auto' }}>
-            <FullscreenToolbar currentStep={currentStep} />
+            <FullscreenToolbar
+              currentStep={currentStep}
+              viewMode={viewMode}
+              setViewMode={setViewMode}
+              onClose={onClose}
+            />
           </div>
 
           {/* Close at bottom of toolbar */}

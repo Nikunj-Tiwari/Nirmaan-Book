@@ -80,13 +80,16 @@ export const getDerivedState = (config) => {
   const valuation = calculateValuation(config);
   const validation = validateSpaceCapacity(totalCapacity, config.modules);
 
-  // Flat list for visualization/bom (using id)
+  // Flat list for visualization/bom — each entry carries wallKey + wall assignment
+  const moduleWalls = config.moduleWalls || {};
   const modulesList = [];
   Object.entries(config.modules).forEach(([id, qty]) => {
     const mod = MODULES.find((m) => m.id === id);
     if (mod) {
       for (let i = 0; i < qty; i++) {
-        modulesList.push(mod);
+        const wallKey = `${id}:${i}`;
+        const wall = moduleWalls[wallKey] || 'A'; // default to main wall
+        modulesList.push({ ...mod, wallKey, wall });
       }
     }
   });

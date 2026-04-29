@@ -26,6 +26,9 @@ const initialState = {
   width2: 1200,
   width3: 1200,
   modules: {},
+  // moduleWalls: maps "moduleId:instanceIndex" -> 'A' | 'B' | 'C'
+  // 'A' = main/center wall, 'B' = left wall, 'C' = right wall
+  moduleWalls: {},
   colour: COLOURS[0],
   material: MATERIALS[0],
   fascia: 'Akila',
@@ -40,9 +43,22 @@ function configReducer(state, action) {
       return updateDimensions(state, action.payload.key, action.payload.value);
     case 'UPDATE_FINISH':
       return updateFinishes(state, action.payload.key, action.payload.value);
-    case 'UPDATE_MODULE_QTY':
+    case 'UPDATE_MODULE_QTY': {
       return updateModuleQty(state, action.payload.id, action.payload.delta);
-    case 'TOGGLE_ACCESSORY':
+    }
+    case 'SET_MODULE_WALL': {
+      // wallKey = "moduleId:instanceIndex", wall = 'A' | 'B' | 'C'
+      const { wallKey, wall } = action.payload;
+      const newWalls = { ...state.moduleWalls };
+      if (wall === 'A') {
+        // 'A' is default — remove the override to keep state lean
+        delete newWalls[wallKey];
+      } else {
+        newWalls[wallKey] = wall;
+      }
+      return { ...state, moduleWalls: newWalls };
+    }
+    case 'TOGGLE_ACCESSORY': {
       const newAccessories = new Set(state.selectedAccessories);
       if (newAccessories.has(action.payload.id)) {
         newAccessories.delete(action.payload.id);
@@ -50,6 +66,7 @@ function configReducer(state, action) {
         newAccessories.add(action.payload.id);
       }
       return { ...state, selectedAccessories: newAccessories };
+    }
     case 'LOAD_CONFIG':
       return { ...initialState, ...action.payload };
     case 'RESET_CONFIG':
@@ -91,6 +108,8 @@ export const ConfigProvider = ({ children }) => {
     setDimension: (key, value) => dispatch({ type: 'UPDATE_DIMENSION', payload: { key, value } }),
     setFinish: (key, value) => dispatch({ type: 'UPDATE_FINISH', payload: { key, value } }),
     setModuleQty: (id, delta) => dispatch({ type: 'UPDATE_MODULE_QTY', payload: { id, delta } }),
+    setModuleWall: (wallKey, wall) =>
+      dispatch({ type: 'SET_MODULE_WALL', payload: { wallKey, wall } }),
     toggleAccessory: (id) => dispatch({ type: 'TOGGLE_ACCESSORY', payload: { id } }),
     reset: () => dispatch({ type: 'RESET_CONFIG' }),
     loadConfig: (data) => dispatch({ type: 'LOAD_CONFIG', payload: dataToConfig(data) }),

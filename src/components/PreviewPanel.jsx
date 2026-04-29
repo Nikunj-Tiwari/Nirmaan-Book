@@ -189,6 +189,9 @@ const PreviewPanel = ({ currentStep }) => {
             roomWidth={config.width}
             roomHeight={config.height}
             roomDepth={config.depth}
+            wallType={config.wallType}
+            width2={config.width2}
+            width3={config.width3}
             darkMode={true}
           />
         )}
