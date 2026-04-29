@@ -20,6 +20,7 @@ import {
   Plus,
   Minus,
 } from 'lucide-react';
+import logo from '../assets/logo.png';
 import SavedDesignsDrawer from './SavedDesignsDrawer';
 import { getConfigs } from '../utils/storage';
 import { useToast } from './ToastProvider';
@@ -769,29 +770,15 @@ const EnhancedHomePage = ({ onStart, activeConfigId, setActiveConfigId, onLaunch
         >
           {/* Logo */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div
+            <img
+              src={logo}
+              alt="Nirmanbook"
               style={{
-                width: 34,
-                height: 34,
-                background: 'var(--accent)',
-                borderRadius: 9,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
+                height: 32,
+                width: 'auto',
+                display: 'block',
               }}
-            >
-              <Layers size={18} color="white" />
-            </div>
-            <span
-              style={{
-                fontWeight: 700,
-                fontSize: 17,
-                letterSpacing: '-0.03em',
-                color: 'var(--text-primary)',
-              }}
-            >
-              NirmanBook
-            </span>
+            />
           </div>
 
           {/* Nav links */}

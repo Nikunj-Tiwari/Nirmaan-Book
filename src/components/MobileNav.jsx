@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Menu, X, Layers } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
+import logo from '../assets/logo.png';
 
 export const MobileNav = ({ onMenuOpen, user, onLogout, onBack, onSavedDesigns }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -38,40 +39,15 @@ export const MobileNav = ({ onMenuOpen, user, onLogout, onBack, onSavedDesigns }
             closeMenu();
           }}
         >
-          <div
+          <img
+            src={logo}
+            alt="Nirmanbook"
             style={{
-              width: 28,
-              height: 28,
-              background: 'var(--accent)',
-              borderRadius: 6,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              height: 24,
+              width: 'auto',
+              display: 'block',
             }}
-          >
-            <Layers size={14} color="white" />
-          </div>
-          <div>
-            <div
-              style={{
-                fontWeight: 700,
-                fontSize: 13,
-                letterSpacing: '-0.03em',
-                color: 'var(--text-primary)',
-              }}
-            >
-              NirmanBook
-            </div>
-            <div
-              style={{
-                fontSize: 9,
-                color: 'var(--text-muted)',
-                fontWeight: 500,
-              }}
-            >
-              Configurator
-            </div>
-          </div>
+          />
         </div>
 
         {/* Menu Button */}

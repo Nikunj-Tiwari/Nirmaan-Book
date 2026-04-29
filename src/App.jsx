@@ -3,7 +3,15 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { STEPS } from './data/config';
 import {
-  Layers,
+  Plus,
+  Settings,
+  Trash2,
+  Download,
+  Save,
+  Menu,
+  LogOut,
+  Maximize2,
+  ArrowLeft,
   ChevronRight,
   ChevronLeft,
   Check,
@@ -11,6 +19,7 @@ import {
   BookOpen,
   Bookmark,
 } from 'lucide-react';
+import logo from './assets/logo.png';
 
 // Pages & Components
 import HomePage from './components/HomePage';
@@ -265,41 +274,15 @@ const ConfiguratorApp = ({ setConfigured, activeConfigId, setActiveConfigId }) =
                   navigate('/');
                 }}
               >
-                <div
+                <img
+                  src={logo}
+                  alt="Nirmanbook"
                   style={{
-                    width: 30,
-                    height: 30,
-                    background: 'var(--accent)',
-                    borderRadius: 8,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    height: 28,
+                    width: 'auto',
+                    display: 'block',
                   }}
-                >
-                  <Layers size={15} color="white" />
-                </div>
-                <div>
-                  <div
-                    style={{
-                      fontWeight: 700,
-                      fontSize: 14,
-                      letterSpacing: '-0.03em',
-                      color: 'var(--text-primary)',
-                    }}
-                  >
-                    NirmanBook
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 10,
-                      color: 'var(--text-muted)',
-                      fontWeight: 500,
-                      marginTop: 1,
-                    }}
-                  >
-                    Configurator
-                  </div>
-                </div>
+                />
               </div>
             </div>
 

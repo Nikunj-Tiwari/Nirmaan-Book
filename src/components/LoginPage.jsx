@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../store/AuthContext';
 import { Layers, Eye, EyeOff, ArrowRight, Check } from 'lucide-react';
+import logo from '../assets/logo.png';
 
 const LoginPage = () => {
   const { login, register } = useAuth();
@@ -125,23 +126,15 @@ const LoginPage = () => {
             zIndex: 1,
           }}
         >
-          <div
+          <img
+            src={logo}
+            alt="Nirmanbook"
             style={{
-              width: 40,
-              height: 40,
-              background: 'rgba(255,255,255,0.15)',
-              borderRadius: 10,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              border: '1px solid rgba(255,255,255,0.2)',
+              height: 32,
+              width: 'auto',
+              display: 'block',
             }}
-          >
-            <Layers size={20} color="white" />
-          </div>
-          <span style={{ color: 'white', fontWeight: 700, fontSize: 18, letterSpacing: '-0.03em' }}>
-            NirmanBook
-          </span>
+          />
         </div>
 
         {/* Main copy */}
