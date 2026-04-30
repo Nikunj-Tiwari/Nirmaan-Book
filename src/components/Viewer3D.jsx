@@ -355,11 +355,8 @@ export function Viewer3D({
                 width2,
                 width3,
               }}
-              wallOffsets={wallOffsets}
-              orbitRef={orbitRef}
               onModuleHover={setHoveredModule}
               onModuleClick={setSelectedModule}
-              onModuleDrag={handleModuleDrag}
             />
           )}
 
@@ -749,63 +746,134 @@ export function Viewer3D({
 
           <div style={{ height: 1, background: 'rgba(255,255,255,0.08)' }} />
 
-          {/* Position info + reset */}
+          {/* ── Position Sliders ──────────────────────────────────── */}
           <div>
             <div
               style={{
                 fontSize: 10,
                 fontWeight: 600,
                 color: 'rgba(255,255,255,0.6)',
-                marginBottom: 6,
-              }}
-            >
-              POSITION
-            </div>
-            <div
-              style={{
-                fontSize: 9,
-                color: 'rgba(255,255,255,0.35)',
                 marginBottom: 8,
-                lineHeight: 1.6,
               }}
             >
-              🖱️ Drag the module in 3D to reposition it along the wall
-              {selectedModule.posX || selectedModule.posZ ? (
-                <span style={{ display: 'block', color: '#60a5fa', marginTop: 3 }}>
-                  Offset:{' '}
-                  {selectedModule.posX ? `X ${(selectedModule.posX * 1000).toFixed(0)}mm` : ''}
-                  {selectedModule.posZ ? ` Z ${(selectedModule.posZ * 1000).toFixed(0)}mm` : ''}
-                </span>
-              ) : null}
+              POSITION ON WALL
             </div>
-            {(selectedModule.posX || selectedModule.posZ) && (
-              <button
-                onClick={() => {
-                  actions.setModuleOverride(selectedModule.wallKey, 'posX', 0);
-                  actions.setModuleOverride(selectedModule.wallKey, 'posZ', 0);
-                  setSelectedModule({ ...selectedModule, posX: 0, posZ: 0 });
-                }}
-                style={{
-                  width: '100%',
-                  padding: '6px',
-                  borderRadius: 7,
-                  background: 'rgba(255,255,255,0.05)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  color: 'rgba(255,255,255,0.5)',
-                  fontSize: 10,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
-                }}
-              >
-                ↩ Reset to Default Position
-              </button>
-            )}
+
+            {/* Wall A: slide Left ↔ Right */}
+            {(!selectedModule.wall || selectedModule.wall === 'A') &&
+              (() => {
+                const wallWidthMm = roomWidth || 2400;
+                const modWidthMm = selectedModule.width || 600;
+                const halfRange = Math.round((wallWidthMm - modWidthMm) / 2);
+                const currentVal = Math.round((selectedModule.posX || 0) * 1000);
+                return (
+                  <div>
+                    <div
+                      style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}
+                    >
+                      <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>← Left</span>
+                      <span style={{ fontSize: 9, color: '#3b82f6', fontWeight: 700 }}>
+                        {currentVal > 0 ? '+' : ''}
+                        {currentVal}mm
+                      </span>
+                      <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>Right →</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={-halfRange}
+                      max={halfRange}
+                      step={10}
+                      value={currentVal}
+                      onChange={(e) => {
+                        const mmVal = Number(e.target.value);
+                        const mVal = mmVal / 1000;
+                        actions.setModuleOverride(selectedModule.wallKey, 'posX', mVal);
+                        setSelectedModule({ ...selectedModule, posX: mVal });
+                      }}
+                      style={{ width: '100%', accentColor: '#3b82f6', cursor: 'pointer' }}
+                    />
+                    {currentVal !== 0 && (
+                      <button
+                        onClick={() => {
+                          actions.setModuleOverride(selectedModule.wallKey, 'posX', 0);
+                          setSelectedModule({ ...selectedModule, posX: 0 });
+                        }}
+                        style={{
+                          marginTop: 5,
+                          width: '100%',
+                          padding: '4px',
+                          borderRadius: 5,
+                          background: 'rgba(255,255,255,0.05)',
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          color: 'rgba(255,255,255,0.4)',
+                          fontSize: 9,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        ↩ Centre
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
+
+            {/* Wall B or C: slide ← Back → Front */}
+            {(selectedModule.wall === 'B' || selectedModule.wall === 'C') &&
+              (() => {
+                const wallDepthMm = selectedModule.wall === 'B' ? width2 || 1200 : width3 || 1200;
+                const modWidthMm = selectedModule.width || 600;
+                const maxOffset = Math.max(0, wallDepthMm - modWidthMm);
+                const currentVal = Math.round((selectedModule.posZ || 0) * 1000);
+                const accent = selectedModule.wall === 'B' ? '#8b5cf6' : '#06b6d4';
+                return (
+                  <div>
+                    <div
+                      style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}
+                    >
+                      <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>Corner</span>
+                      <span style={{ fontSize: 9, color: accent, fontWeight: 700 }}>
+                        {currentVal}mm from corner
+                      </span>
+                      <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>Front</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={maxOffset}
+                      step={10}
+                      value={currentVal}
+                      onChange={(e) => {
+                        const mmVal = Number(e.target.value);
+                        const mVal = mmVal / 1000;
+                        actions.setModuleOverride(selectedModule.wallKey, 'posZ', mVal);
+                        setSelectedModule({ ...selectedModule, posZ: mVal });
+                      }}
+                      style={{ width: '100%', accentColor: accent, cursor: 'pointer' }}
+                    />
+                    {currentVal !== 0 && (
+                      <button
+                        onClick={() => {
+                          actions.setModuleOverride(selectedModule.wallKey, 'posZ', 0);
+                          setSelectedModule({ ...selectedModule, posZ: 0 });
+                        }}
+                        style={{
+                          marginTop: 5,
+                          width: '100%',
+                          padding: '4px',
+                          borderRadius: 5,
+                          background: 'rgba(255,255,255,0.05)',
+                          border: '1px solid rgba(255,255,255,0.1)',
+                          color: 'rgba(255,255,255,0.4)',
+                          fontSize: 9,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        ↩ Reset to Corner
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
           </div>
 
           <div style={{ height: 1, background: 'rgba(255,255,255,0.08)' }} />
