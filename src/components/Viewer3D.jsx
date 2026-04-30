@@ -260,6 +260,14 @@ export function Viewer3D({
     setSelectedModule({ ...selectedModule, colorOverride: null });
   };
 
+  // Called by WardrobeAssembly whenever a module is dragged
+  const handleModuleDrag = useCallback(
+    (wallKey, axis, value) => {
+      actions.setModuleOverride(wallKey, axis, value);
+    },
+    [actions]
+  );
+
   const bgColor = '#0d1117';
 
   // Glass panel style
@@ -348,8 +356,10 @@ export function Viewer3D({
                 width3,
               }}
               wallOffsets={wallOffsets}
+              orbitRef={orbitRef}
               onModuleHover={setHoveredModule}
               onModuleClick={setSelectedModule}
+              onModuleDrag={handleModuleDrag}
             />
           )}
 
@@ -736,6 +746,67 @@ export function Viewer3D({
               </div>
             </div>
           )}
+
+          <div style={{ height: 1, background: 'rgba(255,255,255,0.08)' }} />
+
+          {/* Position info + reset */}
+          <div>
+            <div
+              style={{
+                fontSize: 10,
+                fontWeight: 600,
+                color: 'rgba(255,255,255,0.6)',
+                marginBottom: 6,
+              }}
+            >
+              POSITION
+            </div>
+            <div
+              style={{
+                fontSize: 9,
+                color: 'rgba(255,255,255,0.35)',
+                marginBottom: 8,
+                lineHeight: 1.6,
+              }}
+            >
+              🖱️ Drag the module in 3D to reposition it along the wall
+              {selectedModule.posX || selectedModule.posZ ? (
+                <span style={{ display: 'block', color: '#60a5fa', marginTop: 3 }}>
+                  Offset:{' '}
+                  {selectedModule.posX ? `X ${(selectedModule.posX * 1000).toFixed(0)}mm` : ''}
+                  {selectedModule.posZ ? ` Z ${(selectedModule.posZ * 1000).toFixed(0)}mm` : ''}
+                </span>
+              ) : null}
+            </div>
+            {(selectedModule.posX || selectedModule.posZ) && (
+              <button
+                onClick={() => {
+                  actions.setModuleOverride(selectedModule.wallKey, 'posX', 0);
+                  actions.setModuleOverride(selectedModule.wallKey, 'posZ', 0);
+                  setSelectedModule({ ...selectedModule, posX: 0, posZ: 0 });
+                }}
+                style={{
+                  width: '100%',
+                  padding: '6px',
+                  borderRadius: 7,
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  color: 'rgba(255,255,255,0.5)',
+                  fontSize: 10,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                }}
+              >
+                ↩ Reset to Default Position
+              </button>
+            )}
+          </div>
 
           <div style={{ height: 1, background: 'rgba(255,255,255,0.08)' }} />
 
