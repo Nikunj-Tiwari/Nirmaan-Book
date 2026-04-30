@@ -747,134 +747,213 @@ export function Viewer3D({
           <div style={{ height: 1, background: 'rgba(255,255,255,0.08)' }} />
 
           {/* ── Position Sliders ──────────────────────────────────── */}
-          <div>
-            <div
-              style={{
-                fontSize: 10,
-                fontWeight: 600,
-                color: 'rgba(255,255,255,0.6)',
-                marginBottom: 8,
-              }}
-            >
-              POSITION ON WALL
-            </div>
+          {(() => {
+            const wall = selectedModule.wall || 'A';
+            const modWidthMm = selectedModule.width || 600;
 
-            {/* Wall A: slide Left ↔ Right */}
-            {(!selectedModule.wall || selectedModule.wall === 'A') &&
-              (() => {
-                const wallWidthMm = roomWidth || 2400;
-                const modWidthMm = selectedModule.width || 600;
-                const halfRange = Math.round((wallWidthMm - modWidthMm) / 2);
-                const currentVal = Math.round((selectedModule.posX || 0) * 1000);
-                return (
-                  <div>
-                    <div
-                      style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}
-                    >
-                      <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>← Left</span>
-                      <span style={{ fontSize: 9, color: '#3b82f6', fontWeight: 700 }}>
-                        {currentVal > 0 ? '+' : ''}
-                        {currentVal}mm
-                      </span>
-                      <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>Right →</span>
-                    </div>
-                    <input
-                      type="range"
-                      min={-halfRange}
-                      max={halfRange}
-                      step={10}
-                      value={currentVal}
-                      onChange={(e) => {
-                        const mmVal = Number(e.target.value);
-                        const mVal = mmVal / 1000;
-                        actions.setModuleOverride(selectedModule.wallKey, 'posX', mVal);
-                        setSelectedModule({ ...selectedModule, posX: mVal });
-                      }}
-                      style={{ width: '100%', accentColor: '#3b82f6', cursor: 'pointer' }}
-                    />
-                    {currentVal !== 0 && (
-                      <button
-                        onClick={() => {
-                          actions.setModuleOverride(selectedModule.wallKey, 'posX', 0);
-                          setSelectedModule({ ...selectedModule, posX: 0 });
-                        }}
-                        style={{
-                          marginTop: 5,
-                          width: '100%',
-                          padding: '4px',
-                          borderRadius: 5,
-                          background: 'rgba(255,255,255,0.05)',
-                          border: '1px solid rgba(255,255,255,0.1)',
-                          color: 'rgba(255,255,255,0.4)',
-                          fontSize: 9,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        ↩ Centre
-                      </button>
-                    )}
-                  </div>
-                );
-              })()}
+            // ── Compute auto-layout base position for this module ──
+            // (mirrors WardrobeAssembly's layoutA / layoutPerp logic)
+            let basePosMm = 0; // auto-layout center in mm along the free axis
 
-            {/* Wall B or C: slide ← Back → Front */}
-            {(selectedModule.wall === 'B' || selectedModule.wall === 'C') &&
-              (() => {
-                const wallDepthMm = selectedModule.wall === 'B' ? width2 || 1200 : width3 || 1200;
-                const modWidthMm = selectedModule.width || 600;
-                const maxOffset = Math.max(0, wallDepthMm - modWidthMm);
-                const currentVal = Math.round((selectedModule.posZ || 0) * 1000);
-                const accent = selectedModule.wall === 'B' ? '#8b5cf6' : '#06b6d4';
-                return (
-                  <div>
-                    <div
-                      style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}
-                    >
-                      <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>Corner</span>
-                      <span style={{ fontSize: 9, color: accent, fontWeight: 700 }}>
-                        {currentVal}mm from corner
-                      </span>
-                      <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>Front</span>
-                    </div>
-                    <input
-                      type="range"
-                      min={0}
-                      max={maxOffset}
-                      step={10}
-                      value={currentVal}
-                      onChange={(e) => {
-                        const mmVal = Number(e.target.value);
-                        const mVal = mmVal / 1000;
-                        actions.setModuleOverride(selectedModule.wallKey, 'posZ', mVal);
-                        setSelectedModule({ ...selectedModule, posZ: mVal });
-                      }}
-                      style={{ width: '100%', accentColor: accent, cursor: 'pointer' }}
-                    />
-                    {currentVal !== 0 && (
-                      <button
-                        onClick={() => {
-                          actions.setModuleOverride(selectedModule.wallKey, 'posZ', 0);
-                          setSelectedModule({ ...selectedModule, posZ: 0 });
-                        }}
-                        style={{
-                          marginTop: 5,
-                          width: '100%',
-                          padding: '4px',
-                          borderRadius: 5,
-                          background: 'rgba(255,255,255,0.05)',
-                          border: '1px solid rgba(255,255,255,0.1)',
-                          color: 'rgba(255,255,255,0.4)',
-                          fontSize: 9,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        ↩ Reset to Corner
-                      </button>
-                    )}
+            if (wall === 'A') {
+              const modsA = modules.filter((m) => !m.wall || m.wall === 'A');
+              const totalW = modsA.reduce((s, m) => s + (m.width || 600), 0);
+              let cursor = -totalW / 2;
+              for (const m of modsA) {
+                const mw = m.width || 600;
+                if (m.wallKey === selectedModule.wallKey) {
+                  basePosMm = cursor + mw / 2;
+                  break;
+                }
+                cursor += mw;
+              }
+            } else {
+              const wallMods = modules.filter((m) => m.wall === wall);
+              let cursor = 0;
+              for (const m of wallMods) {
+                const mw = m.width || 600;
+                if (m.wallKey === selectedModule.wallKey) {
+                  basePosMm = cursor + mw / 2;
+                  break;
+                }
+                cursor += mw;
+              }
+            }
+
+            // ── Wall A: absolute position from LEFT edge of wall ──────────
+            if (wall === 'A') {
+              const wallWidthMm = roomWidth || 2400;
+              const halfWall = wallWidthMm / 2;
+              // Absolute center position from left wall edge (mm)
+              // absoluteFromLeft = basePosMm + halfWall + (posX offset * 1000)
+              const offsetMm = Math.round((selectedModule.posX || 0) * 1000);
+              const absoluteMm = Math.round(basePosMm + halfWall + offsetMm);
+              // Clamp: module center must stay between modWidth/2 and wallWidth-modWidth/2
+              const sliderMin = Math.round(modWidthMm / 2);
+              const sliderMax = Math.round(wallWidthMm - modWidthMm / 2);
+
+              const handleChange = (e) => {
+                const absVal = Number(e.target.value);
+                // Clamp
+                const clamped = Math.max(sliderMin, Math.min(sliderMax, absVal));
+                // Convert back to posX offset
+                const newOffsetMm = clamped - basePosMm - halfWall;
+                const newPosX = newOffsetMm / 1000;
+                actions.setModuleOverride(selectedModule.wallKey, 'posX', newPosX);
+                setSelectedModule({ ...selectedModule, posX: newPosX });
+              };
+
+              return (
+                <div>
+                  <div
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 600,
+                      color: 'rgba(255,255,255,0.6)',
+                      marginBottom: 8,
+                    }}
+                  >
+                    POSITION ON WALL
                   </div>
-                );
-              })()}
-          </div>
+                  <div
+                    style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}
+                  >
+                    <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>← Left wall</span>
+                    <span style={{ fontSize: 9, color: '#3b82f6', fontWeight: 700 }}>
+                      {absoluteMm}mm from left
+                    </span>
+                    <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>
+                      Right wall →
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={wallWidthMm}
+                    step={10}
+                    value={Math.max(sliderMin, Math.min(sliderMax, absoluteMm))}
+                    onChange={handleChange}
+                    style={{ width: '100%', accentColor: '#3b82f6', cursor: 'pointer' }}
+                  />
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      fontSize: 8,
+                      color: 'rgba(255,255,255,0.25)',
+                      marginTop: 2,
+                    }}
+                  >
+                    <span>0mm</span>
+                    <span>{wallWidthMm}mm</span>
+                  </div>
+                  {(selectedModule.posX || 0) !== 0 && (
+                    <button
+                      onClick={() => {
+                        actions.setModuleOverride(selectedModule.wallKey, 'posX', 0);
+                        setSelectedModule({ ...selectedModule, posX: 0 });
+                      }}
+                      style={{
+                        marginTop: 6,
+                        width: '100%',
+                        padding: '4px',
+                        borderRadius: 5,
+                        background: 'rgba(255,255,255,0.05)',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        color: 'rgba(255,255,255,0.4)',
+                        fontSize: 9,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      ↩ Reset to auto position
+                    </button>
+                  )}
+                </div>
+              );
+            }
+
+            // ── Wall B / C: absolute position from CORNER along the side wall ─
+            const wallDepthMm = wall === 'B' ? width2 || 1200 : width3 || 1200;
+            const offsetMm = Math.round((selectedModule.posZ || 0) * 1000);
+            const absoluteMm = Math.round(basePosMm + offsetMm);
+            // Clamp: center must stay between modWidth/2 and wallDepth-modWidth/2
+            const sliderMin = Math.round(modWidthMm / 2);
+            const sliderMax = Math.round(wallDepthMm - modWidthMm / 2);
+            const accent = wall === 'B' ? '#8b5cf6' : '#06b6d4';
+
+            const handleChange = (e) => {
+              const absVal = Number(e.target.value);
+              const clamped = Math.max(sliderMin, Math.min(sliderMax, absVal));
+              const newOffsetMm = clamped - basePosMm;
+              const newPosZ = newOffsetMm / 1000;
+              actions.setModuleOverride(selectedModule.wallKey, 'posZ', newPosZ);
+              setSelectedModule({ ...selectedModule, posZ: newPosZ });
+            };
+
+            return (
+              <div>
+                <div
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 600,
+                    color: 'rgba(255,255,255,0.6)',
+                    marginBottom: 8,
+                  }}
+                >
+                  POSITION ON WALL
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>Corner</span>
+                  <span style={{ fontSize: 9, color: accent, fontWeight: 700 }}>
+                    {absoluteMm}mm from corner
+                  </span>
+                  <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)' }}>Open end</span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={wallDepthMm}
+                  step={10}
+                  value={Math.max(sliderMin, Math.min(sliderMax, absoluteMm))}
+                  onChange={handleChange}
+                  style={{ width: '100%', accentColor: accent, cursor: 'pointer' }}
+                />
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    fontSize: 8,
+                    color: 'rgba(255,255,255,0.25)',
+                    marginTop: 2,
+                  }}
+                >
+                  <span>0mm</span>
+                  <span>{wallDepthMm}mm</span>
+                </div>
+                {(selectedModule.posZ || 0) !== 0 && (
+                  <button
+                    onClick={() => {
+                      actions.setModuleOverride(selectedModule.wallKey, 'posZ', 0);
+                      setSelectedModule({ ...selectedModule, posZ: 0 });
+                    }}
+                    style={{
+                      marginTop: 6,
+                      width: '100%',
+                      padding: '4px',
+                      borderRadius: 5,
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      color: 'rgba(255,255,255,0.4)',
+                      fontSize: 9,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    ↩ Reset to auto position
+                  </button>
+                )}
+              </div>
+            );
+          })()}
 
           <div style={{ height: 1, background: 'rgba(255,255,255,0.08)' }} />
 
