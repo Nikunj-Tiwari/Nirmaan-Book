@@ -212,7 +212,6 @@ export function Viewer3D({
     const currentRot = selectedModule.rotation || 0;
     const nextRot = (currentRot + 90) % 360;
     actions.setModuleOverride(selectedModule.wallKey, 'rotation', nextRot);
-    // Update local selection to reflect state change immediately
     setSelectedModule({ ...selectedModule, rotation: nextRot });
   };
 
@@ -220,6 +219,18 @@ export function Viewer3D({
     if (!selectedModule) return;
     actions.setModuleWall(selectedModule.wallKey, newWall);
     setSelectedModule({ ...selectedModule, wall: newWall });
+  };
+
+  const handleColorChange = (hex) => {
+    if (!selectedModule) return;
+    actions.setModuleOverride(selectedModule.wallKey, 'colorOverride', hex);
+    setSelectedModule({ ...selectedModule, colorOverride: hex });
+  };
+
+  const handleResetColor = () => {
+    if (!selectedModule) return;
+    actions.setModuleOverride(selectedModule.wallKey, 'colorOverride', null);
+    setSelectedModule({ ...selectedModule, colorOverride: null });
   };
 
   const bgColor = '#0d1117';
@@ -250,7 +261,7 @@ export function Viewer3D({
       <Canvas
         shadows
         dpr={[1, 2]}
-        camera={{ position: [0.3, 1.4, 3.8], fov: 42, near: 0.1, far: 40 }}
+        camera={{ position: [0.4, 1.8, 5.5], fov: 55, near: 0.05, far: 60 }}
         gl={{
           alpha: false,
           antialias: true,
@@ -276,13 +287,15 @@ export function Viewer3D({
           ref={orbitRef}
           makeDefault
           enableDamping
-          dampingFactor={0.05}
-          maxDistance={15}
+          dampingFactor={0.04}
+          maxDistance={25}
           minDistance={0.01}
           minPolarAngle={0}
-          maxPolarAngle={Math.PI} // Full freedom
+          maxPolarAngle={Math.PI}
           enablePan={true}
-          target={[0, 1.1, 0.3]}
+          zoomSpeed={1.2}
+          rotateSpeed={0.8}
+          target={[0, 1.1, 0.8]}
         />
 
         <Suspense fallback={null}>
@@ -599,6 +612,62 @@ export function Viewer3D({
               Rotate 90°
               <span style={{ opacity: 0.5 }}>({selectedModule.rotation || 0}°)</span>
             </button>
+          </div>
+
+          {/* Individual Colour Control */}
+          <div>
+            <div
+              style={{
+                fontSize: 10,
+                fontWeight: 600,
+                color: 'rgba(255,255,255,0.6)',
+                marginBottom: 8,
+              }}
+            >
+              MODULE COLOUR
+            </div>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <div style={{ position: 'relative', flex: 1 }}>
+                <input
+                  type="color"
+                  value={selectedModule.colorOverride || material?.hex || '#F0EDE8'}
+                  onChange={(e) => handleColorChange(e.target.value)}
+                  style={{
+                    width: '100%',
+                    height: 36,
+                    borderRadius: 8,
+                    border: '1px solid rgba(255,255,255,0.15)',
+                    cursor: 'pointer',
+                    background: 'transparent',
+                    padding: 2,
+                  }}
+                  title="Pick a custom colour for this module"
+                />
+              </div>
+              {selectedModule.colorOverride && (
+                <button
+                  onClick={handleResetColor}
+                  title="Reset to global colour"
+                  style={{
+                    padding: '6px 8px',
+                    borderRadius: 6,
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    background: 'rgba(255,255,255,0.06)',
+                    color: 'rgba(255,255,255,0.5)',
+                    fontSize: 10,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  Reset
+                </button>
+              )}
+            </div>
+            {selectedModule.colorOverride && (
+              <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', marginTop: 4 }}>
+                Custom: {selectedModule.colorOverride}
+              </div>
+            )}
           </div>
 
           {/* Wall Control */}

@@ -1,8 +1,45 @@
-import React from 'react';
+import React, { useRef } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
 import { Environment, Grid, Text } from '@react-three/drei';
 import * as THREE from 'three';
 
 const mm = (v) => v / 1000;
+
+/**
+ * WallMesh — a single room wall that becomes transparent + gridded
+ * when the camera crosses to the "wrong" side.
+ */
+function WallMesh({ position, args, normal, wallColor, wallRoughness }) {
+  const matRef = useRef();
+  const { camera } = useThree();
+
+  useFrame(() => {
+    if (!matRef.current) return;
+    // Dot product of (camera - wall center) with the wall's outward normal
+    const wallPos = new THREE.Vector3(...position);
+    const toCam = new THREE.Vector3().subVectors(camera.position, wallPos);
+    const dot = toCam.dot(new THREE.Vector3(...normal));
+    // If camera is behind the wall (dot < 0), make it transparent + wireframe grid
+    const behind = dot < 0.01;
+    matRef.current.opacity = behind ? 0.06 : 1.0;
+    matRef.current.wireframe = behind;
+    matRef.current.needsUpdate = true;
+  });
+
+  return (
+    <mesh receiveShadow position={position}>
+      <boxGeometry args={args} />
+      <meshStandardMaterial
+        ref={matRef}
+        color={wallColor}
+        roughness={wallRoughness}
+        transparent
+        opacity={1}
+        side={THREE.DoubleSide}
+      />
+    </mesh>
+  );
+}
 
 /**
  * RoomEnvironment — Realistic bedroom simulation
@@ -29,39 +66,26 @@ export function RoomEnvironment({ width, height, depth, wallType, width2 = 0, wi
 
   // Room dimensions — extends well in front of the wardrobe so camera is inside the room
   const roomW = Math.max(totalW * 1.5, totalW + 2.4);
-  const roomD = Math.max(d + 3.0, 4.5); // depth of floor: wardrobe depth + open room in front
+  const roomD = Math.max(d + 3.0, 4.5);
   const roomH = h * 1.05;
 
-  // The wardrobe back sits at z = 0. The back wall is just behind it (z = -0.06).
-  // The room floor extends from z = 0 (wardrobe back) forward to z = +roomD.
-  // We center the floor at z = roomD/2.
   const floorCenterZ = roomD / 2;
   const wallCenterZ = roomD / 2;
 
-  // Left edge of total wardrobe (for placing left side wall)
   const leftEdge = -w / 2;
   const rightEdge = w / 2;
 
-  // Floor material — warm oak wood tone
   const floorColor = '#c8b89a';
-  const floorRoughness = 0.65;
-
-  // Wall paint color — warm white
   const wallColor = '#f0ece5';
   const wallRoughness = 0.88;
 
-  // Baseboard height
   const bh = 0.1;
   const bt = 0.025;
 
   return (
     <group>
       {/* ── Lighting ───────────────────────────────────────────────────── */}
-
-      {/* Ambient fill */}
       <ambientLight intensity={0.65} />
-
-      {/* Key light from upper-front, casts shadows on wardrobe */}
       <directionalLight
         castShadow
         intensity={1.6}
@@ -74,14 +98,8 @@ export function RoomEnvironment({ width, height, depth, wallType, width2 = 0, wi
         shadow-mapSize={[2048, 2048]}
         shadow-bias={-0.0003}
       />
-
-      {/* Warm fill from left */}
       <pointLight intensity={0.7} position={[-roomW * 0.4, h * 0.7, roomD * 0.5]} color="#ffe4c0" />
-
-      {/* Cool fill from right */}
       <pointLight intensity={0.5} position={[roomW * 0.4, h * 0.6, roomD * 0.4]} color="#ddeeff" />
-
-      {/* Ceiling bounce */}
       <rectAreaLight
         intensity={2.0}
         width={roomW}
@@ -90,8 +108,6 @@ export function RoomEnvironment({ width, height, depth, wallType, width2 = 0, wi
         rotation={[-Math.PI / 2, 0, 0]}
         color="#fff8f0"
       />
-
-      {/* Environment IBL */}
       <Environment preset="apartment" />
 
       {/* ── Floor ─────────────────────────────────────────────────────── */}
@@ -99,8 +115,6 @@ export function RoomEnvironment({ width, height, depth, wallType, width2 = 0, wi
         <boxGeometry args={[roomW, 0.04, roomD]} />
         <meshStandardMaterial color="#d8c9b0" roughness={0.6} metalness={0.01} />
       </mesh>
-
-      {/* Floor plank lines (subtle) */}
       <Grid
         args={[roomW, roomD]}
         cellColor="#c4b498"
@@ -120,52 +134,55 @@ export function RoomEnvironment({ width, height, depth, wallType, width2 = 0, wi
         <meshStandardMaterial color="#f8f6f2" roughness={0.95} />
       </mesh>
 
-      {/* ── BACK WALL — Wall A (always present) ─────────────────────── */}
-      {/* The back wall runs full width behind the wardrobe */}
-      <mesh receiveShadow position={[0, h / 2, -0.03]}>
-        <boxGeometry args={[roomW, roomH + 0.1, 0.06]} />
-        <meshStandardMaterial color={wallColor} roughness={wallRoughness} />
-      </mesh>
-
+      {/* ── BACK WALL — Wall A (camera-adaptive transparency) ─────────── */}
+      {/* Outward normal is +Z (faces camera) */}
+      <WallMesh
+        position={[0, h / 2, -0.03]}
+        args={[roomW, roomH + 0.1, 0.06]}
+        normal={[0, 0, 1]}
+        wallColor={wallColor}
+        wallRoughness={wallRoughness}
+      />
       {/* Baseboard on back wall */}
       <mesh position={[0, bh / 2, bt / 2]}>
         <boxGeometry args={[roomW, bh, bt]} />
         <meshStandardMaterial color="#e8e3db" roughness={0.75} />
       </mesh>
 
-      {/* ── LEFT SIDE WALL ────────────────────────────────────────────── */}
-      {/* For L/U shape, the left wall is further left; for single it's at -roomW/2 */}
-      <mesh receiveShadow position={[-(roomW / 2), h / 2, floorCenterZ]}>
-        <boxGeometry args={[0.06, roomH + 0.1, roomD]} />
-        <meshStandardMaterial color={wallColor} roughness={wallRoughness} />
-      </mesh>
-
-      {/* Baseboard on left wall */}
+      {/* ── LEFT SIDE WALL (camera-adaptive) ─────────────────────────── */}
+      {/* Outward normal is +X */}
+      <WallMesh
+        position={[-(roomW / 2), h / 2, floorCenterZ]}
+        args={[0.06, roomH + 0.1, roomD]}
+        normal={[1, 0, 0]}
+        wallColor={wallColor}
+        wallRoughness={wallRoughness}
+      />
       <mesh position={[-(roomW / 2 - bt / 2), bh / 2, floorCenterZ]}>
         <boxGeometry args={[bt, bh, roomD]} />
         <meshStandardMaterial color="#e8e3db" roughness={0.75} />
       </mesh>
 
-      {/* ── RIGHT SIDE WALL (semi-transparent to see inside) ─────────── */}
-      <mesh receiveShadow position={[roomW / 2, h / 2, floorCenterZ]}>
-        <boxGeometry args={[0.06, roomH + 0.1, roomD]} />
-        <meshStandardMaterial
-          color={wallColor}
-          roughness={wallRoughness}
-          transparent
-          opacity={0.15}
-        />
-      </mesh>
+      {/* ── RIGHT SIDE WALL (camera-adaptive) ────────────────────────── */}
+      {/* Outward normal is -X */}
+      <WallMesh
+        position={[roomW / 2, h / 2, floorCenterZ]}
+        args={[0.06, roomH + 0.1, roomD]}
+        normal={[-1, 0, 0]}
+        wallColor={wallColor}
+        wallRoughness={wallRoughness}
+      />
 
       {/* ── L-SHAPE: extra left side wall behind Wall B ───────────────── */}
       {(isL || isU) && (
         <>
-          {/* The left side wall that Wall B modules back onto (at -w/2) */}
-          <mesh receiveShadow position={[-(w / 2) - 0.03, h / 2, (d + w2) * 0.5]}>
-            <boxGeometry args={[0.06, roomH + 0.1, d + w2 + 0.3]} />
-            <meshStandardMaterial color={wallColor} roughness={wallRoughness} />
-          </mesh>
-          {/* Baseboard */}
+          <WallMesh
+            position={[-(w / 2) - 0.03, h / 2, (d + w2) * 0.5]}
+            args={[0.06, roomH + 0.1, d + w2 + 0.3]}
+            normal={[1, 0, 0]}
+            wallColor={wallColor}
+            wallRoughness={wallRoughness}
+          />
           <mesh position={[-(w / 2 - bt / 2), bh / 2, (d + w2) * 0.5]}>
             <boxGeometry args={[bt, bh, d + w2 + 0.3]} />
             <meshStandardMaterial color="#e8e3db" roughness={0.75} />
@@ -176,10 +193,13 @@ export function RoomEnvironment({ width, height, depth, wallType, width2 = 0, wi
       {/* ── U-SHAPE: extra right side wall behind Wall C ──────────────── */}
       {isU && (
         <>
-          <mesh receiveShadow position={[w / 2 + 0.03, h / 2, (d + w3) * 0.5]}>
-            <boxGeometry args={[0.06, roomH + 0.1, d + w3 + 0.3]} />
-            <meshStandardMaterial color={wallColor} roughness={wallRoughness} />
-          </mesh>
+          <WallMesh
+            position={[w / 2 + 0.03, h / 2, (d + w3) * 0.5]}
+            args={[0.06, roomH + 0.1, d + w3 + 0.3]}
+            normal={[-1, 0, 0]}
+            wallColor={wallColor}
+            wallRoughness={wallRoughness}
+          />
           <mesh position={[w / 2 - bt / 2, bh / 2, (d + w3) * 0.5]}>
             <boxGeometry args={[bt, bh, d + w3 + 0.3]} />
             <meshStandardMaterial color="#e8e3db" roughness={0.75} />

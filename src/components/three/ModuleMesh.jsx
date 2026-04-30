@@ -21,17 +21,17 @@ function Panel({ color, roughness, position, size, opacity = 1 }) {
   );
 }
 
-/** Chrome/metal pull handle (horizontal bar) */
-function Handle({ position, length }) {
+/** Chrome/metal pull handle (vertical bar) */
+function Handle({ position, height }) {
   return (
-    <mesh castShadow position={position} rotation={[0, 0, Math.PI / 2]}>
-      <cylinderGeometry args={[0.009, 0.009, length, 16]} />
+    <mesh castShadow position={position}>
+      <cylinderGeometry args={[0.009, 0.009, height, 16]} />
       <meshStandardMaterial color="#c8c0b4" roughness={0.22} metalness={0.88} />
     </mesh>
   );
 }
 
-/** Garment hanging rail */
+/** Garment hanging rail — runs along X axis */
 function Rail({ position, length }) {
   return (
     <mesh castShadow position={position} rotation={[0, 0, Math.PI / 2]}>
@@ -43,17 +43,19 @@ function Rail({ position, length }) {
 
 /** A Door panel placed just in front of the cabinet face */
 function Door({ color, roughness, x, yCenter, w, h, depth }) {
-  const doorZ = depth / 2 + 0.016;
-  const handleLen = Math.min(h * 0.22, 0.28);
+  const doorZ = depth / 2 + 0.012;
+  const handleLen = Math.min(h * 0.18, 0.22);
+  const handleY = yCenter; // vertically centered on door
   return (
     <group>
       <Panel
         color={color}
         roughness={roughness}
         position={[x, yCenter, doorZ]}
-        size={[w, h, 0.019]}
+        size={[w - 0.004, h - 0.004, 0.018]}
       />
-      <Handle position={[x + w * 0.38, yCenter, doorZ + 0.026]} length={handleLen} />
+      {/* Vertical handle */}
+      <Handle position={[x + w * 0.38, handleY, doorZ + 0.025]} height={handleLen} />
     </group>
   );
 }
@@ -61,14 +63,16 @@ function Door({ color, roughness, x, yCenter, w, h, depth }) {
 export function ModuleMesh({ module, material, position, rotationY = 0, onHover, onClick }) {
   const [hovered, setHovered] = React.useState(false);
 
-  const width = mmToMeters(module.width);
-  const height = mmToMeters(module.height);
-  const depth = mmToMeters(module.depth);
+  // Per-module color override takes priority over the global material
+  const width = mmToMeters(module.width || 600);
+  const height = mmToMeters(module.height || 2400);
+  const depth = mmToMeters(module.depth || 600);
   const pt = 0.018; // panel thickness in metres
   const innerW = width - pt * 2;
-  const innerD = Math.max(depth - pt * 2, depth * 0.92);
+  const innerD = depth - pt; // depth of interior panels
 
-  const baseColor = material?.hex || '#F0EDE8';
+  // Color: per-module override > global material
+  const baseColor = module.colorOverride || material?.hex || '#F0EDE8';
 
   // Dynamically adjust roughness based on finish type for realism
   const finishType = (material?.sub || '').toLowerCase();
@@ -76,15 +80,14 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
     ? 0.82
     : finishType.includes('wood')
       ? 0.45
-      : 0.72; // Default for solid
+      : 0.72;
 
   const roughness = material?.roughness || baseRoughness;
   const moduleType = (module.type || '').toLowerCase();
   const layout = module.layout || {};
 
-  // Fix: THREE.Color.getHexString() returns without '#' — must prepend
   const highlightColor = hovered
-    ? '#' + new THREE.Color(baseColor).clone().multiplyScalar(1.18).getHexString()
+    ? '#' + new THREE.Color(baseColor).clone().multiplyScalar(1.15).getHexString()
     : baseColor;
 
   // ── Derived layout values ─────────────────────────────────────────────
@@ -127,11 +130,14 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
           <Panel
             color={color}
             roughness={rgh}
-            position={[0, cy, depth / 2 + 0.012]}
-            size={[innerW, faceH, 0.022]}
+            position={[0, cy, depth / 2 + 0.006]}
+            size={[innerW - 0.006, faceH, 0.018]}
           />
-          {/* Pull handle */}
-          <Handle position={[0, cy, depth / 2 + 0.036]} length={Math.min(innerW * 0.42, 0.26)} />
+          {/* Pull handle — short horizontal bar */}
+          <mesh position={[0, cy, depth / 2 + 0.032]} rotation={[0, 0, Math.PI / 2]}>
+            <cylinderGeometry args={[0.006, 0.006, Math.min(innerW * 0.3, 0.18), 12]} />
+            <meshStandardMaterial color="#c8c0b4" roughness={0.22} metalness={0.88} />
+          </mesh>
         </group>
       );
     });
@@ -148,7 +154,7 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
           key={`shoe-${j}`}
           color={color}
           roughness={rgh}
-          position={[0, sy, 0]}
+          position={[0, sy, innerD * 0.1]}
           size={[innerW, pt * 1.2, innerD]}
         />
       );
@@ -157,7 +163,6 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
 
   // ── CORNER special case ───────────────────────────────────────────────
   if (isCorner) {
-    // Render as an L-shaped pair of panels rather than a box
     const armW = width / 2;
     return (
       <group
@@ -177,21 +182,18 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
           onClick?.(module);
         }}
       >
-        {/* Left arm — horizontal */}
         <Panel
           color={highlightColor}
           roughness={roughness}
           position={[-armW / 2, height / 2, 0]}
           size={[armW, height, depth]}
         />
-        {/* Right arm — perpendicular */}
         <Panel
           color={highlightColor}
           roughness={roughness}
           position={[armW / 4, height / 2, -depth / 2]}
           size={[pt, height, depth]}
         />
-        {/* Floor, top */}
         <Panel
           color={highlightColor}
           roughness={roughness}
@@ -204,24 +206,20 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
           position={[0, height - pt / 2, 0]}
           size={[width, pt, depth]}
         />
-        {/* Shelves */}
         {renderShelves(numShelves, pt, height - pt, highlightColor, roughness)}
       </group>
     );
   }
 
   // ── Standard cabinet structure ─────────────────────────────────────────
-  // Determine zone boundaries based on what's inside
-  // Hanging zone occupies top portion; drawers/shelves fill rest
+  // Hanging zone occupies top portion; drawers/shelves fill the rest
   let hangZoneTop = height - pt;
-  let hangZoneBottom = height * 0.55; // half height by default for single hang
-  if (numHang >= 2) {
-    // Double hang: two equal zones stacked
-    hangZoneTop = height - pt;
-    hangZoneBottom = height * 0.5;
-  }
-  const storageZoneTop = numHang > 0 ? hangZoneBottom - 0.02 : height - pt;
+  let hangZoneBottom = numHang >= 2 ? height * 0.5 : height * 0.52;
+  const storageZoneTop = numHang > 0 ? hangZoneBottom - 0.015 : height - pt;
   const storageZoneBot = pt;
+
+  // Door layout — two doors side by side
+  const doorW = innerW / 2;
 
   return (
     <group
@@ -274,7 +272,7 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
       <Panel
         color={highlightColor}
         roughness={roughness}
-        position={[0, height / 2, -depth / 2 + pt / 2]}
+        position={[0, height / 2, -(depth / 2) + pt / 2]}
         size={[innerW, height - pt * 2, pt]}
       />
 
@@ -282,24 +280,31 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
       {numHang >= 1 && (
         <>
           {/* Rail for top hang section */}
-          <Rail position={[0, height * (numHang >= 2 ? 0.88 : 0.78), 0]} length={innerW * 0.9} />
-          {/* Top-hang door pair */}
+          <Rail
+            position={[0, numHang >= 2 ? hangZoneTop * 0.94 : hangZoneTop * 0.9, 0]}
+            length={innerW * 0.88}
+          />
+          {/* Top-hang doors */}
           <Door
             color={highlightColor}
             roughness={roughness}
-            x={-innerW * 0.25}
-            yCenter={height * (numHang >= 2 ? 0.75 : 0.65)}
-            w={innerW * 0.495}
-            h={height * (numHang >= 2 ? 0.48 : 0.56)}
+            x={-doorW / 2}
+            yCenter={
+              numHang >= 2 ? (hangZoneTop + hangZoneBottom) / 2 : (hangZoneTop + storageZoneTop) / 2
+            }
+            w={doorW}
+            h={numHang >= 2 ? hangZoneTop - hangZoneBottom : hangZoneTop - storageZoneTop}
             depth={depth}
           />
           <Door
             color={highlightColor}
             roughness={roughness}
-            x={innerW * 0.25}
-            yCenter={height * (numHang >= 2 ? 0.75 : 0.65)}
-            w={innerW * 0.495}
-            h={height * (numHang >= 2 ? 0.48 : 0.56)}
+            x={doorW / 2}
+            yCenter={
+              numHang >= 2 ? (hangZoneTop + hangZoneBottom) / 2 : (hangZoneTop + storageZoneTop) / 2
+            }
+            w={doorW}
+            h={numHang >= 2 ? hangZoneTop - hangZoneBottom : hangZoneTop - storageZoneTop}
             depth={depth}
           />
         </>
@@ -308,7 +313,7 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
       {numHang >= 2 && (
         <>
           {/* Second (bottom) hanging rail */}
-          <Rail position={[0, height * 0.42, 0]} length={innerW * 0.9} />
+          <Rail position={[0, hangZoneBottom * 0.9, 0]} length={innerW * 0.88} />
         </>
       )}
 
@@ -322,17 +327,39 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
       {numHang > 0 &&
         numShelves > 0 &&
         numDrawers === 0 &&
-        // Shelves below the hanging zone
         renderShelves(numShelves, storageZoneBot, storageZoneTop, highlightColor, roughness)}
 
-      {/* ── Drawers (take bottom zone, shelves may be above) ─────────── */}
+      {/* ── Storage zone doors (when there are drawers/shelves) ─────── */}
+      {(numDrawers > 0 || numShelves > 0) && numHang === 0 && (
+        <>
+          <Door
+            color={highlightColor}
+            roughness={roughness}
+            x={-doorW / 2}
+            yCenter={(storageZoneBot + storageZoneTop) / 2}
+            w={doorW}
+            h={storageZoneTop - storageZoneBot}
+            depth={depth}
+          />
+          <Door
+            color={highlightColor}
+            roughness={roughness}
+            x={doorW / 2}
+            yCenter={(storageZoneBot + storageZoneTop) / 2}
+            w={doorW}
+            h={storageZoneTop - storageZoneBot}
+            depth={depth}
+          />
+        </>
+      )}
+
+      {/* ── Drawers ─────────────────────────────────────────────────── */}
       {numDrawers > 0 &&
         numShelves === 0 &&
         renderDrawers(numDrawers, storageZoneBot, storageZoneTop, highlightColor, roughness)}
 
       {numDrawers > 0 && numShelves > 0 && (
         <>
-          {/* Split: shelves on upper half, drawers on lower half */}
           {renderShelves(
             numShelves,
             (storageZoneBot + storageZoneTop) / 2,
@@ -354,15 +381,13 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
       {numShoe > 0 &&
         renderShoeRack(numShoe, storageZoneBot, storageZoneTop * 0.7, highlightColor, roughness)}
 
-      {/* ── Specialty: cubbies grid ──────────────────────────────────── */}
+      {/* ── Cubbies grid ─────────────────────────────────────────────── */}
       {numCubbies > 0 &&
         (() => {
           const cols = 2;
           const rows = Math.ceil(numCubbies / cols);
-          const cW = innerW / cols;
           const cH = storageZoneTop / rows;
           const dividers = [];
-          // Vertical divider down the middle
           dividers.push(
             <Panel
               key="vdiv"
@@ -372,7 +397,6 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
               size={[pt, storageZoneTop, innerD]}
             />
           );
-          // Horizontal shelf-dividers
           for (let r = 1; r < rows; r++) {
             dividers.push(
               <Panel
@@ -387,12 +411,12 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
           return dividers;
         })()}
 
-      {/* ── Top shelf above hanging (always, if space) ───────────────── */}
+      {/* ── Top shelf above hanging ───────────────────────────────────── */}
       {numHang > 0 && (
         <Panel
           color={highlightColor}
           roughness={roughness}
-          position={[0, height * 0.96, 0]}
+          position={[0, height * 0.97, 0]}
           size={[innerW, pt, innerD]}
         />
       )}
