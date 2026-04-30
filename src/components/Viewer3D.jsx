@@ -33,11 +33,14 @@ function getPresets(modules, rW, rH, rD) {
 }
 
 // ─── Smooth camera rig ────────────────────────────────────────────────────────
+// Only moves the camera when a preset button is explicitly clicked.
+// After reaching the target it goes idle so OrbitControls stay in full control.
 function CameraRig({ modules, roomWidth, roomHeight, roomDepth, viewPreset }) {
   const { camera, controls } = useThree();
-  const targetPos = useRef(new THREE.Vector3());
-  const targetLookAt = useRef(new THREE.Vector3());
+  const targetPos = useRef(null); // null = idle, no animation
+  const targetLook = useRef(new THREE.Vector3());
   const initialized = useRef(false);
+  const lastPreset = useRef(null);
 
   const presets = useMemo(
     () => getPresets(modules, roomWidth, roomHeight, roomDepth),
@@ -46,24 +49,47 @@ function CameraRig({ modules, roomWidth, roomHeight, roomDepth, viewPreset }) {
 
   React.useEffect(() => {
     const pos = presets[viewPreset] || presets.perspective;
-    targetPos.current.copy(pos);
-    targetLookAt.current.copy(presets.center);
+    const look = presets.center;
 
+    // First load — snap immediately, no animation
     if (!initialized.current) {
       camera.position.copy(pos);
       if (controls) {
-        controls.target.copy(presets.center);
+        controls.target.copy(look);
         controls.update();
       }
       initialized.current = true;
+      lastPreset.current = viewPreset;
+      return;
     }
+
+    // Only animate when the user explicitly picks a different preset
+    if (viewPreset !== lastPreset.current) {
+      lastPreset.current = viewPreset;
+      targetPos.current = pos.clone();
+      targetLook.current = look.clone();
+    }
+    // Otherwise leave camera exactly where OrbitControls put it
   }, [viewPreset, presets, camera, controls]);
 
   useFrame(() => {
-    camera.position.lerp(targetPos.current, 0.055);
+    if (!targetPos.current) return; // idle — don't touch camera
+
+    // Lerp toward target
+    camera.position.lerp(targetPos.current, 0.08);
     if (controls) {
-      controls.target.lerp(targetLookAt.current, 0.055);
+      controls.target.lerp(targetLook.current, 0.08);
       controls.update();
+    }
+
+    // Stop once close enough (< 1 cm)
+    if (camera.position.distanceTo(targetPos.current) < 0.01) {
+      camera.position.copy(targetPos.current);
+      if (controls) {
+        controls.target.copy(targetLook.current);
+        controls.update();
+      }
+      targetPos.current = null; // go idle
     }
   });
 
@@ -200,6 +226,7 @@ export function Viewer3D({
 
   const isMultiWall = wallType === 'l-shape' || wallType === 'u-shape';
   const availableWalls = wallType === 'u-shape' ? ['A', 'B', 'C'] : ['A', 'B'];
+  const wallOffsets = config.wallOffsets || { B: 0, C: 0 };
 
   // Reset camera to perspective
   const resetCamera = useCallback(() => {
@@ -320,6 +347,7 @@ export function Viewer3D({
                 width2,
                 width3,
               }}
+              wallOffsets={wallOffsets}
               onModuleHover={setHoveredModule}
               onModuleClick={setSelectedModule}
             />
@@ -921,6 +949,85 @@ export function Viewer3D({
                   );
                 })}
               </div>
+
+              {/* ── Wall position offset sliders ─────────────────────── */}
+              {(modules.some((m) => m.wall === 'B') || modules.some((m) => m.wall === 'C')) && (
+                <div
+                  style={{
+                    marginTop: 10,
+                    borderTop: '1px solid rgba(255,255,255,0.07)',
+                    paddingTop: 10,
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 800,
+                      color: 'rgba(255,255,255,0.5)',
+                      letterSpacing: '0.08em',
+                      marginBottom: 8,
+                    }}
+                  >
+                    WALL POSITION OFFSET
+                  </div>
+
+                  {modules.some((m) => m.wall === 'B') && (
+                    <div style={{ marginBottom: 10 }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          marginBottom: 4,
+                        }}
+                      >
+                        <span style={{ fontSize: 10, color: '#8b5cf6', fontWeight: 700 }}>
+                          Left Wall (B)
+                        </span>
+                        <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>
+                          {wallOffsets.B || 0}mm from corner
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min={0}
+                        max={800}
+                        step={10}
+                        value={wallOffsets.B || 0}
+                        onChange={(e) => actions.setWallOffset('B', Number(e.target.value))}
+                        style={{ width: '100%', accentColor: '#8b5cf6', cursor: 'pointer' }}
+                      />
+                    </div>
+                  )}
+
+                  {modules.some((m) => m.wall === 'C') && (
+                    <div>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          marginBottom: 4,
+                        }}
+                      >
+                        <span style={{ fontSize: 10, color: '#06b6d4', fontWeight: 700 }}>
+                          Right Wall (C)
+                        </span>
+                        <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>
+                          {wallOffsets.C || 0}mm from corner
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min={0}
+                        max={800}
+                        step={10}
+                        value={wallOffsets.C || 0}
+                        onChange={(e) => actions.setWallOffset('C', Number(e.target.value))}
+                        style={{ width: '100%', accentColor: '#06b6d4', cursor: 'pointer' }}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>

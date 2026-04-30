@@ -31,6 +31,8 @@ const initialState = {
   moduleWalls: {},
   // moduleOverrides: maps "moduleId:instanceIndex" -> { rotation: 0|90|180|270, ... }
   moduleOverrides: {},
+  // wallOffsets: per-wall Z-offset in mm for B and C walls (how far from corner)
+  wallOffsets: { B: 0, C: 0 },
   colour: COLOURS[0],
   material: MATERIALS[0],
   fascia: 'Akila',
@@ -78,6 +80,10 @@ function configReducer(state, action) {
       const current = newOverrides[wallKey] || {};
       newOverrides[wallKey] = { ...current, [key]: value };
       return { ...state, moduleOverrides: newOverrides };
+    }
+    case 'SET_WALL_OFFSET': {
+      const { wall, offset } = action.payload;
+      return { ...state, wallOffsets: { ...state.wallOffsets, [wall]: offset } };
     }
     case 'TOGGLE_ACCESSORY': {
       const newAccessories = new Set(state.selectedAccessories);
@@ -135,6 +141,8 @@ export const ConfigProvider = ({ children }) => {
       dispatch({ type: 'SET_MODULE_WALL', payload: { wallKey, wall } }),
     setModuleOverride: (wallKey, key, value) =>
       dispatch({ type: 'SET_MODULE_OVERRIDE', payload: { wallKey, key, value } }),
+    setWallOffset: (wall, offset) =>
+      dispatch({ type: 'SET_WALL_OFFSET', payload: { wall, offset } }),
     toggleAccessory: (id) => dispatch({ type: 'TOGGLE_ACCESSORY', payload: { id } }),
     reset: () => dispatch({ type: 'RESET_CONFIG' }),
     loadConfig: (data) => dispatch({ type: 'LOAD_CONFIG', payload: dataToConfig(data) }),

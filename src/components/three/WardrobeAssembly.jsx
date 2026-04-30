@@ -18,11 +18,15 @@ const mm = (v) => v / 1000;
  * Wall A (main): modules along X, centered, back flush with back wall
  * Wall B (left):  rotated +90°Y, running along +Z from the left corner
  * Wall C (right): rotated -90°Y, running along +Z from the right corner
+ *
+ * wallOffsets: { B: mmOffset, C: mmOffset } — how far (in mm) from the corner
+ * to start placing modules, so they don't overlap with Wall A.
  */
 export function WardrobeAssembly({
   modules,
   material,
   roomDimensions,
+  wallOffsets = { B: 0, C: 0 },
   onModuleHover,
   onModuleClick,
 }) {
@@ -38,7 +42,8 @@ export function WardrobeAssembly({
   const depthM = mm(depth);
   const widthAM = mm(width);
 
-  const isMulti = wallType === 'l-shape' || wallType === 'u-shape';
+  const offsetB = mm(wallOffsets?.B || 0);
+  const offsetC = mm(wallOffsets?.C || 0);
 
   const { wallA, wallB, wallC } = useMemo(() => {
     if (!modules || modules.length === 0) return { wallA: [], wallB: [], wallC: [] };
@@ -60,9 +65,9 @@ export function WardrobeAssembly({
       });
     };
 
-    // Wall B & C: Start from corner (z=0) and run forward towards camera (+Z)
-    const layoutPerp = (mods, prefix) => {
-      let cursor = 0;
+    // Wall B & C: Start from corner (z=0) + offset, run forward towards camera (+Z)
+    const layoutPerp = (mods, prefix, startOffset) => {
+      let cursor = startOffset; // start after user-defined offset
       return mods.map((mod, i) => {
         const mmWidth = mm(mod.width || 600);
         const halfW = mmWidth / 2;
@@ -74,10 +79,10 @@ export function WardrobeAssembly({
 
     return {
       wallA: layoutA(modsA),
-      wallB: layoutPerp(modsB, 'B'),
-      wallC: layoutPerp(modsC, 'C'),
+      wallB: layoutPerp(modsB, 'B', offsetB),
+      wallC: layoutPerp(modsC, 'C', offsetC),
     };
-  }, [modules, wallType, depthM]);
+  }, [modules, wallType, depthM, offsetB, offsetC]);
 
   return (
     <group>
@@ -100,7 +105,6 @@ export function WardrobeAssembly({
       {wallB.length > 0 && (
         <group>
           {wallB.map(({ module, zCenter, key }) => {
-            // Face inwards towards center
             const baseRot = Math.PI / 2;
             const extraRot = (module.rotation || 0) * (Math.PI / 180);
             return (
@@ -122,7 +126,6 @@ export function WardrobeAssembly({
       {wallC.length > 0 && (
         <group>
           {wallC.map(({ module, zCenter, key }) => {
-            // Face inwards towards center
             const baseRot = -Math.PI / 2;
             const extraRot = (module.rotation || 0) * (Math.PI / 180);
             return (
