@@ -1,3 +1,22 @@
+import React from 'react';
+import {
+  Minus,
+  GripHorizontal,
+  AlignJustify,
+  CircleDot,
+  Activity,
+  Ban,
+  Ruler,
+  Gem,
+  Glasses,
+  Diamond,
+  Watch,
+  Footprints,
+  Paperclip,
+  Shirt,
+  Square,
+} from 'lucide-react';
+
 export const COLOURS = [
   { name: 'White', sub: 'Solid', hex: '#F0EDE8' },
   { name: 'Grey', sub: 'Solid', hex: '#9EA09E' },
@@ -34,17 +53,37 @@ export const FASCIAS = [
 ];
 
 export const HANDLES = [
-  { name: 'Matte Black', icon: '◼', sub: 'Metal bar pull, 160mm', price: 450 },
-  { name: 'Brushed Gold', icon: '🟡', sub: 'Brass finish, 128mm', price: 850 },
-  { name: 'Satin Steel', icon: '◻', sub: 'SS304, 192mm', price: 550 },
-  { name: 'Handleless', icon: '—', sub: 'Integrated J-pull groove', price: 1200 },
+  {
+    name: 'Matte Black',
+    icon: <GripHorizontal size={16} />,
+    sub: 'Metal bar pull, 160mm',
+    price: 450,
+  },
+  {
+    name: 'Brushed Gold',
+    icon: <GripHorizontal size={16} />,
+    sub: 'Brass finish, 128mm',
+    price: 850,
+  },
+  { name: 'Satin Steel', icon: <GripHorizontal size={16} />, sub: 'SS304, 192mm', price: 550 },
+  { name: 'Handleless', icon: <Minus size={16} />, sub: 'Integrated J-pull groove', price: 1200 },
 ];
 
 export const LIGHTING = [
-  { name: 'LED Strip', icon: '━', sub: 'Warm 3000K, shelf-edge', price: 2500 },
-  { name: 'Spot Lights', icon: '◉', sub: 'Recessed, top-mount', price: 3200 },
-  { name: 'Motion Sensor', icon: '◈', sub: 'Auto on/off, 30s delay', price: 4500 },
-  { name: 'No Lighting', icon: '○', sub: 'Skip lighting', price: 0 },
+  {
+    name: 'LED Strip',
+    icon: <AlignJustify size={16} />,
+    sub: 'Warm 3000K, shelf-edge',
+    price: 2500,
+  },
+  { name: 'Spot Lights', icon: <CircleDot size={16} />, sub: 'Recessed, top-mount', price: 3200 },
+  {
+    name: 'Motion Sensor',
+    icon: <Activity size={16} />,
+    sub: 'Auto on/off, 30s delay',
+    price: 4500,
+  },
+  { name: 'No Lighting', icon: <Ban size={16} />, sub: 'Skip lighting', price: 0 },
 ];
 
 export const BRANDS = ['Olive', 'Laranza', 'EBCO', 'HETTICH', 'BLUM', 'Haffele'];
@@ -53,57 +92,63 @@ export const ACCESSORIES = [
   {
     id: 'rack-t',
     name: 'Trouser Rack',
-    icon: '📏',
+    icon: <Ruler size={16} />,
     desc: 'Pull-out, fits 10–14 trousers, soft-close',
     price: 4500,
   },
   {
     id: 'jewel-g',
     name: 'Jewellery Tray (Glass)',
-    icon: '💍',
+    icon: <Gem size={16} />,
     desc: 'Velvet-lined, glass cover shelf',
     price: 8500,
   },
   {
     id: 'acc-g',
     name: 'Accessory Tray (Glass)',
-    icon: '🕶️',
+    icon: <Glasses size={16} />,
     desc: 'Segmented, glass cover shelf',
     price: 7200,
   },
   {
     id: 'jewel-w',
     name: 'Jewellery Tray (Wood)',
-    icon: '💎',
+    icon: <Diamond size={16} />,
     desc: 'Velvet-lined, wooden cover shelf',
     price: 6500,
   },
   {
     id: 'acc-w',
     name: 'Accessory Tray (Wood)',
-    icon: '⌚',
+    icon: <Watch size={16} />,
     desc: 'Segmented, wooden cover shelf',
     price: 5800,
   },
   {
     id: 'shoe',
     name: 'Shoe Rack Shelves',
-    icon: '👟',
+    icon: <Footprints size={16} />,
     desc: 'Angled fixed shelves for footwear',
     price: 2200,
   },
   {
     id: 'side',
     name: 'Side Hanger Rod',
-    icon: '🧷',
+    icon: <Paperclip size={16} />,
     desc: 'Pull-out side rod, scarves & ties',
     price: 1800,
   },
-  { id: 'top', name: 'Top Hanger Rod', icon: '👕', desc: 'Top-mounted garment rail', price: 1200 },
+  {
+    id: 'top',
+    name: 'Top Hanger Rod',
+    icon: <Shirt size={16} />,
+    desc: 'Top-mounted garment rail',
+    price: 1200,
+  },
   {
     id: 'mirror',
     name: 'Mirror Panel',
-    icon: '🪞',
+    icon: <Square size={16} />,
     desc: 'Full-length door or fixed mirror',
     price: 4200,
   },

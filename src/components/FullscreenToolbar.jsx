@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useConfig } from '../store/ConfigContext';
-import { COLOURS, MATERIALS, HANDLES, LIGHTING, ACCESSORIES } from '../data/config';
+import { COLOURS, MATERIALS, HANDLES, LIGHTING, ACCESSORIES } from '../data/config.jsx';
 import { Check, ChevronDown, ChevronUp } from 'lucide-react';
 import { MODULES } from '../data/modules';
 

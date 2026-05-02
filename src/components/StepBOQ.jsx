@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState, useCallback } from 'react';
 import { MODULES } from '../data/modules';
-import { ACCESSORIES } from '../data/config';
+import { ACCESSORIES } from '../data/config.jsx';
 import {
   Printer,
   Download,
@@ -17,6 +17,7 @@ import { useConfig } from '../store/ConfigContext';
 import { handlePrint, generatePDF, exportQuoteJSON, exportTextSummary } from '../utils/export';
 import { saveConfig, updateConfig, getConfigs, clearDraft } from '../utils/storage';
 import { drawBlueprintLight } from '../utils/visuals';
+import PrintQuote from './PrintQuote';
 
 import SaveDesignModal from './SaveDesignModal';
 import { useToast } from './ToastProvider';
@@ -107,6 +108,7 @@ const StepBOQ = ({ activeConfigId, setActiveConfigId, onRefreshCount }) => {
   const { isMobile } = useResponsive();
   const { valuation } = derived;
   const printRef = useRef(null);
+  const printQuoteRef = useRef(null);
   const canvasRef = useRef(null);
   const { addToast } = useToast();
 
@@ -242,6 +244,80 @@ const StepBOQ = ({ activeConfigId, setActiveConfigId, onRefreshCount }) => {
         style={{ display: 'flex', flexDirection: 'column', gap: 32 }}
         className="animate-fade-in"
       >
+        {/* ── Total Price Hero Card (top-right of Summary panel) ── */}
+        <div
+          style={{
+            background: 'var(--accent)',
+            borderRadius: 12,
+            padding: '20px 24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 4,
+            boxShadow: '0 4px 20px rgba(59,130,246,0.35)',
+          }}
+        >
+          <span
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+              color: 'rgba(255,255,255,0.65)',
+            }}
+          >
+            Total Project Quote
+          </span>
+          <span
+            style={{
+              fontSize: 30,
+              fontWeight: 800,
+              color: '#ffffff',
+              letterSpacing: '-0.04em',
+              lineHeight: 1,
+            }}
+          >
+            ₹{(valuation.total || 0).toLocaleString()}
+          </span>
+          <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
+            <div style={{ flex: 1 }}>
+              <div
+                style={{
+                  fontSize: 9,
+                  fontWeight: 600,
+                  color: 'rgba(255,255,255,0.55)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em',
+                  marginBottom: 2,
+                }}
+              >
+                Modules
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,0.9)' }}>
+                ₹{(valuation.modulesSubtotal || 0).toLocaleString()}
+              </div>
+            </div>
+            <div style={{ flex: 1 }}>
+              <div
+                style={{
+                  fontSize: 9,
+                  fontWeight: 600,
+                  color: 'rgba(255,255,255,0.55)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em',
+                  marginBottom: 2,
+                }}
+              >
+                Hardware & Acc.
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'rgba(255,255,255,0.9)' }}>
+                ₹{(valuation.accessoriesTotal || 0).toLocaleString()}
+              </div>
+            </div>
+          </div>
+          <div style={{ marginTop: 8, fontSize: 10, color: 'rgba(255,255,255,0.45)' }}>
+            Quote valid for 30 days from issue date
+          </div>
+        </div>
         {/* ── Header with action buttons ── */}
         <div
           style={{
@@ -353,14 +429,14 @@ const StepBOQ = ({ activeConfigId, setActiveConfigId, onRefreshCount }) => {
               onClick={async () => handlePrint()}
             />
 
-            {/* EXPORT PDF */}
+            {/* EXPORT PDF — uses premium PrintQuote layout */}
             <ActionButton
               label="Export PDF"
               loadingLabel="Generating…"
               doneLabel="PDF Downloaded"
               icon={Download}
               variant="primary"
-              onClick={() => generatePDF(printRef.current)}
+              onClick={() => generatePDF(printQuoteRef.current)}
             />
 
             {/* EXPORT JSON */}
@@ -703,7 +779,7 @@ const StepBOQ = ({ activeConfigId, setActiveConfigId, onRefreshCount }) => {
           {/* ── Bottom cards ── */}
           <div
             className="print-cards-grid"
-            style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: 16 }}
+            style={{ display: 'flex', flexDirection: 'column', gap: 24 }}
           >
             {/* Technical Notes */}
             <div
@@ -717,15 +793,15 @@ const StepBOQ = ({ activeConfigId, setActiveConfigId, onRefreshCount }) => {
             >
               <h4
                 style={{
-                  fontSize: 14,
+                  fontSize: 15,
                   fontWeight: 700,
                   color: 'var(--text-primary)',
-                  marginBottom: 14,
+                  marginBottom: 16,
                 }}
               >
                 Technical Notes
               </h4>
-              <ul style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {[
                   '18mm high-density calibrated panel core',
                   '2mm impact-resistant PVC edge banding',
@@ -733,22 +809,31 @@ const StepBOQ = ({ activeConfigId, setActiveConfigId, onRefreshCount }) => {
                   'Site-specific assembly factors may apply',
                   'Pricing valid for 30 days from issue date',
                 ].map((note, i) => (
-                  <li
+                  <div
                     key={i}
                     style={{
                       display: 'flex',
-                      gap: 8,
+                      alignItems: 'flex-start',
+                      gap: 12,
                       fontSize: 13,
+                      lineHeight: '1.6',
                       color: 'var(--text-secondary)',
                     }}
                   >
-                    <span style={{ color: 'var(--accent)', fontWeight: 700, flexShrink: 0 }}>
-                      ·
+                    <span
+                      style={{
+                        color: 'var(--accent)',
+                        fontWeight: 700,
+                        flexShrink: 0,
+                        marginTop: '-2px',
+                      }}
+                    >
+                      ✓
                     </span>
-                    {note}
-                  </li>
+                    <span>{note}</span>
+                  </div>
                 ))}
-              </ul>
+              </div>
             </div>
 
             {/* CTA / Export Card */}
@@ -761,22 +846,33 @@ const StepBOQ = ({ activeConfigId, setActiveConfigId, onRefreshCount }) => {
                 padding: '24px',
                 display: 'flex',
                 flexDirection: 'column',
-                justifyContent: 'space-between',
                 gap: 16,
+                boxShadow: 'var(--shadow-sm)',
               }}
             >
               <div>
                 <h4
-                  style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent)', marginBottom: 8 }}
+                  style={{ fontSize: 16, fontWeight: 700, color: 'var(--accent)', marginBottom: 8 }}
                 >
                   Ready to Proceed?
                 </h4>
-                <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                <p
+                  style={{
+                    fontSize: 13,
+                    color: 'var(--text-secondary)',
+                    lineHeight: 1.6,
+                    maxWidth: '65ch',
+                  }}
+                >
                   Export this quote as a PDF, share the JSON data file, or download a plain-text
                   summary. Pricing is valid for 30 days.
                 </p>
               </div>
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <div
+                className="print:hidden"
+                data-html2canvas-ignore="true"
+                style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}
+              >
                 <ActionButton
                   label="Export PDF"
                   loadingLabel="Generating…"
@@ -798,6 +894,26 @@ const StepBOQ = ({ activeConfigId, setActiveConfigId, onRefreshCount }) => {
           </div>
         </div>
         {/* end printRef zone */}
+      </div>
+
+      {/* ── Off-screen premium print layout (captured by PDF export) ── */}
+      <div
+        style={{
+          position: 'fixed',
+          top: '-9999px',
+          left: '-9999px',
+          width: 794,
+          pointerEvents: 'none',
+          zIndex: -1,
+        }}
+      >
+        <PrintQuote
+          ref={printQuoteRef}
+          config={config}
+          boqItems={boqItems}
+          valuation={valuation}
+          totalModulesCount={totalModulesCount}
+        />
       </div>
     </>
   );

@@ -1,5 +1,5 @@
 import { MODULES } from '../data/modules';
-import { ACCESSORIES } from '../data/config';
+import { ACCESSORIES } from '../data/config.jsx';
 
 /**
  * Deterministic Project Valuation Engine

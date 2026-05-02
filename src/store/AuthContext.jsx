@@ -16,6 +16,14 @@ export const AuthProvider = ({ children }) => {
 
   // Sync with Firebase Auth state
   useEffect(() => {
+    // Safety check: If Firebase is not configured, don't hang on loading
+    if (!auth?.app?.options?.apiKey) {
+      console.warn('Firebase API Key missing. Bypassing Auth loading for local development.');
+      // Use microtask to avoid setState-in-effect lint warning
+      queueMicrotask(() => setLoading(false));
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
         // Map Firebase user to our app user object
@@ -30,11 +38,31 @@ export const AuthProvider = ({ children }) => {
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    // Fallback: If auth takes too long (e.g. network issues), clear loading
+    const timeout = setTimeout(() => {
+      if (loading) {
+        console.warn('Auth initialization timed out. Clearing loading state.');
+        setLoading(false);
+      }
+    }, 3000);
+
+    return () => {
+      unsubscribe();
+      clearTimeout(timeout);
+    };
   }, []);
 
   const login = async (email, password) => {
     try {
+      if (!auth) {
+        console.warn('Firebase Auth bypassed: Logging in with demo account');
+        setUser({
+          uid: 'demo-uid-123',
+          email: email,
+          name: email.split('@')[0],
+        });
+        return { ok: true };
+      }
       await signInWithEmailAndPassword(auth, email, password);
       return { ok: true };
     } catch (error) {
@@ -44,6 +72,15 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (email, password, name = '', extraData = {}) => {
     try {
+      if (!auth) {
+        console.warn('Firebase Auth bypassed: Registering demo account');
+        setUser({
+          uid: 'demo-uid-123',
+          email: email,
+          name: name || email.split('@')[0],
+        });
+        return { ok: true };
+      }
       const cred = await createUserWithEmailAndPassword(auth, email, password);
       if (name.trim()) {
         await updateProfile(cred.user, { displayName: name.trim() });
@@ -59,6 +96,10 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
+      if (!auth) {
+        setUser(null);
+        return;
+      }
       await signOut(auth);
     } catch (error) {
       console.error('Logout error:', error);

@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ChevronRight, ChevronLeft } from 'lucide-react';
-import StepIndicator from './StepIndicator';
+import HorizontalStepper from './HorizontalStepper';
 import StepProject from './StepProject';
 import PreviewPanel from './PreviewPanel';
 import StepDimensions from './StepDimensions';
@@ -24,31 +24,32 @@ const STEP_ROUTES = [
 ];
 
 /**
- * ConfiguratorFlow Component
- * Handles 5-step linear flow with navigation guards and controls.
- * Routes users through the configurator steps with Continue/Back buttons.
+ * ConfiguratorFlow — redesigned layout.
+ * Row 1: HorizontalStepper (sticky, 48px)
+ * Row 2: PreviewPanel (78%) + ControlPanel (22%), fills remaining viewport
+ * Row 3: Minimal bottom nav — Back | Total Price | Continue
  */
 const ConfiguratorFlow = ({ activeConfigId, setActiveConfigId, onRefreshCount }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { isMobile } = useResponsive();
   const { addToast } = useToast();
-  const { config, derived } = useConfig();
+  const { derived } = useConfig();
   const { isStepLocked, getLockReason, canNavigateTo } = useStepGuard();
+  const { valuation } = derived;
 
-  // Determine current step from URL
+  // Resolve current step from URL
   const currentPath = location.pathname;
   const currentStepObj = STEP_ROUTES.find((s) => s.path === currentPath);
   const currentStep = currentStepObj?.id || 1;
 
-  // Redirect from /configure to /configure/project
+  // Redirect /configure → /configure/project
   useEffect(() => {
     if (currentPath === '/configure' || currentPath === '/configure/') {
       navigate('/configure/project', { replace: true });
     }
   }, [currentPath, navigate]);
 
-  // Navigate to step with guard checks
   const navigateToStep = useCallback(
     (stepId) => {
       if (!canNavigateTo(stepId)) {
@@ -56,14 +57,11 @@ const ConfiguratorFlow = ({ activeConfigId, setActiveConfigId, onRefreshCount })
         return;
       }
       const route = STEP_ROUTES.find((s) => s.id === stepId);
-      if (route) {
-        navigate(route.path);
-      }
+      if (route) navigate(route.path);
     },
     [navigate, canNavigateTo, getLockReason, addToast]
   );
 
-  // Navigation handlers
   const handleNext = useCallback(() => {
     if (currentStep < 6 && canNavigateTo(currentStep + 1)) {
       navigateToStep(currentStep + 1);
@@ -73,12 +71,10 @@ const ConfiguratorFlow = ({ activeConfigId, setActiveConfigId, onRefreshCount })
   }, [currentStep, canNavigateTo, navigateToStep, getLockReason, addToast]);
 
   const handlePrev = useCallback(() => {
-    if (currentStep > 1) {
-      navigateToStep(currentStep - 1);
-    }
+    if (currentStep > 1) navigateToStep(currentStep - 1);
   }, [currentStep, navigateToStep]);
 
-  // Render current step content
+  // Render the active step's control panel content
   const renderStepContent = () => {
     switch (currentStep) {
       case 1:
@@ -104,185 +100,243 @@ const ConfiguratorFlow = ({ activeConfigId, setActiveConfigId, onRefreshCount })
     }
   };
 
-  return (
-    <>
-      <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes slideIn {
-          from { opacity: 0; transform: translateY(4px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-in {
-          animation: fadeIn 0.35s ease-out;
-        }
-        .animate-slide-in {
-          animation: slideIn 0.35s ease-out;
-        }
-      `}</style>
+  // ── Mobile: full-screen stacked layout (preview on top, controls below)
+  if (isMobile) {
+    return (
       <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
-        {/* Step Indicator (moved to sidebar) */}
+        <HorizontalStepper currentStep={currentStep} onStepClick={navigateToStep} />
 
-        {/* 2-Column Layout: Content + Preview */}
-        <div
-          style={{
-            flex: 1,
-            display: 'flex',
-            flexDirection: isMobile ? 'column' : 'row',
-            gap: 0,
-            overflow: 'hidden',
-            minHeight: 0,
-          }}
-        >
-          {/* LEFT: Step Content (Scrollable) */}
+        {/* Preview — compact strip on mobile */}
+        {currentStep !== 1 && (
           <div
             style={{
-              flex: 1,
-              overflowY: 'auto',
-              overflowX: 'hidden',
-              padding: isMobile ? '16px' : '32px 40px',
-              borderRight: !isMobile ? '1px solid var(--border)' : 'none',
-              minHeight: 0,
-              minWidth: 0,
+              height: 220,
+              flexShrink: 0,
+              padding: '10px 12px',
+              borderBottom: '1px solid var(--border)',
             }}
           >
-            <div
-              style={{ maxWidth: 900, margin: '0 auto', width: '100%' }}
-              className="animate-fade-in"
-            >
-              {renderStepContent()}
-            </div>
+            <PreviewPanel currentStep={currentStep} />
           </div>
+        )}
 
-          {/* RIGHT: Preview Panel (Desktop Only) — fixed height, no sticky wrapper */}
-          {!isMobile && (
-            <div
-              style={{
-                width: '35%',
-                minWidth: 320,
-                maxWidth: 450,
-                padding: '20px 16px',
-                background: 'var(--bg-primary)',
-                borderLeft: '1px solid var(--border)',
-                flexShrink: 0,
-                display: 'flex',
-                flexDirection: 'column',
-                overflow: 'hidden',
-              }}
-            >
-              {/* PreviewPanel fills the entire column height */}
-              <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-                <PreviewPanel currentStep={currentStep} />
-              </div>
-            </div>
-          )}
+        {/* Controls — scrollable */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px', minHeight: 0 }}>
+          <div className="step-animate">{renderStepContent()}</div>
         </div>
 
-        {/* Navigation Controls */}
+        {/* Bottom nav */}
+        <BottomNav
+          currentStep={currentStep}
+          totalPrice={valuation.total}
+          onPrev={handlePrev}
+          onNext={handleNext}
+          isNextLocked={isStepLocked(currentStep + 1)}
+          isMobile
+        />
+      </div>
+    );
+  }
+
+  // ── Desktop: Preview (78%) | Controls (22%)
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+      {/* Sticky horizontal stepper */}
+      <HorizontalStepper currentStep={currentStep} onStepClick={navigateToStep} />
+
+      {/* Main content row — strict overflow containment */}
+      <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden', height: 0 }}>
+        {/* ── Preview Panel — 78% — sticky, never scrolls */}
+        {currentStep !== 1 && (
+          <div
+            style={{
+              flex: '0 0 78%',
+              width: '78%',
+              padding: '16px',
+              background: 'var(--bg-primary)',
+              display: 'flex',
+              flexDirection: 'column',
+              minHeight: 0,
+              overflow: 'hidden',
+            }}
+          >
+            <PreviewPanel currentStep={currentStep} />
+          </div>
+        )}
+
+        {/* ── Control Panel — 22% (or 100% on Step 1) — scrolls independently, never bleeds */}
         <div
           style={{
-            padding: isMobile ? '12px 16px' : '20px 40px',
-            borderTop: '1px solid var(--border)',
+            flex: currentStep === 1 ? '1' : '0 0 22%',
+            width: currentStep === 1 ? '100%' : '22%',
+            borderLeft: currentStep === 1 ? 'none' : '1px solid var(--border)',
             background: 'var(--bg-secondary)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: 12,
-            flexShrink: 0,
-            flexWrap: isMobile ? 'wrap' : 'nowrap',
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            overscrollBehavior: 'contain',
+            height: '100%',
+            padding: currentStep === 1 ? '0' : '16px 12px 80px',
+            minHeight: 0,
+            boxSizing: 'border-box',
           }}
-          className="no-print"
         >
-          {/* Back Button */}
-          <button
-            onClick={handlePrev}
-            disabled={currentStep === 1}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: isMobile ? '12px 20px' : '10px 16px',
-              borderRadius: 8,
-              border: '1px solid var(--border)',
-              background: currentStep === 1 ? 'var(--bg-tertiary)' : 'var(--bg-secondary)',
-              color: currentStep === 1 ? 'var(--text-tertiary)' : 'var(--text-primary)',
-              fontSize: isMobile ? 14 : 13,
-              fontWeight: 600,
-              cursor: currentStep === 1 ? 'not-allowed' : 'pointer',
-              transition: 'all 0.15s',
-              opacity: currentStep === 1 ? 0.5 : 1,
-              fontFamily: 'var(--font-sans)',
-            }}
-            onMouseEnter={(e) => {
-              if (currentStep > 1) e.currentTarget.style.background = 'var(--accent-light)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'var(--bg-secondary)';
-            }}
-          >
-            <ChevronLeft size={14} />
-            Back
-          </button>
-
-          {/* Step Info */}
-          <div style={{ textAlign: 'center', flex: 1 }}>
-            <span
-              style={{
-                fontSize: 12,
-                fontWeight: 500,
-                color: 'var(--text-secondary)',
-              }}
-            >
-              Step {currentStep} of 6
-            </span>
+          <div className="step-animate" style={currentStep === 1 ? { height: '100%' } : {}}>
+            {renderStepContent()}
           </div>
-
-          {/* Continue Button */}
-          <button
-            onClick={handleNext}
-            disabled={currentStep === 6 || isStepLocked(currentStep + 1)}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: isMobile ? '12px 24px' : '10px 16px',
-              borderRadius: 8,
-              border: 'none',
-              background: currentStep === 6 ? 'var(--bg-tertiary)' : 'var(--accent)',
-              color: currentStep === 6 ? 'var(--text-tertiary)' : 'white',
-              fontSize: isMobile ? 14 : 13,
-              fontWeight: 700,
-              cursor: currentStep === 6 ? 'default' : 'pointer',
-              transition: 'all 0.15s',
-              opacity: currentStep === 6 || isStepLocked(currentStep + 1) ? 0.5 : 1,
-              boxShadow: 'var(--shadow-sm)',
-              fontFamily: 'var(--font-sans)',
-            }}
-            onMouseEnter={(e) => {
-              if (currentStep < 6 && !isStepLocked(currentStep + 1)) {
-                e.currentTarget.style.background = 'var(--accent-dark)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'var(--accent)';
-            }}
-            title={
-              isStepLocked(currentStep + 1)
-                ? getLockReason(currentStep + 1)
-                : currentStep === 6
-                  ? 'You are on the final step'
-                  : 'Continue to next step'
-            }
-          >
-            {currentStep === 6 ? 'Complete' : 'Continue'}
-            {currentStep < 6 && <ChevronRight size={14} />}
-          </button>
         </div>
       </div>
-    </>
+
+      {/* Minimal floating bottom nav */}
+      <BottomNav
+        currentStep={currentStep}
+        totalPrice={valuation.total}
+        onPrev={handlePrev}
+        onNext={handleNext}
+        isNextLocked={isStepLocked(currentStep + 1)}
+        getLockReason={getLockReason}
+      />
+
+      <style>{`
+        @keyframes stepFadeIn {
+          from { opacity: 0; transform: translateY(6px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .step-animate { animation: stepFadeIn 0.28s ease-out; }
+      `}</style>
+    </div>
   );
 };
+
+/* ── Minimal bottom nav bar ────────────────────────────────────────────────── */
+const BottomNav = ({
+  currentStep,
+  totalPrice,
+  onPrev,
+  onNext,
+  isNextLocked,
+  getLockReason,
+  isMobile,
+}) => (
+  <div
+    className="no-print"
+    style={{
+      position: 'sticky',
+      bottom: 0,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: isMobile ? '10px 16px' : '10px 24px',
+      height: 52,
+      background: 'var(--bg-secondary)',
+      borderTop: '1px solid var(--border)',
+      backdropFilter: 'blur(8px)',
+      zIndex: 30,
+      flexShrink: 0,
+      gap: 12,
+    }}
+  >
+    {/* Back */}
+    <button
+      onClick={onPrev}
+      disabled={currentStep === 1}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 5,
+        padding: '7px 16px',
+        borderRadius: 8,
+        border: '1px solid var(--border)',
+        background: 'transparent',
+        color: currentStep === 1 ? 'var(--text-muted)' : 'var(--text-primary)',
+        fontSize: 13,
+        fontWeight: 600,
+        cursor: currentStep === 1 ? 'not-allowed' : 'pointer',
+        opacity: currentStep === 1 ? 0.45 : 1,
+        fontFamily: 'var(--font-sans)',
+        transition: 'all 0.15s',
+      }}
+      onMouseEnter={(e) => {
+        if (currentStep > 1) e.currentTarget.style.background = 'var(--bg-tertiary)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = 'transparent';
+      }}
+    >
+      <ChevronLeft size={14} /> Back
+    </button>
+
+    {/* Total price — center — only show from Step 3 onwards */}
+    {currentStep >= 3 ? (
+      <div
+        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1.2 }}
+      >
+        <span
+          style={{
+            fontSize: 10,
+            color: 'var(--text-muted)',
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            letterSpacing: '0.06em',
+          }}
+        >
+          Total
+        </span>
+        <span
+          style={{
+            fontSize: 16,
+            fontWeight: 800,
+            color: 'var(--accent)',
+            letterSpacing: '-0.03em',
+          }}
+        >
+          ₹{(totalPrice || 0).toLocaleString()}
+        </span>
+      </div>
+    ) : (
+      <div style={{ flex: 1 }} />
+    )}
+
+    {/* Continue */}
+    <button
+      onClick={onNext}
+      disabled={currentStep === 6 || isNextLocked}
+      title={
+        isNextLocked && getLockReason
+          ? getLockReason(currentStep + 1)
+          : currentStep === 6
+            ? 'You are on the final step'
+            : 'Continue to next step'
+      }
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 5,
+        padding: '7px 20px',
+        borderRadius: 8,
+        border: 'none',
+        background: currentStep === 6 || isNextLocked ? 'var(--bg-tertiary)' : 'var(--accent)',
+        color: currentStep === 6 || isNextLocked ? 'var(--text-muted)' : 'white',
+        fontSize: 13,
+        fontWeight: 700,
+        cursor: currentStep === 6 || isNextLocked ? 'not-allowed' : 'pointer',
+        opacity: currentStep === 6 || isNextLocked ? 0.5 : 1,
+        fontFamily: 'var(--font-sans)',
+        transition: 'all 0.15s',
+        boxShadow: currentStep < 6 && !isNextLocked ? 'var(--shadow-sm)' : 'none',
+      }}
+      onMouseEnter={(e) => {
+        if (currentStep < 6 && !isNextLocked)
+          e.currentTarget.style.background = 'var(--accent-dark, #1d4ed8)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background =
+          currentStep === 6 || isNextLocked ? 'var(--bg-tertiary)' : 'var(--accent)';
+      }}
+    >
+      {currentStep === 6 ? 'Complete' : 'Continue'}
+      {currentStep < 6 && <ChevronRight size={14} />}
+    </button>
+  </div>
+);
 
 export default ConfiguratorFlow;

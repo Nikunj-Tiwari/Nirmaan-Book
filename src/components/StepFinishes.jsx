@@ -1,6 +1,6 @@
 import React from 'react';
 import { Check } from 'lucide-react';
-import { MATERIALS, COLOURS } from '../data/config';
+import { MATERIALS, COLOURS } from '../data/config.jsx';
 import { useConfig } from '../store/ConfigContext';
 import { useToast } from './ToastProvider';
 import Tooltip from './Tooltip';

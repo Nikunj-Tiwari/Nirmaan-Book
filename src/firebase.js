@@ -2,7 +2,6 @@ import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 
 // NirmanBook Firebase Configuration
-// Replace these placeholders with your actual Firebase project settings
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -13,8 +12,21 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// Initialize Firebase only if API key is present to avoid crash in dev
+let auth;
+try {
+  if (firebaseConfig.apiKey && firebaseConfig.apiKey.trim() !== '') {
+    const app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+  } else {
+    console.warn(
+      '[Firebase] API key missing — running in offline/dev mode. Auth will be bypassed.'
+    );
+    auth = null;
+  }
+} catch (err) {
+  console.error('[Firebase] Initialization failed:', err.message);
+  auth = null;
+}
 
-// Initialize Firebase Authentication
-export const auth = getAuth(app);
+export { auth };

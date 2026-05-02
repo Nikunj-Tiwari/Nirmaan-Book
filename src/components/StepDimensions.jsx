@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { WALL_TYPES } from '../data/config';
+import { WALL_TYPES } from '../data/config.jsx';
 import { useConfig } from '../store/ConfigContext';
 import { useToast } from './ToastProvider';
 import { Layout } from 'lucide-react';

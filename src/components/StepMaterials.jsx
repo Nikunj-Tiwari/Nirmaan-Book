@@ -1,6 +1,6 @@
 import React from 'react';
 import { Check } from 'lucide-react';
-import { MATERIALS, COLOURS } from '../data/config';
+import { MATERIALS, COLOURS } from '../data/config.jsx';
 import { useConfig } from '../store/ConfigContext';
 import { useToast } from './ToastProvider';
 import Tooltip from './Tooltip';
@@ -181,8 +181,16 @@ const StepMaterials = () => {
                 aria-label={`Select ${f} fascia`}
                 style={selStyle(fascia === f)}
               >
-                <div style={{ fontSize: 13, fontWeight: 600 }}>{f}</div>
-                {fascia === f && <Check size={16} />}
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: fascia === f ? 'var(--accent)' : 'var(--text-primary)',
+                  }}
+                >
+                  {f}
+                </div>
+                {fascia === f && <Check size={16} color="var(--accent)" />}
               </button>
             ))}
           </div>

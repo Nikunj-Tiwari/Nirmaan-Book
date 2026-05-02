@@ -7,7 +7,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { COLOURS, MATERIALS, HANDLES, LIGHTING, BRANDS } from '../data/config';
+import { COLOURS, MATERIALS, HANDLES, LIGHTING, BRANDS } from '../data/config.jsx';
 import {
   updateModuleQty,
   updateFinishes,
