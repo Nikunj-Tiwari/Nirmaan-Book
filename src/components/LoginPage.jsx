@@ -1,53 +1,225 @@
-import React, { useState } from 'react';
-import { useNavigate, Link, useLocation } from 'react-router-dom';
+import React, { useState, useId } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../store/AuthContext';
-import { Layers, Eye, EyeOff, ArrowRight, Check } from 'lucide-react';
+import { Eye, EyeOff, ArrowRight, Check, Mail, Phone, ShieldCheck } from 'lucide-react';
 import logo from '../assets/logo.png';
 
+/* ─── shared input style helper ─── */
+const inp = {
+  width: '100%',
+  padding: '11px 14px',
+  borderRadius: 8,
+  border: '1.5px solid var(--border)',
+  background: 'var(--bg-primary)',
+  fontSize: 14,
+  fontFamily: 'var(--font-sans)',
+  color: 'var(--text-primary)',
+  outline: 'none',
+  transition: 'border-color 0.15s',
+  boxSizing: 'border-box',
+};
+const focus = (e) => (e.target.style.borderColor = 'var(--accent)');
+const blur = (e) => (e.target.style.borderColor = 'var(--border)');
+
+const Label = ({ children, htmlFor }) => (
+  <label
+    htmlFor={htmlFor}
+    style={{
+      display: 'block',
+      fontSize: 13,
+      fontWeight: 600,
+      color: 'var(--text-primary)',
+      marginBottom: 6,
+    }}
+  >
+    {children}
+  </label>
+);
+
+const Field = ({ label, id, ...rest }) => (
+  <div>
+    <Label htmlFor={id}>{label}</Label>
+    <input id={id} style={inp} onFocus={focus} onBlur={blur} {...rest} />
+  </div>
+);
+
+const Err = ({ msg }) =>
+  msg ? (
+    <div
+      style={{
+        background: '#fef2f2',
+        border: '1px solid #fecaca',
+        borderRadius: 8,
+        padding: '10px 14px',
+        fontSize: 13,
+        color: '#dc2626',
+        marginBottom: 16,
+        fontWeight: 500,
+      }}
+    >
+      {msg}
+    </div>
+  ) : null;
+
+const Btn = ({ loading, children, ...rest }) => (
+  <button
+    type="submit"
+    disabled={loading}
+    style={{
+      width: '100%',
+      padding: '12px',
+      borderRadius: 8,
+      border: 'none',
+      background: loading ? 'var(--accent-border)' : 'var(--accent)',
+      color: 'white',
+      fontSize: 14,
+      fontWeight: 600,
+      cursor: loading ? 'not-allowed' : 'pointer',
+      fontFamily: 'var(--font-sans)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      transition: 'all 0.15s',
+      boxShadow: loading ? 'none' : 'var(--shadow-sm)',
+      marginTop: 4,
+    }}
+    {...rest}
+  >
+    {loading ? (
+      <>
+        <span
+          style={{
+            width: 16,
+            height: 16,
+            borderRadius: '50%',
+            border: '2px solid rgba(255,255,255,0.3)',
+            borderTopColor: 'white',
+            animation: 'spin 0.7s linear infinite',
+            display: 'inline-block',
+          }}
+        />
+        Processing…
+      </>
+    ) : (
+      children
+    )}
+  </button>
+);
+
+/* ═══════════════════════════════════════════════════ */
 const LoginPage = () => {
-  const { login, register } = useAuth();
+  const { login, register, forgotPassword, sendPhoneOTP, verifyPhoneOTP } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-
-  // Where to send user after login
   const from = location.state?.from?.pathname || '/';
+  const rcId = useId().replace(/:/g, 'rc');
 
-  const [isRegister, setIsRegister] = useState(false);
+  /* mode: 'login' | 'register' | 'forgot' */
+  const [mode, setMode] = useState('login');
+
+  /* register sub-step: 'details' | 'emailSent' | 'phone' | 'otp' */
+  const [regStep, setRegStep] = useState('details');
+
+  /* form fields */
   const [name, setName] = useState('');
   const [firmName, setFirmName] = useState('');
-  const [contactNumber, setContactNumber] = useState('');
+  const [phone, setPhone] = useState('');
   const [city, setCity] = useState('');
   const [profession, setProfession] = useState('Interior Designer');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotSent, setForgotSent] = useState(false);
+
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e) => {
+  const go = (m) => {
+    setMode(m);
+    setError('');
+    setRegStep('details');
+  };
+
+  /* ── LOGIN ── */
+  const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-
-    const result = isRegister
-      ? await register(email, password, name, { firmName, contactNumber, city, profession })
-      : await login(email, password);
-
+    const r = await login(email, password);
     setLoading(false);
+    if (r.ok) navigate(from, { replace: true });
+    else
+      setError(
+        r.error.includes('invalid-credential')
+          ? 'Invalid email or password.'
+          : r.error.includes('user-not-found')
+            ? 'No account found with this email.'
+            : r.error
+      );
+  };
 
-    if (result.ok) {
-      navigate(from, { replace: true });
-    } else {
-      // User-friendly error mapping
-      const msg = result.error.includes('auth/invalid-credential')
-        ? 'Invalid email or password.'
-        : result.error.includes('auth/email-already-in-use')
+  /* ── REGISTER step 1: create account + send email verification ── */
+  const handleRegisterDetails = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    const r = await register(email, password, name, { firmName, city, profession, phone });
+    setLoading(false);
+    if (r.ok) setRegStep('emailSent');
+    else
+      setError(
+        r.error.includes('email-already-in-use')
           ? 'This email is already registered.'
-          : result.error.includes('auth/weak-password')
-            ? 'Password should be at least 6 characters.'
-            : result.error;
-      setError(msg);
+          : r.error.includes('weak-password')
+            ? 'Password must be at least 6 characters.'
+            : r.error
+      );
+  };
+
+  /* ── REGISTER step 3: send phone OTP ── */
+  const handleSendOTP = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    if (!phone.match(/^\+?[0-9\s-]{8,15}$/)) {
+      setError('Enter a valid phone number (e.g. +91 98765 43210)');
+      setLoading(false);
+      return;
     }
+    const num = phone.startsWith('+') ? phone : '+91' + phone.replace(/\s/g, '');
+    const r = await sendPhoneOTP(num, rcId);
+    setLoading(false);
+    if (r.ok) setRegStep('otp');
+    else
+      setError(
+        r.error.includes('too-many-requests') ? 'Too many attempts. Try again later.' : r.error
+      );
+  };
+
+  /* ── REGISTER step 4: verify OTP ── */
+  const handleVerifyOTP = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    const r = await verifyPhoneOTP(otp);
+    setLoading(false);
+    if (r.ok) navigate(from, { replace: true });
+    else setError(r.error);
+  };
+
+  /* ── FORGOT PASSWORD ── */
+  const handleForgot = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    const r = await forgotPassword(forgotEmail);
+    setLoading(false);
+    if (r.ok) setForgotSent(true);
+    else
+      setError(r.error.includes('user-not-found') ? 'No account found with this email.' : r.error);
   };
 
   const features = [
@@ -56,6 +228,620 @@ const LoginPage = () => {
     'Full bill of materials export',
     'Catalogue-backed modules',
   ];
+
+  /* ─── Render right-panel content based on mode/step ─── */
+  const renderRight = () => {
+    /* FORGOT PASSWORD */
+    if (mode === 'forgot')
+      return (
+        <div>
+          <div style={{ marginBottom: 32 }}>
+            <div
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: 12,
+                background: 'var(--accent-light)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 16,
+              }}
+            >
+              <Mail size={22} color="var(--accent)" />
+            </div>
+            <h2
+              style={{
+                fontSize: 24,
+                fontWeight: 800,
+                letterSpacing: '-0.04em',
+                color: 'var(--text-primary)',
+                marginBottom: 8,
+              }}
+            >
+              Reset password
+            </h2>
+            <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
+              We'll send a reset link to your email.
+            </p>
+          </div>
+          {forgotSent ? (
+            <div
+              style={{
+                background: '#f0fdf4',
+                border: '1px solid #86efac',
+                borderRadius: 10,
+                padding: '20px',
+                textAlign: 'center',
+              }}
+            >
+              <Check size={28} color="#16a34a" style={{ marginBottom: 8 }} />
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#15803d', marginBottom: 4 }}>
+                Reset link sent!
+              </div>
+              <div style={{ fontSize: 13, color: '#166534' }}>
+                Check your inbox at <strong>{forgotEmail}</strong>
+              </div>
+            </div>
+          ) : (
+            <form
+              onSubmit={handleForgot}
+              style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+            >
+              <Err msg={error} />
+              <Field
+                label="Email address"
+                id="fp-email"
+                type="email"
+                required
+                value={forgotEmail}
+                onChange={(e) => setForgotEmail(e.target.value)}
+                placeholder="you@example.com"
+              />
+              <Btn loading={loading}>
+                <Mail size={15} />
+                Send Reset Link
+              </Btn>
+            </form>
+          )}
+          <p
+            style={{
+              textAlign: 'center',
+              marginTop: 24,
+              fontSize: 13,
+              color: 'var(--text-secondary)',
+            }}
+          >
+            <button
+              onClick={() => go('login')}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--accent)',
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontFamily: 'var(--font-sans)',
+              }}
+            >
+              ← Back to sign in
+            </button>
+          </p>
+        </div>
+      );
+
+    /* REGISTER — step: emailSent */
+    if (mode === 'register' && regStep === 'emailSent')
+      return (
+        <div style={{ textAlign: 'center' }}>
+          <div
+            style={{
+              width: 64,
+              height: 64,
+              borderRadius: 16,
+              background: 'var(--accent-light)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 20px',
+            }}
+          >
+            <Mail size={28} color="var(--accent)" />
+          </div>
+          <h2
+            style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 8 }}
+          >
+            Verify your email
+          </h2>
+          <p
+            style={{
+              fontSize: 14,
+              color: 'var(--text-secondary)',
+              lineHeight: 1.6,
+              marginBottom: 28,
+            }}
+          >
+            A verification link was sent to <strong>{email}</strong>.<br />
+            Click it to confirm your email, then continue below.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <button
+              onClick={() => setRegStep('phone')}
+              style={{
+                ...inp,
+                padding: '12px',
+                borderRadius: 8,
+                cursor: 'pointer',
+                background: 'var(--accent)',
+                color: 'white',
+                fontWeight: 700,
+                border: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                fontSize: 14,
+              }}
+            >
+              <Phone size={15} /> I've verified — continue with phone
+            </button>
+            <button
+              onClick={() => go('login')}
+              style={{
+                ...inp,
+                padding: '11px',
+                borderRadius: 8,
+                cursor: 'pointer',
+                background: 'transparent',
+                color: 'var(--text-secondary)',
+                fontWeight: 600,
+                fontSize: 13,
+                textAlign: 'center',
+              }}
+            >
+              Skip for now — go to sign in
+            </button>
+          </div>
+        </div>
+      );
+
+    /* REGISTER — step: phone */
+    if (mode === 'register' && regStep === 'phone')
+      return (
+        <div>
+          <div style={{ marginBottom: 28 }}>
+            <div
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: 12,
+                background: 'var(--accent-light)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 16,
+              }}
+            >
+              <Phone size={22} color="var(--accent)" />
+            </div>
+            <h2
+              style={{
+                fontSize: 22,
+                fontWeight: 800,
+                color: 'var(--text-primary)',
+                marginBottom: 6,
+              }}
+            >
+              Verify your phone
+            </h2>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+              We'll send a 6-digit OTP via SMS.
+            </p>
+          </div>
+          <Err msg={error} />
+          {/* invisible recaptcha container */}
+          <div id={rcId} />
+          <form
+            onSubmit={handleSendOTP}
+            style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+          >
+            <Field
+              label="Phone number"
+              id="reg-phone"
+              type="tel"
+              required
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="+91 98765 43210"
+            />
+            <Btn loading={loading}>
+              <Phone size={15} />
+              Send OTP
+            </Btn>
+          </form>
+          <p
+            style={{
+              textAlign: 'center',
+              marginTop: 20,
+              fontSize: 13,
+              color: 'var(--text-secondary)',
+            }}
+          >
+            <button
+              onClick={() => go('login')}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--accent)',
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontFamily: 'var(--font-sans)',
+              }}
+            >
+              Skip — go to sign in
+            </button>
+          </p>
+        </div>
+      );
+
+    /* REGISTER — step: otp */
+    if (mode === 'register' && regStep === 'otp')
+      return (
+        <div>
+          <div style={{ marginBottom: 28 }}>
+            <div
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: 12,
+                background: '#f0fdf4',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 16,
+              }}
+            >
+              <ShieldCheck size={22} color="#16a34a" />
+            </div>
+            <h2
+              style={{
+                fontSize: 22,
+                fontWeight: 800,
+                color: 'var(--text-primary)',
+                marginBottom: 6,
+              }}
+            >
+              Enter OTP
+            </h2>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+              6-digit code sent to <strong>{phone}</strong>
+            </p>
+          </div>
+          <Err msg={error} />
+          <form
+            onSubmit={handleVerifyOTP}
+            style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+          >
+            <div>
+              <Label htmlFor="otp-input">Verification Code</Label>
+              <input
+                id="otp-input"
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]{6}"
+                maxLength={6}
+                required
+                value={otp}
+                onChange={(e) => setOtp(e.target.value)}
+                placeholder="••••••"
+                style={{
+                  ...inp,
+                  fontSize: 24,
+                  letterSpacing: '0.3em',
+                  textAlign: 'center',
+                  fontWeight: 700,
+                  padding: '14px',
+                }}
+                onFocus={focus}
+                onBlur={blur}
+              />
+            </div>
+            <Btn loading={loading}>
+              <ShieldCheck size={15} />
+              Verify & Finish
+            </Btn>
+          </form>
+          <p
+            style={{
+              textAlign: 'center',
+              marginTop: 16,
+              fontSize: 13,
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Didn't get it?{' '}
+            <button
+              onClick={() => setRegStep('phone')}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--accent)',
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontFamily: 'var(--font-sans)',
+              }}
+            >
+              Resend OTP
+            </button>
+          </p>
+        </div>
+      );
+
+    /* REGISTER — step: details (default) */
+    if (mode === 'register')
+      return (
+        <div>
+          <div style={{ marginBottom: 28 }}>
+            <h2
+              style={{
+                fontSize: 24,
+                fontWeight: 800,
+                letterSpacing: '-0.04em',
+                color: 'var(--text-primary)',
+                marginBottom: 8,
+              }}
+            >
+              Create an account
+            </h2>
+            <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
+              Join NirmanBook to start designing
+            </p>
+          </div>
+          <Err msg={error} />
+          <form
+            onSubmit={handleRegisterDetails}
+            style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+          >
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <Field
+                label="Full name"
+                id="r-name"
+                type="text"
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Rahul Kapoor"
+              />
+              <Field
+                label="Firm name"
+                id="r-firm"
+                type="text"
+                required
+                value={firmName}
+                onChange={(e) => setFirmName(e.target.value)}
+                placeholder="Kapoor Designs"
+              />
+              <Field
+                label="City"
+                id="r-city"
+                type="text"
+                required
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                placeholder="Mumbai"
+              />
+              <div>
+                <Label htmlFor="r-prof">Profession</Label>
+                <select
+                  id="r-prof"
+                  value={profession}
+                  onChange={(e) => setProfession(e.target.value)}
+                  style={{ ...inp, appearance: 'auto' }}
+                  onFocus={focus}
+                  onBlur={blur}
+                >
+                  <option>Architect</option>
+                  <option>Interior Designer</option>
+                  <option>Manufacturer</option>
+                  <option>Retailer</option>
+                </select>
+              </div>
+            </div>
+            <Field
+              label="Email address"
+              id="r-email"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+            />
+            <div>
+              <Label htmlFor="r-pass">Password</Label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  id="r-pass"
+                  type={showPass ? 'text' : 'password'}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Min. 6 characters"
+                  style={{ ...inp, paddingRight: 44 }}
+                  onFocus={focus}
+                  onBlur={blur}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPass((v) => !v)}
+                  style={{
+                    position: 'absolute',
+                    right: 12,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: 'var(--text-muted)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: 2,
+                  }}
+                >
+                  {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+            <Btn loading={loading}>
+              <Mail size={15} />
+              Create Account &amp; Send Verification <ArrowRight size={14} />
+            </Btn>
+          </form>
+          <p
+            style={{
+              textAlign: 'center',
+              marginTop: 20,
+              fontSize: 13,
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Already have an account?{' '}
+            <button
+              onClick={() => go('login')}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--accent)',
+                fontWeight: 600,
+                cursor: 'pointer',
+                fontFamily: 'var(--font-sans)',
+              }}
+            >
+              Sign in →
+            </button>
+          </p>
+        </div>
+      );
+
+    /* LOGIN (default) */
+    return (
+      <div>
+        <div style={{ marginBottom: 32 }}>
+          <h2
+            style={{
+              fontSize: 26,
+              fontWeight: 800,
+              letterSpacing: '-0.04em',
+              color: 'var(--text-primary)',
+              marginBottom: 8,
+            }}
+          >
+            Welcome back
+          </h2>
+          <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
+            Sign in to your NirmanBook account
+          </p>
+        </div>
+        <Err msg={error} />
+        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <Field
+            label="Email address"
+            id="l-email"
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+          />
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+              <Label>Password</Label>
+              <button
+                type="button"
+                onClick={() => go('forgot')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--accent)',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontFamily: 'var(--font-sans)',
+                  padding: 0,
+                  transition: 'opacity 0.15s',
+                }}
+              >
+                Forgot password?
+              </button>
+            </div>
+            <div style={{ position: 'relative' }}>
+              <input
+                id="l-pass"
+                type={showPass ? 'text' : 'password'}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                style={{ ...inp, paddingRight: 44 }}
+                onFocus={focus}
+                onBlur={blur}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPass((v) => !v)}
+                style={{
+                  position: 'absolute',
+                  right: 12,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: 'var(--text-muted)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: 2,
+                }}
+              >
+                {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+          </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              style={{ accentColor: 'var(--accent)', width: 15, height: 15 }}
+            />
+            <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Keep me signed in</span>
+          </label>
+          <Btn loading={loading}>
+            Sign In <ArrowRight size={15} />
+          </Btn>
+        </form>
+        <p
+          style={{
+            textAlign: 'center',
+            marginTop: 28,
+            fontSize: 13,
+            color: 'var(--text-secondary)',
+          }}
+        >
+          Don't have an account?{' '}
+          <button
+            onClick={() => go('register')}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--accent)',
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontFamily: 'var(--font-sans)',
+            }}
+          >
+            Create one free →
+          </button>
+        </p>
+      </div>
+    );
+  };
 
   return (
     <div
@@ -70,7 +856,7 @@ const LoginPage = () => {
       {/* ── Left Brand Panel ── */}
       <div
         style={{
-          background: 'linear-gradient(145deg, #1e3a8a 0%, #1d4ed8 50%, #3b82f6 100%)',
+          background: 'linear-gradient(145deg,#1e3a8a 0%,#1d4ed8 50%,#3b82f6 100%)',
           display: 'flex',
           flexDirection: 'column',
           padding: '48px 56px',
@@ -78,7 +864,6 @@ const LoginPage = () => {
           overflow: 'hidden',
         }}
       >
-        {/* Decorative circles */}
         <div
           style={{
             position: 'absolute',
@@ -103,20 +888,7 @@ const LoginPage = () => {
             pointerEvents: 'none',
           }}
         />
-        <div
-          style={{
-            position: 'absolute',
-            top: '40%',
-            right: -40,
-            width: 160,
-            height: 160,
-            borderRadius: '50%',
-            background: 'rgba(255,255,255,0.06)',
-            pointerEvents: 'none',
-          }}
-        />
 
-        {/* Logo */}
         <div
           style={{
             display: 'flex',
@@ -129,15 +901,10 @@ const LoginPage = () => {
           <img
             src={logo}
             alt="Nirmanbook"
-            style={{
-              height: 32,
-              width: 'auto',
-              display: 'block',
-            }}
+            style={{ height: 32, width: 'auto', display: 'block' }}
           />
         </div>
 
-        {/* Main copy */}
         <div style={{ zIndex: 1, marginTop: 'auto', marginBottom: 'auto', paddingTop: 48 }}>
           <div
             style={{
@@ -156,11 +923,10 @@ const LoginPage = () => {
           >
             Wardrobe Design Platform
           </div>
-
           <h1
             style={{
               color: 'white',
-              fontSize: 'clamp(32px, 3.5vw, 48px)',
+              fontSize: 'clamp(32px,3.5vw,48px)',
               fontWeight: 800,
               letterSpacing: '-0.04em',
               lineHeight: 1.1,
@@ -171,7 +937,6 @@ const LoginPage = () => {
             <br />
             wardrobes, faster.
           </h1>
-
           <p
             style={{
               color: 'rgba(255,255,255,0.7)',
@@ -184,7 +949,6 @@ const LoginPage = () => {
             The professional tool for configuring, pricing, and presenting modular wardrobe
             solutions to your clients.
           </p>
-
           <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 14 }}>
             {features.map((f, i) => (
               <li key={i} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -211,7 +975,6 @@ const LoginPage = () => {
           </ul>
         </div>
 
-        {/* Testimonial */}
         <div
           style={{
             zIndex: 1,
@@ -261,7 +1024,7 @@ const LoginPage = () => {
         </div>
       </div>
 
-      {/* ── Right: Login Form ── */}
+      {/* ── Right: Form Panel ── */}
       <div
         style={{
           display: 'flex',
@@ -270,525 +1033,101 @@ const LoginPage = () => {
           justifyContent: 'center',
           padding: '48px 56px',
           background: 'var(--bg-secondary)',
+          overflowY: 'auto',
         }}
         className="animate-fade-in"
       >
-        <div style={{ width: '100%', maxWidth: 400 }}>
-          {/* Header */}
-          <div style={{ marginBottom: 36 }}>
-            <h2
-              style={{
-                fontSize: 26,
-                fontWeight: 800,
-                letterSpacing: '-0.04em',
-                color: 'var(--text-primary)',
-                marginBottom: 8,
-              }}
-            >
-              {isRegister ? 'Create an account' : 'Welcome back'}
-            </h2>
-            <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
-              {isRegister
-                ? 'Join NirmanBook to start designing'
-                : 'Sign in to your NirmanBook account'}
-            </p>
-          </div>
-
-          {/* Error */}
-          {error && (
-            <div
-              style={{
-                background: '#fef2f2',
-                border: '1px solid #fecaca',
-                borderRadius: 8,
-                padding: '10px 14px',
-                fontSize: 13,
-                color: '#dc2626',
-                marginBottom: 20,
-                fontWeight: 500,
-              }}
-            >
-              {error}
+        <div style={{ width: '100%', maxWidth: 420 }}>
+          {/* Step indicator for register */}
+          {mode === 'register' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 28 }}>
+              {[
+                { step: 'details', label: 'Account' },
+                { step: 'emailSent', label: 'Email' },
+                { step: 'phone', label: 'Phone' },
+                { step: 'otp', label: 'OTP' },
+              ].map((s, i, arr) => {
+                const steps = arr.map((x) => x.step);
+                const cur = steps.indexOf(regStep);
+                const idx = steps.indexOf(s.step);
+                const done = idx < cur;
+                const active = idx === cur;
+                return (
+                  <React.Fragment key={s.step}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: 4,
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 28,
+                          height: 28,
+                          borderRadius: '50%',
+                          fontSize: 12,
+                          fontWeight: 700,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          background: done
+                            ? '#16a34a'
+                            : active
+                              ? 'var(--accent)'
+                              : 'var(--bg-tertiary)',
+                          color: done || active ? 'white' : 'var(--text-muted)',
+                          border: `2px solid ${done ? '#16a34a' : active ? 'var(--accent)' : 'var(--border)'}`,
+                        }}
+                      >
+                        {done ? <Check size={13} strokeWidth={3} /> : i + 1}
+                      </div>
+                      <span
+                        style={{
+                          fontSize: 10,
+                          color: active ? 'var(--accent)' : 'var(--text-muted)',
+                          fontWeight: active ? 700 : 500,
+                        }}
+                      >
+                        {s.label}
+                      </span>
+                    </div>
+                    {i < arr.length - 1 && (
+                      <div
+                        style={{
+                          flex: 1,
+                          height: 2,
+                          background: done ? '#16a34a' : 'var(--border)',
+                          marginBottom: 14,
+                          borderRadius: 1,
+                          transition: 'background 0.3s',
+                        }}
+                      />
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </div>
           )}
 
-          {/* Form */}
-          <form
-            onSubmit={handleSubmit}
-            style={{ display: 'flex', flexDirection: 'column', gap: 18 }}
-          >
-            {/* Name (register only) */}
-            {isRegister && (
-              <>
-                <div>
-                  <label
-                    htmlFor="login-name"
-                    style={{
-                      display: 'block',
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: 'var(--text-primary)',
-                      marginBottom: 6,
-                    }}
-                  >
-                    Full name
-                  </label>
-                  <input
-                    id="login-name"
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Rahul Kapoor"
-                    required={isRegister}
-                    autoComplete="name"
-                    style={{
-                      width: '100%',
-                      padding: '11px 14px',
-                      borderRadius: 8,
-                      border: '1.5px solid var(--border)',
-                      background: 'var(--bg-primary)',
-                      fontSize: 14,
-                      fontFamily: 'var(--font-sans)',
-                      color: 'var(--text-primary)',
-                      outline: 'none',
-                      transition: 'border-color 0.15s',
-                      boxSizing: 'border-box',
-                    }}
-                    onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
-                    onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
-                  />
-                </div>
-                <div>
-                  <label
-                    htmlFor="login-firm"
-                    style={{
-                      display: 'block',
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: 'var(--text-primary)',
-                      marginBottom: 6,
-                    }}
-                  >
-                    Firm Name
-                  </label>
-                  <input
-                    id="login-firm"
-                    type="text"
-                    value={firmName}
-                    onChange={(e) => setFirmName(e.target.value)}
-                    placeholder="Kapoor Designs"
-                    required={isRegister}
-                    style={{
-                      width: '100%',
-                      padding: '11px 14px',
-                      borderRadius: 8,
-                      border: '1.5px solid var(--border)',
-                      background: 'var(--bg-primary)',
-                      fontSize: 14,
-                      fontFamily: 'var(--font-sans)',
-                      color: 'var(--text-primary)',
-                      outline: 'none',
-                      transition: 'border-color 0.15s',
-                      boxSizing: 'border-box',
-                    }}
-                    onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
-                    onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
-                  />
-                </div>
-                <div>
-                  <label
-                    htmlFor="login-contact"
-                    style={{
-                      display: 'block',
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: 'var(--text-primary)',
-                      marginBottom: 6,
-                    }}
-                  >
-                    Contact Number
-                  </label>
-                  <input
-                    id="login-contact"
-                    type="tel"
-                    value={contactNumber}
-                    onChange={(e) => setContactNumber(e.target.value)}
-                    placeholder="+91 98765 43210"
-                    required={isRegister}
-                    style={{
-                      width: '100%',
-                      padding: '11px 14px',
-                      borderRadius: 8,
-                      border: '1.5px solid var(--border)',
-                      background: 'var(--bg-primary)',
-                      fontSize: 14,
-                      fontFamily: 'var(--font-sans)',
-                      color: 'var(--text-primary)',
-                      outline: 'none',
-                      transition: 'border-color 0.15s',
-                      boxSizing: 'border-box',
-                    }}
-                    onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
-                    onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
-                  />
-                </div>
-                <div>
-                  <label
-                    htmlFor="login-city"
-                    style={{
-                      display: 'block',
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: 'var(--text-primary)',
-                      marginBottom: 6,
-                    }}
-                  >
-                    City
-                  </label>
-                  <input
-                    id="login-city"
-                    type="text"
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                    placeholder="Mumbai"
-                    required={isRegister}
-                    style={{
-                      width: '100%',
-                      padding: '11px 14px',
-                      borderRadius: 8,
-                      border: '1.5px solid var(--border)',
-                      background: 'var(--bg-primary)',
-                      fontSize: 14,
-                      fontFamily: 'var(--font-sans)',
-                      color: 'var(--text-primary)',
-                      outline: 'none',
-                      transition: 'border-color 0.15s',
-                      boxSizing: 'border-box',
-                    }}
-                    onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
-                    onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
-                  />
-                </div>
-                <div>
-                  <label
-                    htmlFor="login-profession"
-                    style={{
-                      display: 'block',
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: 'var(--text-primary)',
-                      marginBottom: 6,
-                    }}
-                  >
-                    Profession
-                  </label>
-                  <select
-                    id="login-profession"
-                    value={profession}
-                    onChange={(e) => setProfession(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '11px 14px',
-                      borderRadius: 8,
-                      border: '1.5px solid var(--border)',
-                      background: 'var(--bg-primary)',
-                      fontSize: 14,
-                      fontFamily: 'var(--font-sans)',
-                      color: 'var(--text-primary)',
-                      outline: 'none',
-                      transition: 'border-color 0.15s',
-                      boxSizing: 'border-box',
-                      appearance: 'auto',
-                    }}
-                    onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
-                    onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
-                  >
-                    <option value="Architect">Architect</option>
-                    <option value="Interior Designer">Interior Designer</option>
-                    <option value="Manufacturer">Manufacturer</option>
-                    <option value="Retailer">Retailer</option>
-                  </select>
-                </div>
-              </>
-            )}
+          {renderRight()}
 
-            {/* Email */}
-            <div>
-              <label
-                htmlFor="login-email"
-                style={{
-                  display: 'block',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: 'var(--text-primary)',
-                  marginBottom: 6,
-                }}
-              >
-                Email address
-              </label>
-              <input
-                id="login-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                required
-                style={{
-                  width: '100%',
-                  padding: '11px 14px',
-                  borderRadius: 8,
-                  border: '1.5px solid var(--border)',
-                  background: 'var(--bg-primary)',
-                  fontSize: 14,
-                  fontFamily: 'var(--font-sans)',
-                  color: 'var(--text-primary)',
-                  outline: 'none',
-                  transition: 'border-color 0.15s',
-                  boxSizing: 'border-box',
-                }}
-                onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
-                onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
-              />
-            </div>
-
-            {/* Password */}
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
-                  Password
-                </label>
-                <span
-                  style={{
-                    fontSize: 12,
-                    color: 'var(--accent)',
-                    cursor: 'pointer',
-                    fontWeight: 600,
-                    transition: 'opacity 0.15s',
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.opacity = 0.7)}
-                  onMouseLeave={(e) => (e.currentTarget.style.opacity = 1)}
-                >
-                  Forgot password?
-                </span>
-              </div>
-              <div style={{ position: 'relative' }}>
-                <input
-                  id="login-password"
-                  type={showPass ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  required
-                  style={{
-                    width: '100%',
-                    padding: '11px 44px 11px 14px',
-                    borderRadius: 8,
-                    border: '1.5px solid var(--border)',
-                    background: 'var(--bg-primary)',
-                    fontSize: 14,
-                    fontFamily: 'var(--font-sans)',
-                    color: 'var(--text-primary)',
-                    outline: 'none',
-                    transition: 'border-color 0.15s',
-                    boxSizing: 'border-box',
-                  }}
-                  onFocus={(e) => (e.target.style.borderColor = 'var(--accent)')}
-                  onBlur={(e) => (e.target.style.borderColor = 'var(--border)')}
-                />
-                <button
-                  type="button"
-                  aria-label={showPass ? 'Hide password' : 'Show password'}
-                  onClick={() => setShowPass((v) => !v)}
-                  style={{
-                    position: 'absolute',
-                    right: 12,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    color: 'var(--text-muted)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: 2,
-                    transition: 'color 0.15s',
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--text-secondary)')}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-muted)')}
-                >
-                  {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-            </div>
-
-            {/* Remember me */}
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                style={{ accentColor: 'var(--accent)', width: 15, height: 15 }}
-              />
-              <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-                Keep me signed in
-              </span>
-            </label>
-
-            {/* Submit button */}
-            <button
-              id="login-submit-btn"
-              type="submit"
-              disabled={loading}
-              style={{
-                width: '100%',
-                padding: '12px',
-                borderRadius: 8,
-                border: 'none',
-                background: loading ? 'var(--accent-border)' : 'var(--accent)',
-                color: 'white',
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: loading ? 'not-allowed' : 'pointer',
-                fontFamily: 'var(--font-sans)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-                transition: 'all 0.15s',
-                boxShadow: loading ? 'none' : 'var(--shadow-sm)',
-                marginTop: 4,
-              }}
-              onMouseEnter={(e) =>
-                !loading && (e.currentTarget.style.background = 'var(--accent-hover)')
-              }
-              onMouseLeave={(e) => !loading && (e.currentTarget.style.background = 'var(--accent)')}
-            >
-              {loading ? (
-                <>
-                  <span
-                    style={{
-                      width: 16,
-                      height: 16,
-                      borderRadius: '50%',
-                      border: '2px solid rgba(255,255,255,0.3)',
-                      borderTopColor: 'white',
-                      animation: 'spin 0.7s linear infinite',
-                      display: 'inline-block',
-                    }}
-                  />
-                  {isRegister ? 'Creating account…' : 'Signing in…'}
-                </>
-              ) : (
-                <>
-                  {isRegister ? 'Get Started Free' : 'Sign In'} <ArrowRight size={15} />
-                </>
-              )}
-            </button>
-          </form>
-
-          {/* Divider */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '24px 0' }}>
-            <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-            <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>
-              or continue with
-            </span>
-            <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-          </div>
-
-          {/* Social login */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            {[
-              { label: 'Google', icon: 'G', color: '#ea4335' },
-              { label: 'Microsoft', icon: 'M', color: '#00a1f1' },
-            ].map((s) => (
-              <button
-                key={s.label}
-                type="button"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8,
-                  padding: '10px',
-                  border: '1.5px solid var(--border)',
-                  borderRadius: 8,
-                  background: 'var(--bg-secondary)',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: 'var(--text-primary)',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s',
-                  fontFamily: 'var(--font-sans)',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--border-strong)';
-                  e.currentTarget.style.background = 'var(--bg-primary)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--border)';
-                  e.currentTarget.style.background = 'var(--bg-secondary)';
-                }}
-              >
-                <span style={{ fontSize: 14, fontWeight: 800, color: s.color }}>{s.icon}</span>
-                {s.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Sign up link */}
           <p
             style={{
+              margin: '32px 0 0',
+              fontSize: 11,
+              color: 'var(--text-muted)',
               textAlign: 'center',
-              marginTop: 28,
-              fontSize: 13,
-              color: 'var(--text-secondary)',
             }}
           >
-            {isRegister ? 'Already have an account?' : "Don't have an account?"}{' '}
-            <button
-              type="button"
-              aria-label={isRegister ? 'Switch to sign in' : 'Switch to create account'}
-              onClick={() => {
-                setIsRegister(!isRegister);
-                setError('');
-                setName('');
-                setFirmName('');
-                setContactNumber('');
-                setCity('');
-                setProfession('Interior Designer');
-              }}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: 'var(--accent)',
-                fontWeight: 600,
-                cursor: 'pointer',
-                fontFamily: 'var(--font-sans)',
-                transition: 'opacity 0.15s',
-                padding: 0,
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.opacity = 0.7)}
-              onMouseLeave={(e) => (e.currentTarget.style.opacity = 1)}
-            >
-              {isRegister ? 'Sign in instead →' : 'Create one free →'}
-            </button>
+            By signing in you agree to our{' '}
+            <span style={{ color: 'var(--accent)', cursor: 'pointer' }}>Terms</span> and{' '}
+            <span style={{ color: 'var(--accent)', cursor: 'pointer' }}>Privacy Policy</span>.
           </p>
         </div>
-
-        {/* Footer */}
-        <p
-          style={{
-            margin: '32px 0 0',
-            fontSize: 11,
-            color: 'var(--text-muted)',
-            textAlign: 'center',
-          }}
-        >
-          By signing in you agree to our{' '}
-          <span style={{ color: 'var(--accent)', cursor: 'pointer' }}>Terms</span> and{' '}
-          <span style={{ color: 'var(--accent)', cursor: 'pointer' }}>Privacy Policy</span>.
-        </p>
       </div>
 
-      {/* Spinner keyframe */}
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );

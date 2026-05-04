@@ -74,7 +74,7 @@ const PQTableCell = ({ children, align = 'left', bold = false }) => (
   </td>
 );
 
-const PQPageHeader = ({ today }) => (
+const PQPageHeader = ({ today, projectName }) => (
   <div
     style={{
       display: 'flex',
@@ -96,6 +96,19 @@ const PQPageHeader = ({ today }) => (
       >
         Summary of Configuration
       </div>
+      {projectName && (
+        <div
+          style={{
+            fontSize: 13,
+            color: '#333',
+            marginTop: 4,
+            fontWeight: 600,
+            fontFamily: SF,
+          }}
+        >
+          {projectName}
+        </div>
+      )}
       <div
         style={{
           fontSize: 11,
@@ -163,7 +176,7 @@ const PQPageFooter = ({ today }) => (
  * Rendered off-screen and captured by html2canvas for PDF export.
  */
 const PrintQuote = React.forwardRef(function PrintQuote(
-  { config, boqItems, valuation, totalModulesCount },
+  { config, boqItems, valuation, totalModulesCount, view3dImageUrl },
   ref
 ) {
   const blueprintRef = useRef(null);
@@ -236,7 +249,7 @@ const PrintQuote = React.forwardRef(function PrintQuote(
           flexDirection: 'column',
         }}
       >
-        <PQPageHeader today={today} />
+        <PQPageHeader today={today} projectName={config.projectInfo?.name} />
 
         {/* PROJECT */}
         <PQSectionTitle text="Project" />
@@ -619,6 +632,99 @@ const PrintQuote = React.forwardRef(function PrintQuote(
 
         <PQPageFooter today={today} />
       </div>
+
+      {/* ══════════════════════════════════════════════════
+          PAGE 3 — 3D Front View (only when captured)
+          ══════════════════════════════════════════════════ */}
+      {view3dImageUrl && (
+        <div
+          style={{
+            width: 794,
+            height: 1123,
+            background: '#ffffff',
+            padding: '48px 56px',
+            boxSizing: 'border-box',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          <PQPageHeader today={today} projectName={config.projectInfo?.name} />
+
+          <PQSectionTitle text="3D Front View Visualization" />
+
+          {/* Spec pills */}
+          <div style={{ display: 'flex', gap: 36, marginBottom: 20, flexWrap: 'wrap' }}>
+            {[
+              { label: 'Colour', value: config.colour?.name || '—' },
+              { label: 'Material', value: config.material?.name || '—' },
+              { label: 'Fascia', value: config.fascia || '—' },
+              { label: 'Modules', value: `${totalModulesCount} units` },
+            ].map(({ label, value }) => (
+              <div key={label}>
+                <div
+                  style={{
+                    fontSize: 9,
+                    fontWeight: 700,
+                    letterSpacing: '0.1em',
+                    textTransform: 'uppercase',
+                    color: '#888',
+                    marginBottom: 3,
+                    fontFamily: SF,
+                  }}
+                >
+                  {label}
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#1a1a1a', fontFamily: SF }}>
+                  {value}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* 3D screenshot — fills remaining space */}
+          <div
+            style={{
+              flex: 1,
+              background: '#0d1117',
+              borderRadius: 8,
+              overflow: 'hidden',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 16,
+              border: '1px solid #e5e7eb',
+            }}
+          >
+            <img
+              src={view3dImageUrl}
+              alt="3D Wardrobe Front View"
+              style={{
+                display: 'block',
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+              }}
+            />
+          </div>
+
+          {/* Caption */}
+          <div
+            style={{
+              fontSize: 10,
+              color: '#888',
+              textAlign: 'center',
+              marginBottom: 20,
+              fontStyle: 'italic',
+              fontFamily: SF,
+            }}
+          >
+            Interactive 3D visualization — perspective view. Rendered from the configured modules,
+            materials, and finishes.
+          </div>
+
+          <PQPageFooter today={today} />
+        </div>
+      )}
     </div>
   );
 });

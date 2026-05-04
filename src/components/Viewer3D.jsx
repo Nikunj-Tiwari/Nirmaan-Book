@@ -215,6 +215,7 @@ export function Viewer3D({
   wallType = 'single',
   width2 = 1200,
   width3 = 1200,
+  onGLReady,
 }) {
   const { actions, config } = useConfig();
   const [viewPreset, setViewPreset] = useState('perspective');
@@ -306,7 +307,10 @@ export function Viewer3D({
           toneMapping: THREE.ACESFilmicToneMapping,
           toneMappingExposure: 1.0,
         }}
-        onCreated={() => setIsLoading(false)}
+        onCreated={({ gl }) => {
+          setIsLoading(false);
+          if (onGLReady) onGLReady(gl.domElement);
+        }}
       >
         <color attach="background" args={[bgColor]} />
 

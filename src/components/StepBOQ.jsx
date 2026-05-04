@@ -18,6 +18,7 @@ import { handlePrint, generatePDF, exportQuoteJSON, exportTextSummary } from '..
 import { saveConfig, updateConfig, getConfigs, clearDraft } from '../utils/storage';
 import { drawBlueprintLight } from '../utils/visuals';
 import PrintQuote from './PrintQuote';
+import { Viewer3D } from './Viewer3D';
 
 import SaveDesignModal from './SaveDesignModal';
 import { useToast } from './ToastProvider';
@@ -111,6 +112,38 @@ const StepBOQ = ({ activeConfigId, setActiveConfigId, onRefreshCount }) => {
   const printQuoteRef = useRef(null);
   const canvasRef = useRef(null);
   const { addToast } = useToast();
+
+  /* ── 3D screenshot capture ── */
+  const glCanvasRef = useRef(null); // WebGL canvas element from off-screen Viewer3D
+  const [view3dImageUrl, setView3dImageUrl] = useState(null);
+
+  // Called by the off-screen Viewer3D when its GL context is ready
+  const handleGLReady = useCallback((domElement) => {
+    glCanvasRef.current = domElement;
+  }, []);
+
+  // Capture the current 3D frame as a data URL
+  const capture3D = useCallback(() => {
+    return new Promise((resolve) => {
+      const gl = glCanvasRef.current;
+      if (!gl) {
+        resolve(null);
+        return;
+      }
+      // Give the renderer one more frame to flush
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          try {
+            const url = gl.toDataURL('image/png');
+            setView3dImageUrl(url);
+            resolve(url);
+          } catch {
+            resolve(null);
+          }
+        });
+      });
+    });
+  }, []);
 
   React.useEffect(() => {
     if (!canvasRef.current) return;
@@ -234,6 +267,15 @@ const StepBOQ = ({ activeConfigId, setActiveConfigId, onRefreshCount }) => {
 
   /* ── Shared export payload ── */
   const exportPayload = { config, boqItems, valuation, totalModulesCount };
+
+  /* ── PDF export: capture 3D first, then generate ── */
+  const handleExportPDF = useCallback(async () => {
+    const imgUrl = await capture3D();
+    // Allow React to flush the new view3dImageUrl into PrintQuote
+    await new Promise((r) => setTimeout(r, 120));
+    await generatePDF(printQuoteRef.current);
+    return imgUrl; // so ActionButton doesn't show an error
+  }, [capture3D]);
 
   const mainContent = (
     <>
@@ -429,14 +471,14 @@ const StepBOQ = ({ activeConfigId, setActiveConfigId, onRefreshCount }) => {
               onClick={async () => handlePrint()}
             />
 
-            {/* EXPORT PDF — uses premium PrintQuote layout */}
+            {/* EXPORT PDF — captures 3D screenshot first, then generates */}
             <ActionButton
               label="Export PDF"
               loadingLabel="Generating…"
               doneLabel="PDF Downloaded"
               icon={Download}
               variant="primary"
-              onClick={() => generatePDF(printQuoteRef.current)}
+              onClick={handleExportPDF}
             />
 
             {/* EXPORT JSON */}
@@ -913,6 +955,33 @@ const StepBOQ = ({ activeConfigId, setActiveConfigId, onRefreshCount }) => {
           boqItems={boqItems}
           valuation={valuation}
           totalModulesCount={totalModulesCount}
+          view3dImageUrl={view3dImageUrl}
+        />
+      </div>
+
+      {/* ── Off-screen Viewer3D for 3D screenshot capture (always rendered, invisible) ── */}
+      <div
+        style={{
+          position: 'fixed',
+          top: '-9999px',
+          left: '-9999px',
+          width: 794,
+          height: 450,
+          pointerEvents: 'none',
+          zIndex: -1,
+        }}
+        aria-hidden="true"
+      >
+        <Viewer3D
+          modules={derived.modulesList}
+          material={config.colour}
+          roomWidth={config.width}
+          roomHeight={config.height}
+          roomDepth={config.depth}
+          wallType={config.wallType}
+          width2={config.width2}
+          width3={config.width3}
+          onGLReady={handleGLReady}
         />
       </div>
     </>

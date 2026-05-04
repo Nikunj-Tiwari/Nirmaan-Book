@@ -1,10 +1,14 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
   updateProfile,
+  sendEmailVerification,
+  sendPasswordResetEmail,
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
 } from 'firebase/auth';
 import { auth } from '../firebase';
 
@@ -13,101 +17,132 @@ const AuthContext = createContext(null);
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const recaptchaRef = useRef(null);
+  const confirmationRef = useRef(null);
 
-  // Sync with Firebase Auth state
+  /* ── Sync Firebase Auth state ── */
   useEffect(() => {
-    // Safety check: If Firebase is not configured, don't hang on loading
-    if (!auth?.app?.options?.apiKey) {
-      console.warn('Firebase API Key missing. Bypassing Auth loading for local development.');
-      // Use microtask to avoid setState-in-effect lint warning
-      queueMicrotask(() => setLoading(false));
-      return;
-    }
-
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      if (firebaseUser) {
-        // Map Firebase user to our app user object
-        setUser({
-          uid: firebaseUser.uid,
-          email: firebaseUser.email,
-          name: firebaseUser.displayName || firebaseUser.email.split('@')[0],
-        });
-      } else {
-        setUser(null);
-      }
+    const unsubscribe = onAuthStateChanged(auth, (fb) => {
+      setUser(
+        fb
+          ? {
+              uid: fb.uid,
+              email: fb.email,
+              emailVerified: fb.emailVerified,
+              name: fb.displayName || fb.email?.split('@')[0] || '',
+              phoneNumber: fb.phoneNumber,
+            }
+          : null
+      );
       setLoading(false);
     });
-
-    // Fallback: If auth takes too long (e.g. network issues), clear loading
-    const timeout = setTimeout(() => {
-      if (loading) {
-        console.warn('Auth initialization timed out. Clearing loading state.');
-        setLoading(false);
-      }
-    }, 3000);
-
+    const t = setTimeout(() => setLoading(false), 4000);
     return () => {
       unsubscribe();
-      clearTimeout(timeout);
+      clearTimeout(t);
     };
   }, []);
 
+  /* ── Email + Password Login ── */
   const login = async (email, password) => {
     try {
-      if (!auth) {
-        console.warn('Firebase Auth bypassed: Logging in with demo account');
-        setUser({
-          uid: 'demo-uid-123',
-          email: email,
-          name: email.split('@')[0],
-        });
-        return { ok: true };
-      }
       await signInWithEmailAndPassword(auth, email, password);
       return { ok: true };
-    } catch (error) {
-      return { ok: false, error: error.message };
+    } catch (err) {
+      return { ok: false, error: err.message };
     }
   };
 
+  /* ── Register → send email verification ── */
   const register = async (email, password, name = '', extraData = {}) => {
     try {
-      if (!auth) {
-        console.warn('Firebase Auth bypassed: Registering demo account');
-        setUser({
-          uid: 'demo-uid-123',
-          email: email,
-          name: name || email.split('@')[0],
-        });
-        return { ok: true };
-      }
       const cred = await createUserWithEmailAndPassword(auth, email, password);
-      if (name.trim()) {
-        await updateProfile(cred.user, { displayName: name.trim() });
-      }
-      // Note: extraData (firmName, contactNumber, city, profession)
-      // can be saved to Firestore here if needed.
-      console.log('Registration extra data:', extraData);
+      if (name.trim()) await updateProfile(cred.user, { displayName: name.trim() });
+      await sendEmailVerification(cred.user);
+      // TODO: persist extraData to Firestore when Firestore is added
+      console.log('[NirmanBook] Registration extra data:', extraData);
       return { ok: true };
-    } catch (error) {
-      return { ok: false, error: error.message };
+    } catch (err) {
+      return { ok: false, error: err.message };
     }
   };
 
+  /* ── Forgot Password ── */
+  const forgotPassword = async (email) => {
+    try {
+      await sendPasswordResetEmail(auth, email);
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  };
+
+  /* ── Phone OTP: send ── */
+  const sendPhoneOTP = async (phoneNumber, containerId) => {
+    try {
+      // Clear old verifier if any
+      if (recaptchaRef.current) {
+        try {
+          recaptchaRef.current.clear();
+        } catch (_) {
+          /* ignore */
+        }
+        recaptchaRef.current = null;
+      }
+
+      recaptchaRef.current = new RecaptchaVerifier(auth, containerId, {
+        size: 'invisible',
+        callback: () => {},
+        'expired-callback': () => {},
+      });
+
+      confirmationRef.current = await signInWithPhoneNumber(
+        auth,
+        phoneNumber,
+        recaptchaRef.current
+      );
+      return { ok: true };
+    } catch (err) {
+      console.error('[sendPhoneOTP]', err);
+      return { ok: false, error: err.message };
+    }
+  };
+
+  /* ── Phone OTP: verify ── */
+  const verifyPhoneOTP = async (code) => {
+    try {
+      if (!confirmationRef.current) {
+        return { ok: false, error: 'Session expired. Please request a new OTP.' };
+      }
+      await confirmationRef.current.confirm(code);
+      return { ok: true };
+    } catch (_) {
+      return { ok: false, error: 'Invalid OTP code. Please try again.' };
+    }
+  };
+
+  /* ── Logout ── */
   const logout = async () => {
     try {
-      if (!auth) {
-        setUser(null);
-        return;
-      }
       await signOut(auth);
-    } catch (error) {
-      console.error('Logout error:', error);
+    } catch (err) {
+      console.error('Logout:', err);
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        login,
+        register,
+        logout,
+        forgotPassword,
+        sendPhoneOTP,
+        verifyPhoneOTP,
+      }}
+    >
       {!loading && children}
     </AuthContext.Provider>
   );

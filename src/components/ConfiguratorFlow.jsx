@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ChevronRight, ChevronLeft } from 'lucide-react';
 import HorizontalStepper from './HorizontalStepper';
@@ -88,17 +88,47 @@ const ConfiguratorFlow = ({ activeConfigId, setActiveConfigId, onRefreshCount })
       case 5:
         return <StepHardware />;
       case 6:
-        return (
-          <StepBOQ
-            activeConfigId={activeConfigId}
-            setActiveConfigId={setActiveConfigId}
-            onRefreshCount={onRefreshCount}
-          />
-        );
+        // Step 6 (Summary/BOQ) is rendered full-width directly in the layout — not here
+        return null;
       default:
         return null;
     }
   };
+
+  // ── Resizable split ratio for desktop (preview vs controls)
+  // Declared here (before any early return) to satisfy Rules of Hooks
+  const [splitPct, setSplitPct] = useState(72);
+  const isDragging = useRef(false);
+  const containerRef = useRef(null);
+
+  const onDividerMouseDown = useCallback((e) => {
+    e.preventDefault();
+    isDragging.current = true;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  }, []);
+
+  useEffect(() => {
+    const onMouseMove = (e) => {
+      if (!isDragging.current || !containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const pct = ((e.clientX - rect.left) / rect.width) * 100;
+      setSplitPct(Math.min(82, Math.max(30, pct)));
+    };
+    const onMouseUp = () => {
+      if (isDragging.current) {
+        isDragging.current = false;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
+    };
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, []);
 
   // ── Mobile: full-screen stacked layout (preview on top, controls below)
   if (isMobile) {
@@ -138,53 +168,128 @@ const ConfiguratorFlow = ({ activeConfigId, setActiveConfigId, onRefreshCount })
     );
   }
 
-  // ── Desktop: Preview (78%) | Controls (22%)
+  // ── Desktop: Step 6 (Summary) = full-width, Steps 2-5 = resizable split
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
       {/* Sticky horizontal stepper */}
       <HorizontalStepper currentStep={currentStep} onStepClick={navigateToStep} />
 
-      {/* Main content row — strict overflow containment */}
-      <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden', height: 0 }}>
-        {/* ── Preview Panel — 78% — sticky, never scrolls */}
-        {currentStep !== 1 && (
-          <div
-            style={{
-              flex: '0 0 78%',
-              width: '78%',
-              padding: '16px',
-              background: 'var(--bg-primary)',
-              display: 'flex',
-              flexDirection: 'column',
-              minHeight: 0,
-              overflow: 'hidden',
-            }}
-          >
-            <PreviewPanel currentStep={currentStep} />
-          </div>
-        )}
-
-        {/* ── Control Panel — 22% (or 100% on Step 1) — scrolls independently, never bleeds */}
+      {/* ── Step 6: Summary — full-width, no preview panel ── */}
+      {currentStep === 6 ? (
         <div
           style={{
-            flex: currentStep === 1 ? '1' : '0 0 22%',
-            width: currentStep === 1 ? '100%' : '22%',
-            borderLeft: currentStep === 1 ? 'none' : '1px solid var(--border)',
-            background: 'var(--bg-secondary)',
+            flex: 1,
             overflowY: 'auto',
             overflowX: 'hidden',
             overscrollBehavior: 'contain',
-            height: '100%',
-            padding: currentStep === 1 ? '0' : '16px 12px 80px',
+            padding: '24px 32px 100px',
+            background: 'var(--bg-primary)',
             minHeight: 0,
             boxSizing: 'border-box',
           }}
         >
-          <div className="step-animate" style={currentStep === 1 ? { height: '100%' } : {}}>
-            {renderStepContent()}
+          <div className="step-animate">
+            <StepBOQ
+              activeConfigId={activeConfigId}
+              setActiveConfigId={setActiveConfigId}
+              onRefreshCount={onRefreshCount}
+            />
           </div>
         </div>
-      </div>
+      ) : (
+        /* ── Steps 1–5: resizable split-pane ── */
+        <div
+          ref={containerRef}
+          style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden', height: 0 }}
+        >
+          {/* ── Preview Panel (left pane) — hidden on Step 1 */}
+          {currentStep !== 1 && (
+            <>
+              <div
+                style={{
+                  flex: `0 0 ${splitPct}%`,
+                  width: `${splitPct}%`,
+                  padding: '16px',
+                  background: 'var(--bg-primary)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  minHeight: 0,
+                  overflow: 'hidden',
+                }}
+              >
+                <PreviewPanel currentStep={currentStep} />
+              </div>
+
+              {/* ── Draggable Divider ── */}
+              <div
+                onMouseDown={onDividerMouseDown}
+                title="Drag to resize"
+                style={{
+                  flexShrink: 0,
+                  width: 6,
+                  cursor: 'col-resize',
+                  background: 'var(--border)',
+                  position: 'relative',
+                  zIndex: 10,
+                  transition: 'background 0.15s',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'var(--accent)';
+                }}
+                onMouseLeave={(e) => {
+                  if (!isDragging.current) e.currentTarget.style.background = 'var(--border)';
+                }}
+              >
+                {/* Grip dots */}
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 3,
+                    pointerEvents: 'none',
+                  }}
+                >
+                  {[0, 1, 2, 3, 4].map((i) => (
+                    <div
+                      key={i}
+                      style={{
+                        width: 2,
+                        height: 2,
+                        borderRadius: '50%',
+                        background: 'var(--text-muted)',
+                        opacity: 0.6,
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* ── Control Panel (right pane) — full-width on Step 1 */}
+          <div
+            style={{
+              flex: 1,
+              minWidth: 0,
+              borderLeft: currentStep === 1 ? 'none' : 'none',
+              background: 'var(--bg-secondary)',
+              overflowY: 'auto',
+              overflowX: 'hidden',
+              overscrollBehavior: 'contain',
+              height: '100%',
+              padding: currentStep === 1 ? '0' : '16px 12px 80px',
+              boxSizing: 'border-box',
+            }}
+          >
+            <div className="step-animate" style={currentStep === 1 ? { height: '100%' } : {}}>
+              {renderStepContent()}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Minimal floating bottom nav */}
       <BottomNav
