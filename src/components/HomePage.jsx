@@ -743,7 +743,7 @@ const EnhancedHomePage = ({ onStart, activeConfigId, setActiveConfigId, onLaunch
           <MobileNav
             user={user}
             onLogout={logout}
-            onBack={() => {}}
+            onBack={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
             onSavedDesigns={() => setSavedDrawerOpen(true)}
           />
         )}
@@ -769,7 +769,18 @@ const EnhancedHomePage = ({ onStart, activeConfigId, setActiveConfigId, onLaunch
           }}
         >
           {/* Logo */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              cursor: 'pointer',
+              transition: 'opacity 0.2s',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.opacity = 0.8)}
+            onMouseLeave={(e) => (e.currentTarget.style.opacity = 1)}
+          >
             <img
               src={logo}
               alt="Nirmanbook"
@@ -992,7 +1003,7 @@ const EnhancedHomePage = ({ onStart, activeConfigId, setActiveConfigId, onLaunch
               transform: 'translateX(-50%)',
               width: 700,
               height: 400,
-              background: 'radial-gradient(ellipse, rgba(59,130,246,0.08) 0%, transparent 70%)',
+              background: 'radial-gradient(ellipse, rgba(197, 139, 78, 0.18) 0%, transparent 70%)',
               pointerEvents: 'none',
             }}
           />
@@ -1017,8 +1028,10 @@ const EnhancedHomePage = ({ onStart, activeConfigId, setActiveConfigId, onLaunch
             Instant price for your{' '}
             <span
               style={{
-                color: '#60d5ff',
-                textShadow: '0 0 20px rgba(96, 213, 255, 0.4)',
+                background: 'linear-gradient(135deg, #F3EEE7, #C58B4E)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                textShadow: '0 0 24px rgba(197, 139, 78, 0.4)',
               }}
             >
               wardrobes

@@ -179,7 +179,23 @@ const ConfiguratorApp = ({ setConfigured, activeConfigId, setActiveConfigId }) =
           >
             {/* Logo + title + autosave dot */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <img src={logo} alt="Nirmanbook" style={{ height: 26, width: 'auto' }} />
+              <div
+                onClick={() => {
+                  setConfigured(false);
+                  navigate('/');
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  cursor: 'pointer',
+                  transition: 'opacity 0.2s',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.opacity = 0.8)}
+                onMouseLeave={(e) => (e.currentTarget.style.opacity = 1)}
+              >
+                <img src={logo} alt="Nirmanbook" style={{ height: 26, width: 'auto' }} />
+              </div>
               <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 500 }}>
                 Wardrobe Configurator
               </span>

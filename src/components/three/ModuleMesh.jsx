@@ -72,7 +72,7 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
   const innerD = depth - pt; // depth of interior panels
 
   // Color: per-module override > global material
-  const baseColor = module.colorOverride || material?.hex || '#F0EDE8';
+  const baseColor = module.colorOverride || material?.hex || '#5C3822';
 
   // Dynamically adjust roughness based on finish type for realism
   const finishType = (material?.sub || '').toLowerCase();

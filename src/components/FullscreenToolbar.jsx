@@ -7,9 +7,9 @@ import { MODULES } from '../data/modules';
 // ─── Reusable sub-components ──────────────────────────────────────────────────
 
 const WALL_LABELS = {
-  A: { label: 'Main', color: '#3b82f6' },
-  B: { label: 'Left', color: '#8b5cf6' },
-  C: { label: 'Right', color: '#06b6d4' },
+  A: { label: 'Main', color: '#C58B4E' },
+  B: { label: 'Left', color: '#A68A64' },
+  C: { label: 'Right', color: '#8C7A6B' },
 };
 
 function Section({ title, defaultOpen = true, accent = false, children }) {
@@ -27,7 +27,7 @@ function Section({ title, defaultOpen = true, accent = false, children }) {
           background: 'transparent',
           border: 'none',
           cursor: 'pointer',
-          color: accent ? '#60a5fa' : 'rgba(255,255,255,0.7)',
+          color: accent ? '#D4A373' : 'rgba(255,255,255,0.7)',
           fontSize: 11,
           fontWeight: 800,
           textTransform: 'uppercase',
@@ -50,7 +50,7 @@ function Slider({ label, value, min, max, step, onChange, unit = 'mm' }) {
         <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontWeight: 600 }}>
           {label}
         </span>
-        <span style={{ fontSize: 12, color: '#60a5fa', fontWeight: 700 }}>
+        <span style={{ fontSize: 12, color: '#D4A373', fontWeight: 700 }}>
           {value} {unit}
         </span>
       </div>
@@ -65,7 +65,7 @@ function Slider({ label, value, min, max, step, onChange, unit = 'mm' }) {
           width: '100%',
           height: 5,
           borderRadius: 3,
-          background: `linear-gradient(to right, #3b82f6 0%, #3b82f6 ${((value - min) / (max - min)) * 100}%, rgba(255,255,255,0.12) ${((value - min) / (max - min)) * 100}%, rgba(255,255,255,0.12) 100%)`,
+          background: `linear-gradient(to right, #C58B4E 0%, #C58B4E ${((value - min) / (max - min)) * 100}%, rgba(255,255,255,0.12) ${((value - min) / (max - min)) * 100}%, rgba(255,255,255,0.12) 100%)`,
           cursor: 'pointer',
           appearance: 'none',
           WebkitAppearance: 'none',
@@ -87,9 +87,9 @@ function OptionRow({ label, subtitle, isSelected, onClick, swatch }) {
         gap: 10,
         padding: '9px 11px',
         borderRadius: 8,
-        border: isSelected ? '1px solid rgba(59,130,246,0.5)' : '1px solid rgba(255,255,255,0.07)',
-        background: isSelected ? 'rgba(59,130,246,0.12)' : 'rgba(255,255,255,0.03)',
-        color: isSelected ? '#93c5fd' : 'rgba(255,255,255,0.6)',
+        border: isSelected ? '1px solid rgba(197,139,78,0.5)' : '1px solid rgba(255,255,255,0.07)',
+        background: isSelected ? 'rgba(197,139,78,0.12)' : 'rgba(255,255,255,0.03)',
+        color: isSelected ? '#E6CCB2' : 'rgba(255,255,255,0.6)',
         cursor: 'pointer',
         fontSize: 12,
         fontWeight: 500,
@@ -106,7 +106,7 @@ function OptionRow({ label, subtitle, isSelected, onClick, swatch }) {
             height: 18,
             borderRadius: 4,
             background: swatch,
-            border: isSelected ? '2px solid #60a5fa' : '1.5px solid rgba(255,255,255,0.15)',
+            border: isSelected ? '2px solid #D4A373' : '1.5px solid rgba(255,255,255,0.15)',
             flexShrink: 0,
           }}
         />
@@ -121,7 +121,7 @@ function OptionRow({ label, subtitle, isSelected, onClick, swatch }) {
           </div>
         )}
       </div>
-      {isSelected && <Check size={13} style={{ flexShrink: 0, color: '#60a5fa' }} />}
+      {isSelected && <Check size={13} style={{ flexShrink: 0, color: '#D4A373' }} />}
     </button>
   );
 }
@@ -150,7 +150,7 @@ const FullscreenToolbar = ({ currentStep, viewMode, setViewMode, onClose }) => {
           style={{
             fontSize: 10,
             fontWeight: 800,
-            color: '#3b82f6',
+            color: '#C58B4E',
             letterSpacing: '0.12em',
             textTransform: 'uppercase',
             marginBottom: 4,
@@ -172,10 +172,10 @@ const FullscreenToolbar = ({ currentStep, viewMode, setViewMode, onClose }) => {
                 borderRadius: 7,
                 border:
                   viewMode === m.id
-                    ? '1px solid rgba(59,130,246,0.5)'
+                    ? '1px solid rgba(197,139,78,0.5)'
                     : '1px solid rgba(255,255,255,0.1)',
-                background: viewMode === m.id ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.04)',
-                color: viewMode === m.id ? '#93c5fd' : 'rgba(255,255,255,0.45)',
+                background: viewMode === m.id ? 'rgba(197,139,78,0.2)' : 'rgba(255,255,255,0.04)',
+                color: viewMode === m.id ? '#E6CCB2' : 'rgba(255,255,255,0.45)',
                 fontSize: 11,
                 fontWeight: 700,
                 cursor: 'pointer',
@@ -216,10 +216,10 @@ const FullscreenToolbar = ({ currentStep, viewMode, setViewMode, onClose }) => {
                     padding: '8px 6px',
                     borderRadius: 7,
                     border: isActive
-                      ? '1px solid rgba(59,130,246,0.5)'
+                      ? '1px solid rgba(197,139,78,0.5)'
                       : '1px solid rgba(255,255,255,0.07)',
-                    background: isActive ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.03)',
-                    color: isActive ? '#93c5fd' : 'rgba(255,255,255,0.4)',
+                    background: isActive ? 'rgba(197,139,78,0.15)' : 'rgba(255,255,255,0.03)',
+                    color: isActive ? '#E6CCB2' : 'rgba(255,255,255,0.4)',
                     fontSize: 11,
                     fontWeight: 600,
                     cursor: 'pointer',
@@ -289,10 +289,10 @@ const FullscreenToolbar = ({ currentStep, viewMode, setViewMode, onClose }) => {
           style={{
             padding: '8px 10px',
             borderRadius: 7,
-            background: 'rgba(59,130,246,0.08)',
-            border: '1px solid rgba(59,130,246,0.15)',
+            background: 'rgba(197,139,78,0.08)',
+            border: '1px solid rgba(197,139,78,0.15)',
             fontSize: 11,
-            color: '#60a5fa',
+            color: '#D4A373',
             fontWeight: 600,
             marginTop: 4,
           }}
@@ -457,10 +457,10 @@ const FullscreenToolbar = ({ currentStep, viewMode, setViewMode, onClose }) => {
                     gap: 8,
                     padding: '5px 8px',
                     borderRadius: 7,
-                    background: qty > 0 ? 'rgba(59,130,246,0.07)' : 'rgba(255,255,255,0.03)',
+                    background: qty > 0 ? 'rgba(197,139,78,0.07)' : 'rgba(255,255,255,0.03)',
                     border:
                       qty > 0
-                        ? '1px solid rgba(59,130,246,0.2)'
+                        ? '1px solid rgba(197,139,78,0.2)'
                         : '1px solid rgba(255,255,255,0.05)',
                   }}
                 >
@@ -469,7 +469,7 @@ const FullscreenToolbar = ({ currentStep, viewMode, setViewMode, onClose }) => {
                       style={{
                         fontSize: 10,
                         fontWeight: 600,
-                        color: qty > 0 ? '#93c5fd' : 'rgba(255,255,255,0.55)',
+                        color: qty > 0 ? '#E6CCB2' : 'rgba(255,255,255,0.55)',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
@@ -499,7 +499,7 @@ const FullscreenToolbar = ({ currentStep, viewMode, setViewMode, onClose }) => {
                         style={{
                           fontSize: 11,
                           fontWeight: 700,
-                          color: '#60a5fa',
+                          color: '#D4A373',
                           minWidth: 14,
                           textAlign: 'center',
                         }}
@@ -511,8 +511,8 @@ const FullscreenToolbar = ({ currentStep, viewMode, setViewMode, onClose }) => {
                       onClick={() => actions.setModuleQty(mod.id, 1)}
                       style={{
                         ...smallBtn,
-                        color: '#60a5fa',
-                        borderColor: 'rgba(59,130,246,0.35)',
+                        color: '#D4A373',
+                        borderColor: 'rgba(197,139,78,0.35)',
                       }}
                     >
                       +
@@ -698,14 +698,14 @@ const FullscreenToolbar = ({ currentStep, viewMode, setViewMode, onClose }) => {
               marginTop: 12,
               padding: '10px 12px',
               borderRadius: 8,
-              background: 'rgba(59,130,246,0.1)',
-              border: '1px solid rgba(59,130,246,0.2)',
+              background: 'rgba(197,139,78,0.1)',
+              border: '1px solid rgba(197,139,78,0.2)',
             }}
           >
             <div
               style={{
                 fontSize: 10,
-                color: '#60a5fa',
+                color: '#D4A373',
                 fontWeight: 700,
                 textTransform: 'uppercase',
                 letterSpacing: '0.08em',

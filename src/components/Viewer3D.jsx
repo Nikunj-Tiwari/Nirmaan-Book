@@ -669,7 +669,7 @@ export function Viewer3D({
               <div style={{ position: 'relative', flex: 1 }}>
                 <input
                   type="color"
-                  value={selectedModule.colorOverride || material?.hex || '#F0EDE8'}
+                  value={selectedModule.colorOverride || material?.hex || '#5C3822'}
                   onChange={(e) => handleColorChange(e.target.value)}
                   style={{
                     width: '100%',

@@ -56,14 +56,14 @@ const HorizontalStepper = ({ currentStep = 1, onStepClick }) => {
                 padding: '4px 8px',
                 borderRadius: 99,
                 border: isActive
-                  ? '2px solid var(--accent)'
+                  ? '1px solid var(--accent-border)'
                   : isDone
-                    ? '2px solid var(--success, #22c55e)'
-                    : '2px solid var(--border)',
+                    ? '1px solid rgba(69, 196, 124, 0.3)'
+                    : '1px solid var(--border)',
                 background: isActive
-                  ? 'var(--accent-light)'
+                  ? 'var(--bg-tertiary)'
                   : isDone
-                    ? 'rgba(34,197,94,0.08)'
+                    ? 'rgba(69, 196, 124, 0.05)'
                     : 'transparent',
                 cursor: clickable ? 'pointer' : 'default',
                 fontFamily: 'var(--font-sans)',
@@ -78,7 +78,6 @@ const HorizontalStepper = ({ currentStep = 1, onStepClick }) => {
                 e.currentTarget.style.opacity = '1';
               }}
             >
-              {/* Circle icon */}
               <span
                 style={{
                   width: 22,
@@ -91,12 +90,17 @@ const HorizontalStepper = ({ currentStep = 1, onStepClick }) => {
                   fontWeight: 700,
                   flexShrink: 0,
                   background: isActive
-                    ? 'var(--accent)'
+                    ? 'linear-gradient(135deg, #C58B4E, #9B6735)'
                     : isDone
-                      ? '#22c55e'
+                      ? 'var(--success)'
                       : 'var(--bg-tertiary)',
                   color: isActive || isDone ? '#fff' : 'var(--text-muted)',
-                  transition: 'all 0.18s',
+                  boxShadow: isActive
+                    ? '0 0 12px rgba(197, 139, 78, 0.5)'
+                    : isDone
+                      ? '0 0 12px rgba(69, 196, 124, 0.4)'
+                      : 'none',
+                  transition: 'all 0.3s ease',
                 }}
               >
                 {isDone ? <Check size={11} strokeWidth={3} /> : step.id}

@@ -76,103 +76,134 @@ const PreviewPanel = ({ currentStep }) => {
         overflow: 'hidden',
       }}
     >
-      {/* ── Header ──────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <h3
-          style={{
-            fontSize: 13,
-            fontWeight: 700,
-            color: 'var(--text-primary)',
-            margin: 0,
-          }}
-        >
-          Live Preview
-        </h3>
-
-        {/* View toggle + fullscreen */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {/* Pill toggle */}
-          <div
-            style={{
-              display: 'flex',
-              background: 'var(--bg-tertiary)',
-              borderRadius: 8,
-              padding: 3,
-              border: '1px solid var(--border)',
-              gap: 3,
-            }}
-          >
-            {[
-              { id: '2d', label: '2D', title: 'Blueprint view' },
-              { id: '3d', label: '3D', title: 'Interactive 3D model' },
-            ].map((m) => (
-              <button
-                key={m.id}
-                onClick={() => setViewMode(m.id)}
-                title={m.title}
-                style={{
-                  padding: '5px 12px',
-                  borderRadius: 6,
-                  border: 'none',
-                  background: viewMode === m.id ? 'var(--accent)' : 'transparent',
-                  color: viewMode === m.id ? '#fff' : 'var(--text-secondary)',
-                  fontSize: 11,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  transition: 'all 0.15s',
-                  fontFamily: 'var(--font-sans)',
-                  letterSpacing: '0.04em',
-                }}
-              >
-                {m.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Fullscreen button */}
-          <button
-            onClick={() => setIsFullscreen(true)}
-            title="Fullscreen preview mode"
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 6,
-              border: '1px solid var(--border)',
-              background: 'var(--bg-primary)',
-              color: 'var(--text-secondary)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'all 0.15s',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'var(--bg-tertiary)';
-              e.currentTarget.style.color = 'var(--accent)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'var(--bg-primary)';
-              e.currentTarget.style.color = 'var(--text-secondary)';
-            }}
-          >
-            <Maximize2 size={14} />
-          </button>
-        </div>
-      </div>
-
-      {/* ── Preview Content ──────────────────────────────────────────── */}
+      {/* ── Preview Content with Floating Controls ──────────────────── */}
       <div
         ref={containerRef}
         style={{
           flex: 1,
           minHeight: 0,
-          borderRadius: 8,
+          borderRadius: 10,
           border: '1px solid var(--border)',
           overflow: 'hidden',
           position: 'relative',
-          background: viewMode === '2d' ? '#fafbfc' : '#0f1115',
+          background:
+            viewMode === '2d'
+              ? 'var(--bg-primary)'
+              : 'radial-gradient(circle at center, #211C17 0%, #0F0D0B 100%)',
+          boxShadow: 'inset 0 0 60px rgba(0,0,0,0.3)',
         }}
       >
+        {/* Floating Controls */}
+        <div
+          style={{
+            position: 'absolute',
+            top: 16,
+            left: 16,
+            right: 16,
+            zIndex: 10,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <h3
+            style={{
+              fontSize: 13,
+              fontWeight: 700,
+              color: viewMode === '3d' ? '#F3EEE7' : 'var(--text-primary)',
+              margin: 0,
+              textShadow: viewMode === '3d' ? '0 2px 4px rgba(0,0,0,0.5)' : 'none',
+            }}
+          >
+            Live Preview
+          </h3>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* Pill toggle */}
+            <div
+              style={{
+                display: 'flex',
+                background: viewMode === '3d' ? 'rgba(0,0,0,0.4)' : 'var(--bg-tertiary)',
+                borderRadius: 8,
+                padding: 3,
+                border:
+                  viewMode === '3d'
+                    ? '1px solid rgba(197, 139, 78, 0.2)'
+                    : '1px solid var(--border)',
+                backdropFilter: 'blur(8px)',
+                gap: 3,
+              }}
+            >
+              {[
+                { id: '2d', label: '2D', title: 'Blueprint view' },
+                { id: '3d', label: '3D', title: 'Interactive 3D model' },
+              ].map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => setViewMode(m.id)}
+                  title={m.title}
+                  style={{
+                    padding: '5px 12px',
+                    borderRadius: 6,
+                    border: 'none',
+                    background: viewMode === m.id ? 'var(--accent)' : 'transparent',
+                    color:
+                      viewMode === m.id
+                        ? '#fff'
+                        : viewMode === '3d'
+                          ? 'rgba(255,255,255,0.6)'
+                          : 'var(--text-secondary)',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s',
+                    fontFamily: 'var(--font-sans)',
+                    letterSpacing: '0.04em',
+                    boxShadow: viewMode === m.id ? '0 2px 8px rgba(197, 139, 78, 0.4)' : 'none',
+                  }}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Fullscreen button */}
+            <button
+              onClick={() => setIsFullscreen(true)}
+              title="Fullscreen preview mode"
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 6,
+                border:
+                  viewMode === '3d'
+                    ? '1px solid rgba(197, 139, 78, 0.2)'
+                    : '1px solid var(--border)',
+                background: viewMode === '3d' ? 'rgba(0,0,0,0.4)' : 'var(--bg-tertiary)',
+                backdropFilter: 'blur(8px)',
+                color: viewMode === '3d' ? 'rgba(255,255,255,0.7)' : 'var(--text-secondary)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'var(--accent)';
+                e.currentTarget.style.color = '#fff';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background =
+                  viewMode === '3d' ? 'rgba(0,0,0,0.4)' : 'var(--bg-tertiary)';
+                e.currentTarget.style.color =
+                  viewMode === '3d' ? 'rgba(255,255,255,0.7)' : 'var(--text-secondary)';
+              }}
+            >
+              <Maximize2 size={14} />
+            </button>
+          </div>
+        </div>
+
         {viewMode === '2d' ? (
           <canvas
             ref={canvasRef}

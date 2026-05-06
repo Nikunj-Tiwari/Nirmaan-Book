@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 
 export const COLOURS = [
+  { name: 'Virginia Walnut', sub: 'Wood Grain', hex: '#5C3822' },
   { name: 'White', sub: 'Solid', hex: '#F0EDE8' },
   { name: 'Grey', sub: 'Solid', hex: '#9EA09E' },
   { name: 'Charcoal', sub: 'Solid', hex: '#36454F' },
@@ -25,7 +26,6 @@ export const COLOURS = [
   { name: 'Twist Ivory', sub: 'Textured', hex: '#D5CAAD' },
   { name: 'Twist Grey', sub: 'Textured', hex: '#8E8F88' },
   { name: 'Linen', sub: 'Textured', hex: '#E9E5CE' },
-  { name: 'Virginia Walnut', sub: 'Wood Grain', hex: '#5C3822' },
   { name: 'Swiss Chestnut', sub: 'Wood Grain', hex: '#6E5342' },
   { name: 'Iconic Chestnut', sub: 'Wood Grain', hex: '#4A3325' },
   { name: 'Oak Light', sub: 'Wood Grain', hex: '#D7BA89' },

@@ -114,7 +114,7 @@ const FullscreenPreviewModal = ({ currentStep, viewMode, setViewMode, onClose })
           justifyContent: 'space-between',
           padding: '14px 20px',
           borderBottom: '1px solid rgba(255,255,255,0.08)',
-          background: 'rgba(10,12,16,0.8)',
+          background: 'rgba(21,18,15,0.8)',
           backdropFilter: 'blur(16px)',
           flexShrink: 0,
         }}
@@ -125,8 +125,8 @@ const FullscreenPreviewModal = ({ currentStep, viewMode, setViewMode, onClose })
               width: 8,
               height: 8,
               borderRadius: '50%',
-              background: '#3b82f6',
-              boxShadow: '0 0 8px rgba(59,130,246,0.6)',
+              background: '#C58B4E',
+              boxShadow: '0 0 8px rgba(197,139,78,0.6)',
             }}
           />
           <h2 style={{ fontSize: 15, fontWeight: 700, color: '#f1f5f9', margin: 0 }}>
@@ -170,7 +170,7 @@ const FullscreenPreviewModal = ({ currentStep, viewMode, setViewMode, onClose })
                   padding: '7px 14px',
                   borderRadius: 7,
                   border: 'none',
-                  background: viewMode === m.id ? '#3b82f6' : 'transparent',
+                  background: viewMode === m.id ? '#C58B4E' : 'transparent',
                   color: viewMode === m.id ? '#fff' : 'rgba(255,255,255,0.45)',
                   fontSize: 12,
                   fontWeight: 600,
@@ -224,7 +224,10 @@ const FullscreenPreviewModal = ({ currentStep, viewMode, setViewMode, onClose })
           style={{
             flex: 1,
             overflow: 'hidden',
-            background: viewMode === '2d' ? '#f4f5f7' : '#0f1115',
+            background:
+              viewMode === '2d'
+                ? 'var(--bg-primary)'
+                : 'radial-gradient(circle at center, #211C17 0%, #0F0D0B 100%)',
             position: 'relative',
             display: 'flex',
             alignItems: 'center',
@@ -275,14 +278,14 @@ const FullscreenPreviewModal = ({ currentStep, viewMode, setViewMode, onClose })
           onMouseDown={handleMouseDown}
           style={{
             width: 5,
-            background: isDragging ? 'rgba(59,130,246,0.7)' : 'rgba(255,255,255,0.07)',
+            background: isDragging ? 'rgba(197,139,78,0.7)' : 'rgba(255,255,255,0.07)',
             cursor: 'col-resize',
             transition: isDragging ? 'none' : 'background 0.2s',
             flexShrink: 0,
             position: 'relative',
           }}
           onMouseEnter={(e) => {
-            if (!isDragging) e.currentTarget.style.background = 'rgba(59,130,246,0.4)';
+            if (!isDragging) e.currentTarget.style.background = 'rgba(197,139,78,0.4)';
           }}
           onMouseLeave={(e) => {
             if (!isDragging) e.currentTarget.style.background = 'rgba(255,255,255,0.07)';
@@ -321,7 +324,7 @@ const FullscreenPreviewModal = ({ currentStep, viewMode, setViewMode, onClose })
             width: toolbarWidth,
             minWidth: 280,
             maxWidth: '55%',
-            background: 'rgba(6,8,14,0.85)',
+            background: 'rgba(15,13,11,0.85)',
             backdropFilter: 'blur(12px)',
             borderLeft: '1px solid rgba(255,255,255,0.07)',
             display: 'flex',

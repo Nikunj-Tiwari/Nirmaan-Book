@@ -373,29 +373,42 @@ const BottomNav = ({
     {/* Total price — center — only show from Step 3 onwards */}
     {currentStep >= 3 ? (
       <div
-        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1.2 }}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          lineHeight: 1.2,
+          background: 'var(--bg-tertiary)',
+          padding: '4px 20px',
+          borderRadius: '12px',
+          border: '1px solid var(--border)',
+          boxShadow: 'var(--shadow-sm)',
+        }}
       >
         <span
           style={{
-            fontSize: 10,
+            fontSize: 9,
             color: 'var(--text-muted)',
-            fontWeight: 600,
+            fontWeight: 700,
             textTransform: 'uppercase',
-            letterSpacing: '0.06em',
+            letterSpacing: '0.1em',
           }}
         >
-          Total
+          Total Config
         </span>
         <span
+          key={totalPrice}
           style={{
             fontSize: 16,
             fontWeight: 800,
-            color: 'var(--accent)',
-            letterSpacing: '-0.03em',
+            color: 'var(--text-primary)',
+            letterSpacing: '-0.02em',
+            animation: 'priceUpdate 0.4s ease',
           }}
         >
           ₹{(totalPrice || 0).toLocaleString()}
         </span>
+        <style>{`@keyframes priceUpdate { 0% { transform: scale(1.08); color: var(--accent); } 100% { transform: scale(1); color: var(--text-primary); } }`}</style>
       </div>
     ) : (
       <div style={{ flex: 1 }} />
