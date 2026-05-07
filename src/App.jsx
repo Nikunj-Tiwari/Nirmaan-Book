@@ -12,6 +12,7 @@ import SavedDesignsDrawer from './components/SavedDesignsDrawer';
 import ThemeToggle from './components/ThemeToggle';
 import MobileNav from './components/MobileNav';
 import ProtectedRoute from './components/ProtectedRoute';
+import CursorFollower from './components/CursorFollower';
 
 // Global State
 import { useConfig } from './store/ConfigContext';
@@ -386,6 +387,7 @@ const App = () => {
 
   return (
     <ToastProvider>
+      <CursorFollower />
       <Routes>
         <Route
           path="/"
