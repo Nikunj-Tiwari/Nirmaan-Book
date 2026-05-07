@@ -65,17 +65,27 @@ const HorizontalStepper = ({ currentStep = 1, onStepClick }) => {
                   : isDone
                     ? 'rgba(69, 196, 124, 0.05)'
                     : 'transparent',
+                boxShadow: isActive
+                  ? '0 4px 16px rgba(197, 139, 78, 0.15), inset 0 1px 0 rgba(255,255,255,0.1)'
+                  : 'none',
+                transform: isActive ? 'scale(1.05)' : 'scale(1)',
                 cursor: clickable ? 'pointer' : 'default',
                 fontFamily: 'var(--font-sans)',
-                transition: 'all 0.18s',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                 outline: 'none',
                 whiteSpace: 'nowrap',
+                position: 'relative',
+                zIndex: isActive ? 5 : 1,
               }}
               onMouseEnter={(e) => {
-                if (clickable) e.currentTarget.style.opacity = '0.8';
+                if (clickable) {
+                  e.currentTarget.style.opacity = '0.9';
+                  e.currentTarget.style.transform = isActive ? 'scale(1.08)' : 'scale(1.02)';
+                }
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.opacity = '1';
+                e.currentTarget.style.transform = isActive ? 'scale(1.05)' : 'scale(1)';
               }}
             >
               <span
@@ -96,11 +106,11 @@ const HorizontalStepper = ({ currentStep = 1, onStepClick }) => {
                       : 'var(--bg-tertiary)',
                   color: isActive || isDone ? '#fff' : 'var(--text-muted)',
                   boxShadow: isActive
-                    ? '0 0 12px rgba(197, 139, 78, 0.5)'
+                    ? '0 0 16px rgba(197, 139, 78, 0.8), inset 0 2px 4px rgba(255,255,255,0.3)'
                     : isDone
-                      ? '0 0 12px rgba(69, 196, 124, 0.4)'
-                      : 'none',
-                  transition: 'all 0.3s ease',
+                      ? '0 0 12px rgba(69, 196, 124, 0.5)'
+                      : 'inset 0 1px 2px rgba(0,0,0,0.1)',
+                  transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
                 }}
               >
                 {isDone ? <Check size={11} strokeWidth={3} /> : step.id}

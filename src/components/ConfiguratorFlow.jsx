@@ -152,7 +152,9 @@ const ConfiguratorFlow = ({ activeConfigId, setActiveConfigId, onRefreshCount })
 
         {/* Controls — scrollable */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px', minHeight: 0 }}>
-          <div className="step-animate">{renderStepContent()}</div>
+          <div key={currentStep} className="step-animate">
+            {renderStepContent()}
+          </div>
         </div>
 
         {/* Bottom nav */}
@@ -188,7 +190,7 @@ const ConfiguratorFlow = ({ activeConfigId, setActiveConfigId, onRefreshCount })
             boxSizing: 'border-box',
           }}
         >
-          <div className="step-animate">
+          <div key={currentStep} className="step-animate">
             <StepBOQ
               activeConfigId={activeConfigId}
               setActiveConfigId={setActiveConfigId}
@@ -284,7 +286,11 @@ const ConfiguratorFlow = ({ activeConfigId, setActiveConfigId, onRefreshCount })
               boxSizing: 'border-box',
             }}
           >
-            <div className="step-animate" style={currentStep === 1 ? { height: '100%' } : {}}>
+            <div
+              key={currentStep}
+              className="step-animate"
+              style={currentStep === 1 ? { height: '100%' } : {}}
+            >
               {renderStepContent()}
             </div>
           </div>
