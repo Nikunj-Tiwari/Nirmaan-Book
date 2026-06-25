@@ -7,7 +7,7 @@ export const MODULES = [
     height: 2400,
     depth: 600,
     basePrice: 5500,
-    layout: { hang: 2, shelves: 0, drawers: 0 },
+    layout: { hang: 0, shelves: 6, drawers: 0 },
   },
   {
     id: 'OW/SW 02',
@@ -37,7 +37,7 @@ export const MODULES = [
     height: 2400,
     depth: 600,
     basePrice: 6500,
-    layout: { hang: 1, shelves: 3, drawers: 0 },
+    layout: { hang: 1, shelves: 2, drawers: 1 },
   },
   {
     id: 'OW/SW 05',
