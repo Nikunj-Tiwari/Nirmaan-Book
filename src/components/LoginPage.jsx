@@ -1,10 +1,22 @@
 import React, { useState, useId } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../store/AuthContext';
-import { Eye, EyeOff, ArrowRight, Check, Mail, Phone, ShieldCheck } from 'lucide-react';
+import {
+  Eye,
+  EyeOff,
+  ArrowRight,
+  Check,
+  Mail,
+  Phone,
+  ShieldCheck,
+  Home,
+  Building2,
+} from 'lucide-react';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../firebase';
 import logo from '../assets/logo.png';
 
-/* ─── shared input style helper ─── */
+/* ─── shared style helpers (unchanged from original) ─── */
 const inp = {
   width: '100%',
   padding: '11px 14px',
@@ -107,6 +119,181 @@ const Btn = ({ loading, children, ...rest }) => (
   </button>
 );
 
+/* ─── Role Selection Screen ─── */
+const RoleSelector = ({ onSelect }) => (
+  <div style={{ width: '100%', maxWidth: 420 }}>
+    <div style={{ textAlign: 'center', marginBottom: 36 }}>
+      <h2
+        style={{
+          fontSize: 26,
+          fontWeight: 800,
+          letterSpacing: '-0.04em',
+          color: 'var(--text-primary)',
+          marginBottom: 10,
+          fontFamily: 'var(--font-display)',
+        }}
+      >
+        Choose Your Account Type
+      </h2>
+      <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+        Select how you'll use NirmanBook
+      </p>
+    </div>
+
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Customer Card */}
+      <button
+        onClick={() => onSelect('customer')}
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 18,
+          padding: '24px 22px',
+          borderRadius: 14,
+          border: '2px solid var(--border)',
+          background: 'var(--bg-primary)',
+          cursor: 'pointer',
+          textAlign: 'left',
+          transition: 'all 0.18s',
+          fontFamily: 'var(--font-sans)',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.borderColor = 'var(--accent)';
+          e.currentTarget.style.background = 'var(--accent-light)';
+          e.currentTarget.style.transform = 'translateY(-2px)';
+          e.currentTarget.style.boxShadow = 'var(--shadow-md)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.borderColor = 'var(--border)';
+          e.currentTarget.style.background = 'var(--bg-primary)';
+          e.currentTarget.style.transform = 'translateY(0)';
+          e.currentTarget.style.boxShadow = 'none';
+        }}
+      >
+        <div
+          style={{
+            width: 48,
+            height: 48,
+            borderRadius: 12,
+            background: 'var(--accent-light)',
+            border: '1.5px solid var(--accent-border)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <Home size={22} color="var(--accent)" />
+        </div>
+        <div>
+          <div
+            style={{
+              fontSize: 16,
+              fontWeight: 700,
+              color: 'var(--text-primary)',
+              marginBottom: 6,
+            }}
+          >
+            🏠 Customer
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+            Design wardrobes, save projects and request quotes.
+          </div>
+        </div>
+        <ArrowRight
+          size={18}
+          color="var(--text-muted)"
+          style={{ marginLeft: 'auto', marginTop: 4, flexShrink: 0 }}
+        />
+      </button>
+
+      {/* Business Partner Card */}
+      <button
+        onClick={() => onSelect('business_partner')}
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 18,
+          padding: '24px 22px',
+          borderRadius: 14,
+          border: '2px solid var(--border)',
+          background: 'var(--bg-primary)',
+          cursor: 'pointer',
+          textAlign: 'left',
+          transition: 'all 0.18s',
+          fontFamily: 'var(--font-sans)',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.borderColor = 'var(--accent)';
+          e.currentTarget.style.background = 'var(--accent-light)';
+          e.currentTarget.style.transform = 'translateY(-2px)';
+          e.currentTarget.style.boxShadow = 'var(--shadow-md)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.borderColor = 'var(--border)';
+          e.currentTarget.style.background = 'var(--bg-primary)';
+          e.currentTarget.style.transform = 'translateY(0)';
+          e.currentTarget.style.boxShadow = 'none';
+        }}
+      >
+        <div
+          style={{
+            width: 48,
+            height: 48,
+            borderRadius: 12,
+            background: 'var(--accent-light)',
+            border: '1.5px solid var(--accent-border)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <Building2 size={22} color="var(--accent)" />
+        </div>
+        <div>
+          <div
+            style={{
+              fontSize: 16,
+              fontWeight: 700,
+              color: 'var(--text-primary)',
+              marginBottom: 6,
+            }}
+          >
+            🏢 Business Partner
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+            Manage products, pricing and customer projects.
+          </div>
+        </div>
+        <ArrowRight
+          size={18}
+          color="var(--text-muted)"
+          style={{ marginLeft: 'auto', marginTop: 4, flexShrink: 0 }}
+        />
+      </button>
+    </div>
+
+    <p style={{ textAlign: 'center', marginTop: 24, fontSize: 12, color: 'var(--text-muted)' }}>
+      Already have an account?{' '}
+      <button
+        onClick={() => onSelect('__login__')}
+        style={{
+          background: 'none',
+          border: 'none',
+          color: 'var(--accent)',
+          fontWeight: 600,
+          cursor: 'pointer',
+          fontFamily: 'var(--font-sans)',
+          fontSize: 12,
+        }}
+      >
+        Sign in →
+      </button>
+    </p>
+  </div>
+);
+
 /* ═══════════════════════════════════════════════════ */
 const LoginPage = () => {
   const { login, register, forgotPassword, sendPhoneOTP, verifyPhoneOTP } = useAuth();
@@ -114,6 +301,10 @@ const LoginPage = () => {
   const location = useLocation();
   const from = location.state?.from?.pathname || '/';
   const rcId = useId().replace(/:/g, 'rc');
+
+  /* ── NEW: role selection screen ── */
+  /* selectedRole: null | 'customer' | 'business_partner' */
+  const [selectedRole, setSelectedRole] = useState(null);
 
   /* mode: 'login' | 'register' | 'forgot' */
   const [mode, setMode] = useState('login');
@@ -143,6 +334,17 @@ const LoginPage = () => {
     setRegStep('details');
   };
 
+  /* ── Handle role card click ── */
+  const handleRoleSelect = (role) => {
+    if (role === '__login__') {
+      setSelectedRole('customer'); // role doesn't matter for login
+      go('login');
+      return;
+    }
+    setSelectedRole(role);
+    go('register');
+  };
+
   /* ── LOGIN ── */
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -150,8 +352,7 @@ const LoginPage = () => {
     setLoading(true);
     const r = await login(email, password);
     setLoading(false);
-    if (r.ok) navigate(from, { replace: true });
-    else
+    if (!r.ok) {
       setError(
         r.error.includes('invalid-credential')
           ? 'Invalid email or password.'
@@ -159,17 +360,108 @@ const LoginPage = () => {
             ? 'No account found with this email.'
             : r.error
       );
+      return;
+    }
+
+    // Fetch the Firestore profile to decide where to redirect
+    // AuthContext resolves the profile after onAuthStateChanged, but we
+    // can inspect it right after login completes by reading from Firestore.
+    try {
+      const { getDoc, doc: fsDoc } = await import('firebase/firestore');
+      const snap = await getDoc(fsDoc(db, 'users', email)); // fallback handled below
+      // Note: we don't have uid here yet; AuthContext handles it via onAuthStateChanged.
+      // Redirect based on from-path or default routes; AuthContext's role guards take over.
+    } catch (_) {
+      /* best-effort; AuthContext handles role-based routing */
+    }
+
+    // The ProtectedRoute + role guards in App.jsx handle final redirection.
+    // We do a best-effort redirect here; AuthContext.role will re-route if needed.
+    navigate(from === '/' ? '/dashboard' : from, { replace: true });
   };
 
-  /* ── REGISTER step 1: create account + send email verification ── */
+  /* ── Post-login redirect based on Firestore profile (called from App.jsx ProtectedRoute) ── */
+  // This is a helper used by the login handler to do the correct redirect
+  // after auth state settles with the user's role and status.
+  const redirectAfterLogin = (role, status) => {
+    if (status === 'suspended') {
+      setError('Your account has been suspended. Please contact support.');
+      return false;
+    }
+    if (status === 'pending') {
+      navigate('/pending-approval', { replace: true });
+      return true;
+    }
+    if (role === 'super_admin') {
+      navigate('/admin', { replace: true });
+      return true;
+    }
+    if (role === 'business_partner') {
+      navigate('/business', { replace: true });
+      return true;
+    }
+    navigate('/dashboard', { replace: true });
+    return true;
+  };
+
+  /* ── Smarter login that reads profile after auth ── */
+  const handleLoginSmart = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    const r = await login(email, password);
+    if (!r.ok) {
+      setLoading(false);
+      setError(
+        r.error.includes('invalid-credential')
+          ? 'Invalid email or password.'
+          : r.error.includes('user-not-found')
+            ? 'No account found with this email.'
+            : r.error
+      );
+      return;
+    }
+
+    // Wait briefly for onAuthStateChanged + Firestore fetch to complete in AuthContext
+    // then read the profile from Firestore directly for the redirect decision.
+    try {
+      // auth.currentUser is set synchronously after signInWithEmailAndPassword resolves
+      const { getAuth } = await import('firebase/auth');
+      const fbAuth = getAuth();
+      const uid = fbAuth.currentUser?.uid;
+      if (uid) {
+        const { getDoc, doc: fsDoc } = await import('firebase/firestore');
+        const snap = await getDoc(fsDoc(db, 'users', uid));
+        if (snap.exists()) {
+          const { role, status } = snap.data();
+          if (status === 'suspended') {
+            setLoading(false);
+            setError('Your account has been suspended. Please contact support.');
+            return;
+          }
+          setLoading(false);
+          redirectAfterLogin(role, status);
+          return;
+        }
+      }
+    } catch (err) {
+      console.error('[LoginPage] Profile fetch after login failed:', err);
+    }
+
+    setLoading(false);
+    navigate(from === '/' ? '/dashboard' : from, { replace: true });
+  };
+
+  /* ── REGISTER step 1: create Auth account + write Firestore docs ── */
   const handleRegisterDetails = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-    const r = await register(email, password, name, { firmName, city, profession, phone });
-    setLoading(false);
-    if (r.ok) setRegStep('emailSent');
-    else
+
+    const r = await register(email, password, name, {});
+    if (!r.ok) {
+      setLoading(false);
       setError(
         r.error.includes('email-already-in-use')
           ? 'This email is already registered.'
@@ -177,6 +469,63 @@ const LoginPage = () => {
             ? 'Password must be at least 6 characters.'
             : r.error
       );
+      return;
+    }
+
+    // At this point Firebase Auth created the user; write Firestore docs.
+    try {
+      const { getAuth } = await import('firebase/auth');
+      const uid = getAuth().currentUser?.uid;
+      if (!uid) throw new Error('No UID after registration');
+
+      if (selectedRole === 'customer') {
+        // users/{uid}
+        await setDoc(doc(db, 'users', uid), {
+          uid,
+          email,
+          role: 'customer',
+          status: 'active',
+          linkedBusinessId: null,
+          createdAt: serverTimestamp(),
+        });
+      } else {
+        // business_partner
+        // users/{uid}
+        await setDoc(doc(db, 'users', uid), {
+          uid,
+          email,
+          role: 'business_partner',
+          status: 'pending',
+          linkedBusinessId: null,
+          createdAt: serverTimestamp(),
+        });
+        // businesses/{uid}
+        await setDoc(doc(db, 'businesses', uid), {
+          businessId: uid,
+          businessName: firmName || name,
+          ownerUid: uid,
+          role: 'business_partner',
+          status: 'pending',
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      }
+    } catch (err) {
+      console.error('[Register] Firestore write failed:', err);
+      // Non-fatal — user is authenticated, profile can be created later
+    }
+
+    setLoading(false);
+    setRegStep('emailSent');
+  };
+
+  /* ── After email verification step: redirect based on role ── */
+  const handlePostEmailStep = () => {
+    if (selectedRole === 'business_partner') {
+      navigate('/pending-approval', { replace: true });
+    } else {
+      setRegStep('phone');
+    }
   };
 
   /* ── REGISTER step 3: send phone OTP ── */
@@ -199,14 +548,14 @@ const LoginPage = () => {
       );
   };
 
-  /* ── REGISTER step 4: verify OTP ── */
+  /* ── REGISTER step 4: verify OTP → redirect to /dashboard ── */
   const handleVerifyOTP = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     const r = await verifyPhoneOTP(otp);
     setLoading(false);
-    if (r.ok) navigate(from, { replace: true });
+    if (r.ok) navigate('/dashboard', { replace: true });
     else setError(r.error);
   };
 
@@ -313,7 +662,10 @@ const LoginPage = () => {
             }}
           >
             <button
-              onClick={() => go('login')}
+              onClick={() => {
+                setSelectedRole(null);
+                go('login');
+              }}
               style={{
                 background: 'none',
                 border: 'none',
@@ -365,7 +717,7 @@ const LoginPage = () => {
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <button
-              onClick={() => setRegStep('phone')}
+              onClick={handlePostEmailStep}
               style={{
                 ...inp,
                 padding: '12px',
@@ -382,7 +734,15 @@ const LoginPage = () => {
                 fontSize: 14,
               }}
             >
-              <Phone size={15} /> I've verified — continue with phone
+              {selectedRole === 'business_partner' ? (
+                <>
+                  <Check size={15} /> I've verified — submit for review
+                </>
+              ) : (
+                <>
+                  <Phone size={15} /> I've verified — continue with phone
+                </>
+              )}
             </button>
             <button
               onClick={() => go('login')}
@@ -438,7 +798,6 @@ const LoginPage = () => {
             </p>
           </div>
           <Err msg={error} />
-          {/* invisible recaptcha container */}
           <div id={rcId} />
           <form
             onSubmit={handleSendOTP}
@@ -467,7 +826,7 @@ const LoginPage = () => {
             }}
           >
             <button
-              onClick={() => go('login')}
+              onClick={() => navigate('/dashboard', { replace: true })}
               style={{
                 background: 'none',
                 border: 'none',
@@ -477,7 +836,7 @@ const LoginPage = () => {
                 fontFamily: 'var(--font-sans)',
               }}
             >
-              Skip — go to sign in
+              Skip — go to dashboard
             </button>
           </p>
         </div>
@@ -547,7 +906,7 @@ const LoginPage = () => {
             </div>
             <Btn loading={loading}>
               <ShieldCheck size={15} />
-              Verify & Finish
+              Verify &amp; Finish
             </Btn>
           </form>
           <p
@@ -576,11 +935,33 @@ const LoginPage = () => {
         </div>
       );
 
-    /* REGISTER — step: details (default) */
+    /* REGISTER — step: details */
     if (mode === 'register')
       return (
         <div>
-          <div style={{ marginBottom: 28 }}>
+          <div style={{ marginBottom: 20 }}>
+            {/* Role badge */}
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                background: 'var(--accent-light)',
+                border: '1px solid var(--accent-border)',
+                borderRadius: 99,
+                padding: '4px 12px',
+                fontSize: 12,
+                fontWeight: 600,
+                color: 'var(--accent)',
+                marginBottom: 16,
+                cursor: 'pointer',
+              }}
+              onClick={() => setSelectedRole(null)}
+              title="Change role"
+            >
+              {selectedRole === 'customer' ? '🏠 Customer' : '🏢 Business Partner'}
+              <span style={{ fontSize: 11, opacity: 0.7 }}>· change</span>
+            </div>
             <h2
               style={{
                 fontSize: 24,
@@ -590,10 +971,12 @@ const LoginPage = () => {
                 marginBottom: 8,
               }}
             >
-              Create an account
+              Create your account
             </h2>
             <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>
-              Join NirmanBook to start designing
+              {selectedRole === 'customer'
+                ? 'Join NirmanBook to start designing'
+                : 'Set up your business partner account'}
             </p>
           </div>
           <Err msg={error} />
@@ -611,40 +994,56 @@ const LoginPage = () => {
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Rahul Kapoor"
               />
-              <Field
-                label="Firm name"
-                id="r-firm"
-                type="text"
-                required
-                value={firmName}
-                onChange={(e) => setFirmName(e.target.value)}
-                placeholder="Kapoor Designs"
-              />
-              <Field
-                label="City"
-                id="r-city"
-                type="text"
-                required
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                placeholder="Mumbai"
-              />
-              <div>
-                <Label htmlFor="r-prof">Profession</Label>
-                <select
-                  id="r-prof"
-                  value={profession}
-                  onChange={(e) => setProfession(e.target.value)}
-                  style={{ ...inp, appearance: 'auto' }}
-                  onFocus={focus}
-                  onBlur={blur}
-                >
-                  <option>Architect</option>
-                  <option>Interior Designer</option>
-                  <option>Manufacturer</option>
-                  <option>Retailer</option>
-                </select>
-              </div>
+              {selectedRole === 'business_partner' ? (
+                <Field
+                  label="Business name"
+                  id="r-firm"
+                  type="text"
+                  required
+                  value={firmName}
+                  onChange={(e) => setFirmName(e.target.value)}
+                  placeholder="Kapoor Designs"
+                />
+              ) : (
+                <Field
+                  label="City"
+                  id="r-city"
+                  type="text"
+                  required
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  placeholder="Mumbai"
+                />
+              )}
+              {selectedRole === 'business_partner' && (
+                <>
+                  <Field
+                    label="City"
+                    id="r-city"
+                    type="text"
+                    required
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    placeholder="Mumbai"
+                  />
+                  <div>
+                    <Label htmlFor="r-prof">Profession</Label>
+                    <select
+                      id="r-prof"
+                      value={profession}
+                      onChange={(e) => setProfession(e.target.value)}
+                      style={{ ...inp, appearance: 'auto' }}
+                      onFocus={focus}
+                      onBlur={blur}
+                    >
+                      <option>Architect</option>
+                      <option>Interior Designer</option>
+                      <option>Manufacturer</option>
+                      <option>Retailer</option>
+                    </select>
+                  </div>
+                </>
+              )}
             </div>
             <Field
               label="Email address"
@@ -692,7 +1091,10 @@ const LoginPage = () => {
             </div>
             <Btn loading={loading}>
               <Mail size={15} />
-              Create Account &amp; Send Verification <ArrowRight size={14} />
+              {selectedRole === 'business_partner'
+                ? 'Create Account & Send Verification'
+                : 'Create Account & Send Verification'}
+              <ArrowRight size={14} />
             </Btn>
           </form>
           <p
@@ -741,7 +1143,10 @@ const LoginPage = () => {
           </p>
         </div>
         <Err msg={error} />
-        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+        <form
+          onSubmit={handleLoginSmart}
+          style={{ display: 'flex', flexDirection: 'column', gap: 18 }}
+        >
           <Field
             label="Email address"
             id="l-email"
@@ -766,7 +1171,6 @@ const LoginPage = () => {
                   cursor: 'pointer',
                   fontFamily: 'var(--font-sans)',
                   padding: 0,
-                  transition: 'opacity 0.15s',
                 }}
               >
                 Forgot password?
@@ -826,7 +1230,7 @@ const LoginPage = () => {
         >
           Don't have an account?{' '}
           <button
-            onClick={() => go('register')}
+            onClick={() => setSelectedRole(null)}
             style={{
               background: 'none',
               border: 'none',
@@ -1024,7 +1428,7 @@ const LoginPage = () => {
         </div>
       </div>
 
-      {/* ── Right: Form Panel ── */}
+      {/* ── Right: Role Selector OR Form Panel ── */}
       <div
         style={{
           display: 'flex',
@@ -1037,95 +1441,104 @@ const LoginPage = () => {
         }}
         className="animate-fade-in"
       >
-        <div style={{ width: '100%', maxWidth: 420 }}>
-          {/* Step indicator for register */}
-          {mode === 'register' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 28 }}>
-              {[
-                { step: 'details', label: 'Account' },
-                { step: 'emailSent', label: 'Email' },
-                { step: 'phone', label: 'Phone' },
-                { step: 'otp', label: 'OTP' },
-              ].map((s, i, arr) => {
-                const steps = arr.map((x) => x.step);
-                const cur = steps.indexOf(regStep);
-                const idx = steps.indexOf(s.step);
-                const done = idx < cur;
-                const active = idx === cur;
-                return (
-                  <React.Fragment key={s.step}>
-                    <div
-                      style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: 4,
-                      }}
-                    >
+        {/* Show role selector until a role is chosen */}
+        {selectedRole === null ? (
+          <RoleSelector onSelect={handleRoleSelect} />
+        ) : (
+          <div style={{ width: '100%', maxWidth: 420 }}>
+            {/* Step indicator for register */}
+            {mode === 'register' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 28 }}>
+                {[
+                  { step: 'details', label: 'Account' },
+                  { step: 'emailSent', label: 'Email' },
+                  ...(selectedRole === 'customer'
+                    ? [
+                        { step: 'phone', label: 'Phone' },
+                        { step: 'otp', label: 'OTP' },
+                      ]
+                    : []),
+                ].map((s, i, arr) => {
+                  const steps = arr.map((x) => x.step);
+                  const cur = steps.indexOf(regStep);
+                  const idx = steps.indexOf(s.step);
+                  const done = idx < cur;
+                  const active = idx === cur;
+                  return (
+                    <React.Fragment key={s.step}>
                       <div
                         style={{
-                          width: 28,
-                          height: 28,
-                          borderRadius: '50%',
-                          fontSize: 12,
-                          fontWeight: 700,
                           display: 'flex',
+                          flexDirection: 'column',
                           alignItems: 'center',
-                          justifyContent: 'center',
-                          background: done
-                            ? '#16a34a'
-                            : active
-                              ? 'var(--accent)'
-                              : 'var(--bg-tertiary)',
-                          color: done || active ? 'white' : 'var(--text-muted)',
-                          border: `2px solid ${done ? '#16a34a' : active ? 'var(--accent)' : 'var(--border)'}`,
+                          gap: 4,
                         }}
                       >
-                        {done ? <Check size={13} strokeWidth={3} /> : i + 1}
+                        <div
+                          style={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: '50%',
+                            fontSize: 12,
+                            fontWeight: 700,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: done
+                              ? '#16a34a'
+                              : active
+                                ? 'var(--accent)'
+                                : 'var(--bg-tertiary)',
+                            color: done || active ? 'white' : 'var(--text-muted)',
+                            border: `2px solid ${done ? '#16a34a' : active ? 'var(--accent)' : 'var(--border)'}`,
+                          }}
+                        >
+                          {done ? <Check size={13} strokeWidth={3} /> : i + 1}
+                        </div>
+                        <span
+                          style={{
+                            fontSize: 10,
+                            color: active ? 'var(--accent)' : 'var(--text-muted)',
+                            fontWeight: active ? 700 : 500,
+                          }}
+                        >
+                          {s.label}
+                        </span>
                       </div>
-                      <span
-                        style={{
-                          fontSize: 10,
-                          color: active ? 'var(--accent)' : 'var(--text-muted)',
-                          fontWeight: active ? 700 : 500,
-                        }}
-                      >
-                        {s.label}
-                      </span>
-                    </div>
-                    {i < arr.length - 1 && (
-                      <div
-                        style={{
-                          flex: 1,
-                          height: 2,
-                          background: done ? '#16a34a' : 'var(--border)',
-                          marginBottom: 14,
-                          borderRadius: 1,
-                          transition: 'background 0.3s',
-                        }}
-                      />
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </div>
-          )}
+                      {i < arr.length - 1 && (
+                        <div
+                          style={{
+                            flex: 1,
+                            height: 2,
+                            background: done ? '#16a34a' : 'var(--border)',
+                            marginBottom: 14,
+                            borderRadius: 1,
+                            transition: 'background 0.3s',
+                          }}
+                        />
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </div>
+            )}
 
-          {renderRight()}
+            {renderRight()}
 
-          <p
-            style={{
-              margin: '32px 0 0',
-              fontSize: 11,
-              color: 'var(--text-muted)',
-              textAlign: 'center',
-            }}
-          >
-            By signing in you agree to our{' '}
-            <span style={{ color: 'var(--accent)', cursor: 'pointer' }}>Terms</span> and{' '}
-            <span style={{ color: 'var(--accent)', cursor: 'pointer' }}>Privacy Policy</span>.
-          </p>
-        </div>
+            <p
+              style={{
+                margin: '32px 0 0',
+                fontSize: 11,
+                color: 'var(--text-muted)',
+                textAlign: 'center',
+              }}
+            >
+              By signing in you agree to our{' '}
+              <span style={{ color: 'var(--accent)', cursor: 'pointer' }}>Terms</span> and{' '}
+              <span style={{ color: 'var(--accent)', cursor: 'pointer' }}>Privacy Policy</span>.
+            </p>
+          </div>
+        )}
       </div>
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>

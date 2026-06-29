@@ -11,6 +11,7 @@ import {
   Loader2,
   Bookmark,
   RefreshCw,
+  AlertTriangle,
 } from 'lucide-react';
 import { useResponsive } from '../hooks/useResponsive';
 import { useConfig } from '../store/ConfigContext';
@@ -22,6 +23,11 @@ import { Viewer3D } from './Viewer3D';
 
 import SaveDesignModal from './SaveDesignModal';
 import { useToast } from './ToastProvider';
+
+// ── CHANGED: Firestore quote snapshot imports ──────────────────────────────
+import { db } from '../firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { useAuth } from '../store/AuthContext';
 
 /* ── tiny hook: manage per-button loading + success state ── */
 function useActionState() {
@@ -105,13 +111,23 @@ const ActionButton = ({
    StepBOQ — Quote Summary + Export Page
    ══════════════════════════════════════════ */
 const StepBOQ = ({ activeConfigId, setActiveConfigId, onRefreshCount }) => {
-  const { config, derived } = useConfig();
+  // ── CHANGED: pull activePricing, pricingChangedBanner, refreshPricing from context ──
+  const {
+    config,
+    derived,
+    activePricing,
+    pricingChangedBanner,
+    setPricingChangedBanner,
+    refreshPricing,
+  } = useConfig();
   const { isMobile } = useResponsive();
   const { valuation } = derived;
   const printRef = useRef(null);
   const printQuoteRef = useRef(null);
   const canvasRef = useRef(null);
   const { addToast } = useToast();
+  // ── CHANGED: get user identity for Firestore quote document ──────────────
+  const { currentUser, linkedBusinessId } = useAuth();
 
   /* ── 3D screenshot capture ── */
   const glCanvasRef = useRef(null); // WebGL canvas element from off-screen Viewer3D
@@ -176,14 +192,63 @@ const StepBOQ = ({ activeConfigId, setActiveConfigId, onRefreshCount }) => {
     setShowSaveModal(true);
   };
 
-  const handleSaveName = (name) => {
+  // ── CHANGED: save Firestore quote snapshot when user saves a design ────────
+  const saveQuoteToFirestore = useCallback(
+    async (name) => {
+      if (!currentUser?.uid) return; // anonymous — skip
+      try {
+        // Build snapshotPrices from activePricing at save time
+        // This captures EXACTLY what prices the customer saw, for future reference
+        const snapshotPrices = {
+          modules: {},
+          materials: {},
+          handles: {},
+          accessories: {},
+        };
+        if (activePricing) {
+          Object.entries(activePricing.modules || {}).forEach(([id, d]) => {
+            snapshotPrices.modules[id] = d.resolvedPrice;
+          });
+          Object.entries(activePricing.materials || {}).forEach(([id, d]) => {
+            snapshotPrices.materials[id] = d.resolvedMultiplier;
+          });
+          Object.entries(activePricing.handles || {}).forEach(([id, d]) => {
+            snapshotPrices.handles[id] = d.resolvedPrice;
+          });
+          Object.entries(activePricing.accessories || {}).forEach(([id, d]) => {
+            snapshotPrices.accessories[id] = d.resolvedPrice;
+          });
+        }
+
+        await addDoc(collection(db, 'quotes'), {
+          quoteId: '', // will be updated with the auto-generated id if needed
+          customerId: currentUser.uid,
+          businessId: linkedBusinessId ?? null,
+          designName: name,
+          status: 'draft',
+          totalAmount: valuation.total,
+          snapshotPrices, // CHANGED: snapshot of resolved prices at save time
+          createdAt: serverTimestamp(),
+        });
+        console.info('[StepBOQ] Quote snapshot saved to Firestore');
+      } catch (err) {
+        // Non-fatal — local save still succeeds even if Firestore write fails
+        console.error('[StepBOQ] Firestore quote snapshot failed (non-fatal):', err);
+      }
+    },
+    [currentUser, linkedBusinessId, activePricing, valuation.total]
+  );
+
+  const handleSaveName = async (name) => {
     const newList = saveConfig({ name, configState: config, totalPrice: valuation.total });
     const saved = newList[0]; // newest is first
     if (setActiveConfigId) setActiveConfigId(saved.id);
     setShowSaveModal(false);
     clearDraft(); // draft is now a named save — remove the auto-draft
-    addToast(`“${name}” saved successfully`, 'success');
+    addToast(`"${name}" saved successfully`, 'success');
     if (onRefreshCount) onRefreshCount();
+    // ── CHANGED: fire-and-forget Firestore quote snapshot ──────────────────
+    saveQuoteToFirestore(name);
   };
 
   /* ── Update with visual confirmation ── */
@@ -281,6 +346,63 @@ const StepBOQ = ({ activeConfigId, setActiveConfigId, onRefreshCount }) => {
     <>
       {/* Spinner keyframe injected inline so it works without extra CSS */}
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+
+      {/* ── CHANGED: Price-changed banner — shown when a saved design is loaded
+           and activePricing may have shifted since it was last saved ────── */}
+      {pricingChangedBanner && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            padding: '12px 18px',
+            background: 'rgba(215,161,74,0.12)',
+            border: '1.5px solid rgba(215,161,74,0.4)',
+            borderRadius: 10,
+            marginBottom: 4,
+          }}
+        >
+          <AlertTriangle size={16} color="var(--warning)" style={{ flexShrink: 0 }} />
+          <span style={{ flex: 1, fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+            Some prices in your saved design may have changed since your last session.
+          </span>
+          <button
+            onClick={refreshPricing}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '6px 14px',
+              borderRadius: 8,
+              border: 'none',
+              background: 'var(--warning)',
+              color: 'white',
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: 'pointer',
+              fontFamily: 'var(--font-sans)',
+              flexShrink: 0,
+            }}
+          >
+            <RefreshCw size={12} /> Recalculate
+          </button>
+          <button
+            onClick={() => setPricingChangedBanner(false)}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--text-muted)',
+              fontSize: 18,
+              lineHeight: 1,
+              padding: '0 4px',
+            }}
+            aria-label="Dismiss"
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       <div
         style={{ display: 'flex', flexDirection: 'column', gap: 32 }}

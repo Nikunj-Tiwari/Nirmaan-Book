@@ -14,6 +14,17 @@ import MobileNav from './components/MobileNav';
 import ProtectedRoute from './components/ProtectedRoute';
 import CursorFollower from './components/CursorFollower';
 
+// ── New: role-based route guards ──
+import CustomerRoute from './components/guards/CustomerRoute';
+import BusinessRoute from './components/guards/BusinessRoute';
+import AdminRoute from './components/guards/AdminRoute';
+
+// ── New: pages (placeholders until their dedicated steps) ──
+import PendingApproval from './components/PendingApproval';
+import CustomerDashboard from './components/CustomerDashboard';
+import BusinessDashboard from './components/BusinessDashboard';
+import AdminPanel from './components/AdminPanel';
+
 // Global State
 import { useConfig } from './store/ConfigContext';
 import { useAuth } from './store/AuthContext';
@@ -380,6 +391,21 @@ const ConfiguratorApp = ({ setConfigured, activeConfigId, setActiveConfigId }) =
   );
 };
 
+/* ── SmartLogin: redirect authenticated users away from /login ── */
+const SmartLogin = () => {
+  const { currentUser, role, status, loading } = useAuth();
+  if (loading) return null; // AuthSpinner shown by guards, not needed here
+  if (!currentUser) return <LoginPage />;
+  // Already signed in → send to their dashboard
+  if (role === 'super_admin') return <Navigate to="/admin" replace />;
+  if (role === 'business_partner' && status === 'active')
+    return <Navigate to="/business" replace />;
+  if (role === 'business_partner' && status === 'pending')
+    return <Navigate to="/pending-approval" replace />;
+  if (role === 'customer' && status === 'active') return <Navigate to="/dashboard" replace />;
+  return <LoginPage />;
+};
+
 /* ── Root Router ── */
 const App = () => {
   const [configured, setConfigured] = useState(false);
@@ -389,6 +415,7 @@ const App = () => {
     <ToastProvider>
       <CursorFollower />
       <Routes>
+        {/* ── Public: Home ── */}
         <Route
           path="/"
           element={
@@ -410,7 +437,23 @@ const App = () => {
             )
           }
         />
-        <Route path="/login" element={<LoginPage />} />
+
+        {/* ── Public: Login (smart — redirects if already authed) ── */}
+        <Route path="/login" element={<SmartLogin />} />
+
+        {/* ── Public: Pending Approval ── */}
+        <Route path="/pending-approval" element={<PendingApproval />} />
+
+        {/* ── Customer routes ── */}
+        <Route
+          path="/dashboard"
+          element={
+            <CustomerRoute>
+              <CustomerDashboard />
+            </CustomerRoute>
+          }
+        />
+        {/* Existing configurator — wrapped in ProtectedRoute (any auth), unchanged */}
         <Route
           path="/configure/*"
           element={
@@ -423,6 +466,37 @@ const App = () => {
             </ProtectedRoute>
           }
         />
+
+        {/* ── Business routes ── */}
+        <Route
+          path="/business"
+          element={
+            <BusinessRoute>
+              <BusinessDashboard />
+            </BusinessRoute>
+          }
+        />
+        <Route
+          path="/business/pricing"
+          element={
+            <BusinessRoute>
+              {/* BusinessPricing placeholder — built in Step 5 */}
+              <BusinessDashboard />
+            </BusinessRoute>
+          }
+        />
+
+        {/* ── Admin routes ── */}
+        <Route
+          path="/admin"
+          element={
+            <AdminRoute>
+              <AdminPanel />
+            </AdminRoute>
+          }
+        />
+
+        {/* ── Fallback ── */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </ToastProvider>

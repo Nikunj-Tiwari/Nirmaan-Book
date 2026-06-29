@@ -6,6 +6,7 @@ import React, {
   useEffect,
   useRef,
   useState,
+  useCallback,
 } from 'react';
 import { COLOURS, MATERIALS, HANDLES, LIGHTING, BRANDS } from '../data/config.jsx';
 import {
@@ -15,6 +16,12 @@ import {
   getDerivedState,
 } from '../utils/engine';
 import { dataToConfig, saveDraft } from '../utils/storage';
+// ── CHANGED: import Firestore pricing helpers ──────────────────────────────
+import { fetchActivePricing, buildLocalFallbackPricing } from '../utils/firestorePricing';
+// ── CHANGED: import calculateValuation so derived.valuation uses activePricing
+import { calculateValuation } from '../utils/pricing';
+// ── CHANGED: import useAuth so we can react to the user's linkedBusinessId ──
+import { useAuth } from './AuthContext';
 
 const ConfigContext = createContext();
 
@@ -107,8 +114,79 @@ export const ConfigProvider = ({ children }) => {
   const [config, dispatch] = useReducer(configReducer, initialState);
   const [lastDraftSave, setLastDraftSave] = useState(null);
 
+  // ── CHANGED: activePricing state — null until Firestore fetch completes ───
+  const [activePricing, setActivePricing] = useState(null);
+  // pricingLoaded: false while fetching, true once resolved (success or fallback)
+  const [pricingLoaded, setPricingLoaded] = useState(false);
+  // pricingChangedBanner: true if loaded design was saved with different prices
+  const [pricingChangedBanner, setPricingChangedBanner] = useState(false);
+  // Track which uid/businessId the current pricing was fetched for
+  const pricingFetchedFor = useRef(null);
+
+  // ── CHANGED: read user profile from AuthContext ───────────────────────────
+  // Use optional chaining — ConfigProvider may render before AuthProvider
+  // settles, so we tolerate undefined safely.
+  const auth = (() => {
+    try {
+      // eslint-disable-next-line react-hooks/rules-of-hooks
+      return useAuth();
+    } catch {
+      return null;
+    }
+  })();
+  const currentUser = auth?.currentUser ?? null;
+  const linkedBusinessId = auth?.linkedBusinessId ?? null;
+
+  // ── CHANGED: fetch active pricing once per login / businessId change ──────
+  const loadPricing = useCallback(async () => {
+    const fetchKey = currentUser?.uid ?? 'anonymous';
+    if (pricingFetchedFor.current === fetchKey) return; // already fetched for this session
+    pricingFetchedFor.current = fetchKey;
+
+    setPricingLoaded(false);
+    try {
+      const pricing = await fetchActivePricing(linkedBusinessId);
+      setActivePricing(pricing);
+      console.info('[ConfigContext] Pricing loaded from Firestore', {
+        linkedBusinessId,
+        modulesCount: Object.keys(pricing.modules).length,
+      });
+    } catch (err) {
+      // CHANGED: fall back to local data silently on Firestore failure
+      console.error('[ConfigContext] Firestore pricing fetch failed, using local fallback:', err);
+      setActivePricing(buildLocalFallbackPricing());
+    } finally {
+      setPricingLoaded(true);
+    }
+  }, [currentUser?.uid, linkedBusinessId]);
+
+  // Run on auth state change (login / logout)
+  useEffect(() => {
+    if (currentUser) {
+      loadPricing();
+    } else {
+      // Logged out — reset to local fallback so the configurator still works
+      setActivePricing(buildLocalFallbackPricing());
+      setPricingLoaded(true);
+      pricingFetchedFor.current = null;
+    }
+  }, [currentUser?.uid, loadPricing]);
+
+  // ── CHANGED: refreshPricing action — re-fetches from Firestore and dismisses banner ──
+  const refreshPricing = useCallback(async () => {
+    pricingFetchedFor.current = null; // force re-fetch
+    setPricingChangedBanner(false);
+    await loadPricing();
+  }, [loadPricing]);
+
   // Derived metrics are memoized for performance
-  const derived = useMemo(() => getDerivedState(config), [config]);
+  // ── CHANGED: pass activePricing to calculateValuation ────────────────────
+  const derived = useMemo(() => {
+    const base = getDerivedState(config);
+    // Override the valuation with Firestore-aware prices
+    const valuation = calculateValuation(config, activePricing);
+    return { ...base, valuation };
+  }, [config, activePricing]);
 
   /* ── Auto-draft: debounced save on every config change ── */
   const skipFirstRender = useRef(true);
@@ -145,11 +223,33 @@ export const ConfigProvider = ({ children }) => {
       dispatch({ type: 'SET_WALL_OFFSET', payload: { wall, offset } }),
     toggleAccessory: (id) => dispatch({ type: 'TOGGLE_ACCESSORY', payload: { id } }),
     reset: () => dispatch({ type: 'RESET_CONFIG' }),
-    loadConfig: (data) => dispatch({ type: 'LOAD_CONFIG', payload: dataToConfig(data) }),
+    loadConfig: (data) => {
+      dispatch({ type: 'LOAD_CONFIG', payload: dataToConfig(data) });
+      // ── CHANGED: when a saved design is loaded, check if prices have changed ──
+      // We set the banner if activePricing is already loaded (prices may have shifted
+      // since the design was last saved). The user can dismiss via [Recalculate].
+      if (pricingLoaded && activePricing) {
+        setPricingChangedBanner(true);
+      }
+    },
   };
 
   return (
-    <ConfigContext.Provider value={{ config, derived, actions, lastDraftSave }}>
+    // ── CHANGED: expose activePricing, pricingLoaded, pricingChangedBanner, refreshPricing ──
+    <ConfigContext.Provider
+      value={{
+        config,
+        derived,
+        actions,
+        lastDraftSave,
+        // New pricing fields
+        activePricing,
+        pricingLoaded,
+        pricingChangedBanner,
+        setPricingChangedBanner, // so StepBOQ can dismiss it
+        refreshPricing,
+      }}
+    >
       {children}
     </ConfigContext.Provider>
   );
