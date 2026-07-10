@@ -7,14 +7,15 @@ import { validateSpaceCapacity, canAddModule, calculateUsedWidth } from './rules
  * Pure functions that enforce business rules.
  */
 
+/**
+ * updateModuleQty — pure reducer helper.
+ * NOTE: the canAddModule guard has been moved to the ConfigContext action layer
+ * so it can receive `activeModules` (the merged platform + business catalog).
+ * This function still enforces the 0-floor.
+ */
 export const updateModuleQty = (config, id, delta) => {
   const currentQty = config.modules[id] || 0;
   const newQty = Math.max(0, currentQty + delta);
-
-  // If adding, check physical constraints
-  if (delta > 0 && !canAddModule(config.width, config.modules, id)) {
-    return config; // Explicitly block state change
-  }
 
   const newModules = { ...config.modules };
   if (newQty === 0) {
@@ -43,11 +44,9 @@ export const updateDimensions = (config, key, value) => {
   if (key === 'depth' && (v < 300 || v > 1200)) return config;
 
   // Occupancy Guard: Cannot shrink room below currently placed modules
-  // We check against the total capacity for multi-wall layouts
   if (key === 'width' || key === 'width2' || key === 'width3') {
     const used = calculateUsedWidth(config.modules);
 
-    // Create hypothetical next state to check capacity
     const nextConfig = { ...config, [key]: v };
     const totalCap =
       nextConfig.wallType === 'u-shape'
@@ -65,8 +64,15 @@ export const updateDimensions = (config, key, value) => {
 /**
  * Derived Configuration Metrics
  * Centralized logic for all business state derivations.
+ *
+ * @param {object} config - current config state
+ * @param {object[]} [allModules] - merged catalog (platform + business).
+ *   Falls back to static MODULES if not provided. Passing this ensures
+ *   business-created modules appear in modulesList (→ 3D/2D/Summary).
  */
-export const getDerivedState = (config) => {
+export const getDerivedState = (config, allModules) => {
+  const catalog = allModules && allModules.length > 0 ? allModules : MODULES;
+
   const totalModules = Object.values(config.modules).reduce((a, b) => a + b, 0);
 
   // Calculate total capacity based on layout
@@ -78,14 +84,16 @@ export const getDerivedState = (config) => {
         : config.width;
 
   const valuation = calculateValuation(config);
-  const validation = validateSpaceCapacity(totalCapacity, config.modules);
+  const validation = validateSpaceCapacity(totalCapacity, config.modules, catalog);
 
-  // Flat list for visualization/bom — each entry carries wallKey + wall assignment
+  // Flat list for visualization/bom — each entry carries wallKey + wall assignment.
+  // Uses `catalog` (not static MODULES) so business-created modules
+  // appear correctly in the 3D preview, 2D blueprint, and Summary page.
   const moduleWalls = config.moduleWalls || {};
   const moduleOverrides = config.moduleOverrides || {};
   const modulesList = [];
   Object.entries(config.modules).forEach(([id, qty]) => {
-    const mod = MODULES.find((m) => m.id === id);
+    const mod = catalog.find((m) => m.id === id);
     if (mod) {
       for (let i = 0; i < qty; i++) {
         const wallKey = `${id}:${i}`;

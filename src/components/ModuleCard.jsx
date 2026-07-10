@@ -302,31 +302,32 @@ const ModuleCard = React.forwardRef(
             {module.name}
           </span>
 
-          {/* Price + Dimensions row */}
+          {/* Price — dedicated line, no overlap */}
+          {module.basePrice != null && (
+            <div
+              style={{
+                fontSize: 13,
+                fontWeight: 700,
+                color: isSelected ? '#16a34a' : 'var(--accent)',
+                marginBottom: 2,
+                letterSpacing: '-0.01em',
+              }}
+            >
+              ₹{Number(module.basePrice).toLocaleString('en-IN')}
+            </div>
+          )}
+
+          {/* Dimensions — W × H × D on its own line */}
           <div
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 4,
+              fontSize: 11,
+              color: 'var(--text-muted)',
               marginBottom: 2,
             }}
           >
-            <span style={{ fontSize: 11, color: 'var(--text-muted)', flexShrink: 1, minWidth: 0 }}>
-              W:{module.width}&nbsp;×&nbsp;H:{module.height}mm
-            </span>
-            {module.basePrice != null && (
-              <span
-                style={{
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: isSelected ? '#16a34a' : 'var(--accent)',
-                  flexShrink: 0,
-                }}
-              >
-                ₹{Number(module.basePrice).toLocaleString('en-IN')}
-              </span>
-            )}
+            {module.width}W&nbsp;×&nbsp;{module.height}H
+            {module.depth ? <>&nbsp;×&nbsp;{module.depth}D</> : null}
+            &nbsp;mm
           </div>
 
           {/* Added-by badge */}

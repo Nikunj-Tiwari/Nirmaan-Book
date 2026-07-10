@@ -24,16 +24,19 @@
     ]
   },
   "dependencies": {
+    "@imagekit/javascript": "^5.4.1",
     "@react-three/drei": "^9.97.1",
     "@react-three/fiber": "^8.15.16",
     "firebase": "^12.11.0",
     "html2canvas": "^1.4.1",
+    "imagekit-javascript": "^4.0.1",
     "jspdf": "^4.2.1",
     "lucide-react": "^0.344.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^7.14.0",
-    "three": "^0.161.0"
+    "three": "^0.161.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.1",
@@ -45,5 +48,15 @@
     "lint-staged": "^16.4.0",
     "prettier": "^3.8.2",
     "vite": "^5.1.4"
-  }
+  },
+  "main": "vite.config.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bhargavarudra2-netizen/Nirmanbook.git"
+  },
+  "keywords": [],
+  "bugs": {
+    "url": "https://github.com/bhargavarudra2-netizen/Nirmanbook/issues"
+  },
+  "homepage": "https://github.com/bhargavarudra2-netizen/Nirmanbook#readme"
 }

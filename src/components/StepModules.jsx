@@ -358,7 +358,8 @@ const StepModules = () => {
           >
             {filteredModules.map((m) => {
               const qty = config.modules[m.id] || 0;
-              const canAdd = canAddModule(config.width, config.modules, m.id);
+              const canAdd = canAddModule(config.width, config.modules, m.id, activeModules);
+
               const { onFocusNext, onFocusPrev } = createFocusHandlers(m.id, filteredModules);
 
               return (
@@ -390,7 +391,8 @@ const StepModules = () => {
           >
             {filteredModules.map((m, idx) => {
               const qty = config.modules[m.id] || 0;
-              const canAdd = canAddModule(config.width, config.modules, m.id);
+              const canAdd = canAddModule(config.width, config.modules, m.id, activeModules);
+
               const typeColor = TYPE_COLORS[m.type] || 'var(--border)';
 
               return (

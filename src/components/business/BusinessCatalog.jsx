@@ -11,8 +11,18 @@ import {
 import { db } from '../../firebase';
 import { useAuth } from '../../store/AuthContext';
 import BusinessLayout from './BusinessLayout';
-import { Plus, Pencil, XCircle, CheckCircle, Package } from 'lucide-react';
+import {
+  Plus,
+  Pencil,
+  XCircle,
+  CheckCircle,
+  Package,
+  Upload,
+  Download,
+  X as XIcon,
+} from 'lucide-react';
 import ImageUploadField from '../admin/ImageUploadField';
+import { parseFile, validateRows, downloadTemplate } from '../../utils/bulkImport';
 
 const card = {
   background: 'var(--bg-secondary)',
@@ -182,6 +192,11 @@ const BusinessCatalog = () => {
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState('');
   const [businessName, setBusinessName] = useState('');
+  const [bulkModal, setBulkModal] = useState(false);
+  const [bulkRows, setBulkRows] = useState(null);
+  const [bulkErrors, setBulkErrors] = useState([]);
+  const [bulkImporting, setBulkImporting] = useState(false);
+  const [bulkDone, setBulkDone] = useState(false);
 
   // Fetch business name for createdByName
   useEffect(() => {
@@ -239,6 +254,56 @@ const BusinessCatalog = () => {
     setEditId(null);
     setAddingNew(false);
     setForm(emptyForm());
+  };
+
+  const handleBulkFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const raw = await parseFile(file);
+      const { validRows, errorRows } = validateRows(raw, 'modules');
+      setBulkRows(validRows);
+      setBulkErrors(errorRows);
+      setBulkDone(false);
+    } catch (err) {
+      showToast('Could not parse file: ' + err.message);
+    }
+    e.target.value = '';
+  };
+
+  const handleBulkImport = async () => {
+    if (!bulkRows || bulkRows.length === 0 || !businessId) return;
+    setBulkImporting(true);
+    try {
+      let count = 0;
+      for (const row of bulkRows) {
+        const id = row.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now();
+        await setDoc(doc(db, 'business_modules', businessId, 'modules', id), {
+          id,
+          ...row,
+          isActive: true,
+          isDeleted: false,
+          createdBy: businessId,
+          createdByName: businessName || 'Business Partner',
+          createdAt: serverTimestamp(),
+        });
+        count++;
+      }
+      showToast(`✅ ${count} modules imported successfully`);
+      setBulkDone(true);
+      loadItems();
+    } catch (err) {
+      showToast('Import failed: ' + err.message);
+    } finally {
+      setBulkImporting(false);
+    }
+  };
+
+  const closeBulk = () => {
+    setBulkModal(false);
+    setBulkRows(null);
+    setBulkErrors([]);
+    setBulkDone(false);
   };
 
   const handleSave = async () => {
@@ -347,25 +412,51 @@ const BusinessCatalog = () => {
             Custom modules unique to your business
           </p>
         </div>
-        <button
-          onClick={startAdd}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            padding: '9px 16px',
-            borderRadius: 9,
-            border: 'none',
-            background: 'var(--accent)',
-            color: 'white',
-            fontSize: 13,
-            fontWeight: 700,
-            cursor: 'pointer',
-            fontFamily: 'var(--font-sans)',
-          }}
-        >
-          <Plus size={15} /> Add Module
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            onClick={() => {
+              setBulkModal(true);
+              setBulkRows(null);
+              setBulkErrors([]);
+              setBulkDone(false);
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '9px 16px',
+              borderRadius: 9,
+              border: '1.5px solid var(--border)',
+              background: 'var(--bg-secondary)',
+              color: 'var(--text-secondary)',
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: 'pointer',
+              fontFamily: 'var(--font-sans)',
+            }}
+          >
+            <Upload size={14} /> Bulk Import
+          </button>
+          <button
+            onClick={startAdd}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '9px 16px',
+              borderRadius: 9,
+              border: 'none',
+              background: 'var(--accent)',
+              color: 'white',
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: 'pointer',
+              fontFamily: 'var(--font-sans)',
+            }}
+          >
+            <Plus size={15} /> Add Module
+          </button>
+        </div>
       </div>
 
       {(addingNew || editId) && (
@@ -625,6 +716,297 @@ const BusinessCatalog = () => {
           </div>
         )}
       </div>
+      {/* ── Bulk Import Modal ── */}
+      {bulkModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9000,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24,
+          }}
+        >
+          <div
+            style={{
+              background: 'var(--bg-primary)',
+              borderRadius: 16,
+              border: '1px solid var(--border)',
+              width: '100%',
+              maxWidth: 700,
+              maxHeight: '85vh',
+              overflowY: 'auto',
+              padding: 28,
+              boxShadow: '0 24px 60px rgba(0,0,0,0.35)',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 20,
+              }}
+            >
+              <div>
+                <h2
+                  style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}
+                >
+                  Bulk Import — Modules
+                </h2>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 0' }}>
+                  Import multiple custom modules from an Excel or CSV file.
+                </p>
+              </div>
+              <button
+                onClick={closeBulk}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: 'var(--text-muted)',
+                }}
+              >
+                <XIcon size={20} />
+              </button>
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <p
+                style={{
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: 'var(--text-secondary)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.06em',
+                  marginBottom: 8,
+                }}
+              >
+                Step 1 — Download Template
+              </p>
+              <button
+                onClick={() => downloadTemplate('modules')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '8px 14px',
+                  borderRadius: 8,
+                  border: '1.5px solid var(--border)',
+                  background: 'var(--bg-secondary)',
+                  color: 'var(--text-secondary)',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontFamily: 'var(--font-sans)',
+                }}
+              >
+                <Download size={13} /> Download Modules Template (.xlsx)
+              </button>
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <p
+                style={{
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: 'var(--text-secondary)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.06em',
+                  marginBottom: 8,
+                }}
+              >
+                Step 2 — Upload File
+              </p>
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '10px 14px',
+                  borderRadius: 8,
+                  border: '1.5px dashed var(--border)',
+                  background: 'var(--bg-secondary)',
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  color: 'var(--text-muted)',
+                }}
+              >
+                <Upload size={14} />
+                {bulkRows !== null
+                  ? `${bulkRows.length} valid + ${bulkErrors.length} error rows — upload new file to replace`
+                  : 'Choose .xlsx or .csv file…'}
+                <input
+                  type="file"
+                  accept=".xlsx,.csv"
+                  style={{ display: 'none' }}
+                  onChange={handleBulkFile}
+                />
+              </label>
+            </div>
+
+            {bulkRows !== null && (
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                  <p
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: 'var(--text-secondary)',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.06em',
+                      margin: 0,
+                    }}
+                  >
+                    Step 3 — Preview
+                  </p>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      padding: '2px 8px',
+                      borderRadius: 99,
+                      background: '#dcfce7',
+                      color: '#16a34a',
+                    }}
+                  >
+                    {bulkRows.length} valid
+                  </span>
+                  {bulkErrors.length > 0 && (
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        padding: '2px 8px',
+                        borderRadius: 99,
+                        background: '#fee2e2',
+                        color: '#dc2626',
+                      }}
+                    >
+                      {bulkErrors.length} errors
+                    </span>
+                  )}
+                </div>
+                {bulkErrors.length > 0 && (
+                  <div style={{ marginBottom: 12 }}>
+                    <p style={{ fontSize: 11, color: '#dc2626', marginBottom: 6, fontWeight: 600 }}>
+                      ⚠ Rows with errors (will be skipped):
+                    </p>
+                    {bulkErrors.map(({ index, errors }) => (
+                      <div
+                        key={index}
+                        style={{
+                          fontSize: 11,
+                          color: '#dc2626',
+                          background: '#fff5f5',
+                          border: '1px solid #fecaca',
+                          borderRadius: 6,
+                          padding: '6px 10px',
+                          marginBottom: 4,
+                        }}
+                      >
+                        Row {index}: {errors.join('; ')}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {bulkRows.length > 0 && (
+                  <div
+                    style={{
+                      overflowX: 'auto',
+                      borderRadius: 8,
+                      border: '1px solid var(--border)',
+                    }}
+                  >
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                      <thead>
+                        <tr>
+                          {Object.keys(bulkRows[0]).map((k) => (
+                            <th key={k} style={{ ...th, fontSize: 10, padding: '6px 10px' }}>
+                              {k}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {bulkRows.slice(0, 10).map((row, i) => (
+                          <tr key={i}>
+                            {Object.values(row).map((v, j) => (
+                              <td key={j} style={{ ...td, padding: '6px 10px', fontSize: 11 }}>
+                                {String(v).slice(0, 40)}
+                                {String(v).length > 40 ? '…' : ''}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {bulkRows.length > 10 && (
+                      <p
+                        style={{
+                          fontSize: 11,
+                          color: 'var(--text-muted)',
+                          textAlign: 'center',
+                          padding: '6px 0',
+                        }}
+                      >
+                        Showing first 10 of {bulkRows.length} valid rows
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button
+                onClick={closeBulk}
+                style={{
+                  padding: '9px 18px',
+                  borderRadius: 8,
+                  border: '1.5px solid var(--border)',
+                  background: 'var(--bg-secondary)',
+                  color: 'var(--text-secondary)',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontFamily: 'var(--font-sans)',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBulkImport}
+                disabled={!bulkRows || bulkRows.length === 0 || bulkImporting || bulkDone}
+                style={{
+                  padding: '9px 18px',
+                  borderRadius: 8,
+                  border: 'none',
+                  background: bulkDone ? '#16a34a' : 'var(--accent)',
+                  color: 'white',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor:
+                    !bulkRows || bulkRows.length === 0 || bulkImporting || bulkDone
+                      ? 'not-allowed'
+                      : 'pointer',
+                  fontFamily: 'var(--font-sans)',
+                  opacity: !bulkRows || bulkRows.length === 0 ? 0.5 : 1,
+                }}
+              >
+                {bulkDone
+                  ? '✓ Imported!'
+                  : bulkImporting
+                    ? 'Importing…'
+                    : `Import ${bulkRows?.length ?? 0} modules`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </BusinessLayout>
   );
 };

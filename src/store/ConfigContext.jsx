@@ -18,6 +18,7 @@ import {
   updateDimensions,
   getDerivedState,
 } from '../utils/engine';
+import { canAddModule } from '../utils/rules';
 import { dataToConfig, saveDraft } from '../utils/storage';
 // ── CHANGED: import Firestore pricing helpers ──────────────────────────────
 import { fetchActivePricing, buildLocalFallbackPricing } from '../utils/firestorePricing';
@@ -298,6 +299,10 @@ export const ConfigProvider = ({ children }) => {
           : null;
     const bizMods = await fetchBusinessModules(bizId);
 
+    if (bizMods.length > 0) {
+      console.info('[ConfigContext] merged', bizMods.length, 'business modules from', bizId);
+    }
+
     const allModules = [...platformModules, ...bizMods];
     setActiveModules(allModules);
     console.info('[ConfigContext] Total modules available:', allModules.length);
@@ -327,13 +332,14 @@ export const ConfigProvider = ({ children }) => {
   }, [loadPricing, loadCatalog]);
 
   // Derived metrics are memoized for performance
-  // ── CHANGED: pass activePricing to calculateValuation ────────────────────
+  // Pass activeModules so business-created modules appear in modulesList
+  // (fixes 3D preview, 2D blueprint, and Summary page for business modules)
   const derived = useMemo(() => {
-    const base = getDerivedState(config);
+    const base = getDerivedState(config, activeModules);
     // Override the valuation with Firestore-aware prices
     const valuation = calculateValuation(config, activePricing);
     return { ...base, valuation };
-  }, [config, activePricing]);
+  }, [config, activePricing, activeModules]);
 
   /* ── Auto-draft: debounced save on every config change ── */
   const skipFirstRender = useRef(true);
@@ -361,7 +367,15 @@ export const ConfigProvider = ({ children }) => {
     setProjectInfo: (key, value) =>
       dispatch({ type: 'UPDATE_PROJECT_INFO', payload: { key, value } }),
     setFinish: (key, value) => dispatch({ type: 'UPDATE_FINISH', payload: { key, value } }),
-    setModuleQty: (id, delta) => dispatch({ type: 'UPDATE_MODULE_QTY', payload: { id, delta } }),
+    setModuleQty: (id, delta) => {
+      // Guard here (not in reducer) so we have access to activeModules —
+      // the merged platform + business catalog. This fixes +/- for
+      // business-created modules whose IDs aren't in the static MODULES array.
+      if (delta > 0 && !canAddModule(config.width, config.modules, id, activeModules)) {
+        return; // silently block — canAdd UI state already shows greyed-out +
+      }
+      dispatch({ type: 'UPDATE_MODULE_QTY', payload: { id, delta } });
+    },
     setModuleWall: (wallKey, wall) =>
       dispatch({ type: 'SET_MODULE_WALL', payload: { wallKey, wall } }),
     setModuleOverride: (wallKey, key, value) =>

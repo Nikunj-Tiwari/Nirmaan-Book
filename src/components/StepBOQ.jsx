@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState, useCallback, useEffect } from 'react';
-import { MODULES } from '../data/modules';
 import { ACCESSORIES } from '../data/config.jsx';
+
 import {
   Printer,
   Download,
@@ -116,7 +116,6 @@ const ActionButton = ({
    StepBOQ — Quote Summary + Export Page
    ══════════════════════════════════════════ */
 const StepBOQ = ({ activeConfigId, setActiveConfigId, onRefreshCount }) => {
-  // ── CHANGED: pull activePricing, pricingChangedBanner, refreshPricing from context ──
   const {
     config,
     derived,
@@ -124,7 +123,11 @@ const StepBOQ = ({ activeConfigId, setActiveConfigId, onRefreshCount }) => {
     pricingChangedBanner,
     setPricingChangedBanner,
     refreshPricing,
+    // Pull live catalog so BOQ rows work for business-created modules too
+    activeModules,
+    activeAccessories,
   } = useConfig();
+
   const { isMobile } = useResponsive();
   const { valuation } = derived;
   const printRef = useRef(null);
@@ -325,8 +328,11 @@ const StepBOQ = ({ activeConfigId, setActiveConfigId, onRefreshCount }) => {
 
   /* ── Accessories list ── */
   const accessories = useMemo(
-    () => Array.from(config.selectedAccessories).map((id) => ACCESSORIES.find((a) => a.id === id)),
-    [config.selectedAccessories]
+    () =>
+      Array.from(config.selectedAccessories)
+        .map((id) => (activeAccessories ?? ACCESSORIES).find((a) => a.id === id))
+        .filter(Boolean), // drop any id that no longer exists in catalog
+    [config.selectedAccessories, activeAccessories]
   );
 
   /* ── Module count ── */
@@ -337,55 +343,72 @@ const StepBOQ = ({ activeConfigId, setActiveConfigId, onRefreshCount }) => {
 
   /* ── BOQ rows ── */
   const boqItems = useMemo(() => {
-    const moduleRows = Object.entries(config.modules)
-      .filter(([, qty]) => qty > 0)
-      .map(([id, qty]) => {
-        const mod = MODULES.find((m) => m.id === id);
-        const rate = mod.basePrice * config.material.multiplier;
-        return {
-          category: 'Wardrobe Module',
-          name: mod.name,
-          desc: `${mod.id} — ${config.material.name}`,
-          qty,
-          rate,
-          total: rate * qty,
+    try {
+      // Use activeModules (Firestore-loaded, includes business modules).
+      // Never crashes when a business-created module is selected.
+      const catalog = activeModules && activeModules.length > 0 ? activeModules : [];
+      const materialMultiplier = config.material?.multiplier ?? 1;
+      const materialName = config.material?.name ?? 'Standard';
+
+      const moduleRows = Object.entries(config.modules)
+        .filter(([, qty]) => qty > 0)
+        .map(([id, qty]) => {
+          const mod = catalog.find((m) => m.id === id);
+          if (!mod) {
+            console.warn('[Summary] Module not found in catalog:', id);
+            return null;
+          }
+          const basePrice = Number(mod.basePrice ?? mod.price ?? 0);
+          const rate = basePrice * materialMultiplier;
+          return {
+            category: 'Wardrobe Module',
+            name: mod.name ?? id,
+            desc: `${mod.id} — ${materialName}`,
+            qty,
+            rate,
+            total: rate * qty,
+            status: 'Active',
+          };
+        })
+        .filter(Boolean);
+
+      const hardwareRows = [
+        {
+          category: 'Hardware',
+          name: 'Handle Set',
+          desc: `${config.handle?.name ?? 'Handle'} (${config.handle?.sub ?? ''})`,
+          qty: totalModulesCount,
+          rate: config.handle?.price ?? 0,
+          total: (config.handle?.price ?? 0) * totalModulesCount,
           status: 'Active',
-        };
-      });
+        },
+        {
+          category: 'Lighting',
+          name: 'Ambience Lighting',
+          desc: config.lighting?.name ?? 'None',
+          qty: 1,
+          rate: config.lighting?.price ?? 0,
+          total: config.lighting?.price ?? 0,
+          status: (config.lighting?.price ?? 0) > 0 ? 'Active' : 'Not included',
+        },
+      ];
 
-    const hardwareRows = [
-      {
-        category: 'Hardware',
-        name: 'Handle Set',
-        desc: `${config.handle.name} (${config.handle.sub})`,
-        qty: totalModulesCount,
-        rate: config.handle.price,
-        total: config.handle.price * totalModulesCount,
-        status: 'Active',
-      },
-      {
-        category: 'Lighting',
-        name: 'Ambience Lighting',
-        desc: config.lighting.name,
+      const accRows = accessories.map((a) => ({
+        category: 'Accessory',
+        name: a?.name ?? 'Unknown',
+        desc: a?.desc ?? '',
         qty: 1,
-        rate: config.lighting.price,
-        total: config.lighting.price,
-        status: config.lighting.price > 0 ? 'Active' : 'Not included',
-      },
-    ];
+        rate: a?.price ?? 0,
+        total: a?.price ?? 0,
+        status: 'Active',
+      }));
 
-    const accRows = accessories.map((a) => ({
-      category: 'Accessory',
-      name: a.name,
-      desc: a.desc,
-      qty: 1,
-      rate: a.price,
-      total: a.price,
-      status: 'Active',
-    }));
-
-    return [...moduleRows, ...hardwareRows, ...accRows];
-  }, [config, accessories, totalModulesCount]);
+      return [...moduleRows, ...hardwareRows, ...accRows];
+    } catch (err) {
+      console.error('[Summary] render error:', err);
+      return [];
+    }
+  }, [config, accessories, totalModulesCount, activeModules]);
 
   /* ── Shared export payload ── */
   const exportPayload = { config, boqItems, valuation, totalModulesCount };
