@@ -1,5 +1,4 @@
 import React, { useState, useRef } from 'react';
-import { getFunctions, httpsCallable } from 'firebase/functions';
 import { Link, Upload, Image as ImageIcon, X, CheckCircle } from 'lucide-react';
 
 const inp = {
@@ -20,21 +19,21 @@ const inp = {
  * ImageUploadField
  * Two-tab image input: "Paste URL" | "Upload Image"
  *
- * Upload tab uses ImageKit (free tier — no Firebase Storage/Blaze required):
- *   1. Calls getImageKitAuthParams Firebase Function for signed auth params
- *   2. Uploads directly to ImageKit CDN via @imagekit/javascript SDK
- *   3. Calls onChange(hostedUrl) on success — same interface as before
+ * Upload tab pushes directly to ImageKit CDN — no Firebase Storage, no Blaze plan needed.
  *
- * Prerequisites (env vars — see .env.example):
- *   VITE_IMAGEKIT_PUBLIC_KEY
- *   VITE_IMAGEKIT_URL_ENDPOINT
+ * Prerequisites (.env):
+ *   VITE_IMAGEKIT_PUBLIC_KEY   – starts with "public_"
+ *   VITE_IMAGEKIT_URL_ENDPOINT – e.g. "https://ik.imagekit.io/nirmaanbook"
+ *
+ * Note: ImageKit requires signed uploads unless your account allows unsigned.
+ * Enable unsigned uploads in ImageKit Dashboard → Settings → Upload API Settings.
  *
  * Props:
  *   value    – current imageUrl string (or '')
- *   onChange – called with new URL string when URL or upload completes
+ *   onChange – called with new hosted URL on success
  */
 const ImageUploadField = ({ value, onChange }) => {
-  const [mode, setMode] = useState('url'); // 'url' | 'upload'
+  const [mode, setMode] = useState('url');
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [uploadError, setUploadError] = useState('');
@@ -53,11 +52,10 @@ const ImageUploadField = ({ value, onChange }) => {
     }
 
     const publicKey = import.meta.env.VITE_IMAGEKIT_PUBLIC_KEY;
-    const urlEndpoint = import.meta.env.VITE_IMAGEKIT_URL_ENDPOINT;
 
-    if (!publicKey || !urlEndpoint) {
+    if (!publicKey) {
       setUploadError(
-        'ImageKit is not configured. Add VITE_IMAGEKIT_PUBLIC_KEY and VITE_IMAGEKIT_URL_ENDPOINT to your .env file.'
+        'VITE_IMAGEKIT_PUBLIC_KEY is not set in .env. Add it and restart the dev server.'
       );
       return;
     }
@@ -65,48 +63,44 @@ const ImageUploadField = ({ value, onChange }) => {
     setUploadError('');
     setUploadDone(false);
     setUploading(true);
-    setProgress(5);
+    setProgress(10);
 
     try {
-      // Step 1: Get signed auth params from Firebase Function
-      const functions = getFunctions();
-      const getAuthParams = httpsCallable(functions, 'getImageKitAuthParams');
-      const { data: authParams } = await getAuthParams();
-      setProgress(20);
-
-      // Step 2: Upload to ImageKit using the auth params
-      const formData = new FormData();
       const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+      const formData = new FormData();
       formData.append('file', file);
       formData.append('fileName', fileName);
       formData.append('publicKey', publicKey);
-      formData.append('signature', authParams.signature);
-      formData.append('expire', String(authParams.expire));
-      formData.append('token', authParams.token);
       formData.append('folder', '/catalog-images');
 
-      // Use XMLHttpRequest so we get real upload progress
       const hostedUrl = await new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open('POST', 'https://upload.imagekit.io/api/v1/files/upload');
 
         xhr.upload.onprogress = (evt) => {
           if (evt.lengthComputable) {
-            const pct = Math.round((evt.loaded / evt.total) * 75) + 20; // 20–95%
-            setProgress(Math.min(pct, 95));
+            setProgress(Math.min(Math.round((evt.loaded / evt.total) * 88) + 10, 98));
           }
         };
 
         xhr.onload = () => {
           if (xhr.status >= 200 && xhr.status < 300) {
-            const result = JSON.parse(xhr.responseText);
-            resolve(result.url);
+            try {
+              resolve(JSON.parse(xhr.responseText).url);
+            } catch {
+              reject(new Error('Unexpected response from ImageKit'));
+            }
           } else {
-            reject(new Error(`Upload failed (${xhr.status}): ${xhr.responseText}`));
+            let msg = `Upload failed (${xhr.status})`;
+            try {
+              const err = JSON.parse(xhr.responseText);
+              if (err.message) msg = err.message;
+            } catch {} // eslint-disable-line no-empty
+            reject(new Error(msg));
           }
         };
 
-        xhr.onerror = () => reject(new Error('Network error during upload'));
+        xhr.onerror = () => reject(new Error('Network error — check your internet connection'));
         xhr.send(formData);
       });
 
@@ -115,14 +109,9 @@ const ImageUploadField = ({ value, onChange }) => {
       onChange(hostedUrl);
     } catch (err) {
       console.error('[ImageUploadField] ImageKit upload failed:', err);
-      setUploadError(
-        err?.message?.includes('not configured') || err?.message?.includes('auth')
-          ? 'Auth failed — make sure VITE_IMAGEKIT_PUBLIC_KEY is set and the Firebase Function is deployed.'
-          : `Upload failed: ${err.message}`
-      );
+      setUploadError(`Upload failed: ${err.message}`);
     } finally {
       setUploading(false);
-      // Reset file input so the same file can be re-selected if needed
       if (fileRef.current) fileRef.current.value = '';
     }
   };
@@ -178,7 +167,7 @@ const ImageUploadField = ({ value, onChange }) => {
         }}
       >
         {mode === 'url' ? (
-          /* ── Paste URL tab (unchanged) ── */
+          /* ── Paste URL tab ── */
           <input
             type="url"
             placeholder="https://example.com/image.jpg"
@@ -237,7 +226,7 @@ const ImageUploadField = ({ value, onChange }) => {
             />
 
             {/* Progress bar */}
-            {(uploading || (uploadDone && progress === 100)) && (
+            {(uploading || uploadDone) && (
               <div
                 style={{
                   height: 4,
