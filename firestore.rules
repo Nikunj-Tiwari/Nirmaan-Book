@@ -1,120 +1,69 @@
 rules_version = '2';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// NirmanBook Wardrobe Configurator — Firestore Security Rules
-// ─────────────────────────────────────────────────────────────────────────────
-//
-// Collection layout
-// ─────────────────
-//   users/{uid}
-//   businesses/{businessId}
-//   platform_catalog/{subCollection}/items/{itemId}
-//   price_overrides/{docId}    (docId = {businessId}_{productId})
-//   quotes/{quoteId}
-//
-// Role hierarchy
-// ──────────────
-//   super_admin   → full read/write everywhere
-//   business_partner → own business doc + own price overrides + own quotes
-//   customer       → own user doc + read catalog + own quotes (read)
-// ─────────────────────────────────────────────────────────────────────────────
-
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ── Helper functions ─────────────────────────────────────────────────────
-
-    /** True when the caller is authenticated. */
-    function isSignedIn() {
+    // Helper functions
+    function isAuthenticated() {
       return request.auth != null;
     }
 
-    /** Fetch the caller's user document from Firestore. */
-    function callerDoc() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
-    }
-
-    /** True when the caller has role == "super_admin". */
     function isSuperAdmin() {
-      return isSignedIn() && callerDoc().role == 'super_admin';
+      return request.auth != null &&
+        request.auth.uid == "QCukA84neKUuZrgF3PQ4ZmpkQx32";
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Collection: users/{uid}
-    // ─────────────────────────────────────────────────────────────────────────
-    // • Read / Write : only the owner (request.auth.uid == uid)
-    // • Super admin  : full read/write
-    // ─────────────────────────────────────────────────────────────────────────
-    match /users/{uid} {
-      allow read, write: if isSignedIn()
-        && (request.auth.uid == uid || isSuperAdmin());
+    function isOwner(uid) {
+      return request.auth != null &&
+        request.auth.uid == uid;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Collection: businesses/{businessId}
-    // businessId == ownerUid  (enforced at write time)
-    // ─────────────────────────────────────────────────────────────────────────
-    // • Read / Write : the business owner (request.auth.uid == businessId)
-    // • Super admin  : full read/write
-    // ─────────────────────────────────────────────────────────────────────────
+    // users collection
+    match /users/{userId} {
+      allow read, write: if isOwner(userId) || isSuperAdmin();
+    }
+
+    // admins collection
+    match /admins/{userId} {
+      allow read, write: if isOwner(userId) || isSuperAdmin();
+    }
+
+    // businesses collection
     match /businesses/{businessId} {
-      allow read, write: if isSignedIn()
-        && (request.auth.uid == businessId || isSuperAdmin());
+      allow read, write: if isOwner(businessId) || isSuperAdmin();
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Collection: platform_catalog/{subCollection}/items/{itemId}
-    //
-    // Sub-collections:  modules | materials | handles | accessories
-    // ─────────────────────────────────────────────────────────────────────────
-    // • Read  : any authenticated user
-    // • Write : super_admin only
-    // ─────────────────────────────────────────────────────────────────────────
-    match /platform_catalog/{subCollection}/items/{itemId} {
-      allow read: if isSignedIn();
+    // platform_catalog: super admin full access, authenticated users can read
+    match /platform_catalog/{document=**} {
+      allow read: if isAuthenticated();
       allow write: if isSuperAdmin();
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Collection: price_overrides/{docId}
-    // docId format: {businessId}_{productId}
-    // ─────────────────────────────────────────────────────────────────────────
-    // • Read / Write : the business whose businessId matches the doc field
-    // • Super admin  : full read/write
-    // ─────────────────────────────────────────────────────────────────────────
+    // price_overrides: read-only for authenticated users, write locked to super admin
     match /price_overrides/{docId} {
-      allow read, write: if isSignedIn()
-        && (request.auth.uid == resource.data.businessId || isSuperAdmin());
-
-      // Allow create: the caller must be setting their own businessId
-      allow create: if isSignedIn()
-        && (request.auth.uid == request.resource.data.businessId || isSuperAdmin());
+      allow read: if isAuthenticated();
+      allow write: if isSuperAdmin();
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Collection: quotes/{quoteId}
-    // ─────────────────────────────────────────────────────────────────────────
-    // • Read  : the customer who owns the quote
-    //           OR the business partner associated with the quote
-    //           OR super_admin
-    // • Write : the business partner associated with the quote
-    //           OR super_admin
-    // ─────────────────────────────────────────────────────────────────────────
+    // business_modules: business partners manage their own modules
+    match /business_modules/{businessId}/modules/{moduleId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(businessId) || isSuperAdmin();
+    }
+
+    // quotes collection
     match /quotes/{quoteId} {
-      allow read: if isSignedIn()
-        && (
-          request.auth.uid == resource.data.customerId
-          || request.auth.uid == resource.data.businessId
-          || isSuperAdmin()
+      allow read: if isAuthenticated() &&
+        (
+          isSuperAdmin() ||
+          request.auth.uid == resource.data.customerId ||
+          request.auth.uid == resource.data.businessId
         );
 
-      allow write: if isSignedIn()
-        && (request.auth.uid == resource.data.businessId || isSuperAdmin());
+      allow update, delete: if isAuthenticated() &&
+        (isSuperAdmin() || request.auth.uid == resource.data.businessId);
 
-      // Allow create: the caller must be the businessId on the new doc
-      allow create: if isSignedIn()
-        && (request.auth.uid == request.resource.data.businessId || isSuperAdmin());
+      allow create: if isAuthenticated();
     }
 
-  } // end /databases/{database}/documents
-} // end service cloud.firestore
+  }
+}

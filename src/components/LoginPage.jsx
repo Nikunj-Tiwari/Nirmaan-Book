@@ -304,7 +304,8 @@ const LoginPage = () => {
 
   /* ── NEW: role selection screen ── */
   /* selectedRole: null | 'customer' | 'business_partner' */
-  const [selectedRole, setSelectedRole] = useState(null);
+  /* Default to 'customer' so Sign In form shows immediately on /login */
+  const [selectedRole, setSelectedRole] = useState('customer');
 
   /* mode: 'login' | 'register' | 'forgot' */
   const [mode, setMode] = useState('login');
@@ -345,66 +346,17 @@ const LoginPage = () => {
     go('register');
   };
 
-  /* ── LOGIN ── */
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-    const r = await login(email, password);
-    setLoading(false);
-    if (!r.ok) {
-      setError(
-        r.error.includes('invalid-credential')
-          ? 'Invalid email or password.'
-          : r.error.includes('user-not-found')
-            ? 'No account found with this email.'
-            : r.error
-      );
-      return;
-    }
-
-    // Fetch the Firestore profile to decide where to redirect
-    // AuthContext resolves the profile after onAuthStateChanged, but we
-    // can inspect it right after login completes by reading from Firestore.
-    try {
-      const { getDoc, doc: fsDoc } = await import('firebase/firestore');
-      const snap = await getDoc(fsDoc(db, 'users', email)); // fallback handled below
-      // Note: we don't have uid here yet; AuthContext handles it via onAuthStateChanged.
-      // Redirect based on from-path or default routes; AuthContext's role guards take over.
-    } catch (_) {
-      /* best-effort; AuthContext handles role-based routing */
-    }
-
-    // The ProtectedRoute + role guards in App.jsx handle final redirection.
-    // We do a best-effort redirect here; AuthContext.role will re-route if needed.
-    navigate(from === '/' ? '/dashboard' : from, { replace: true });
-  };
-
-  /* ── Post-login redirect based on Firestore profile (called from App.jsx ProtectedRoute) ── */
-  // This is a helper used by the login handler to do the correct redirect
-  // after auth state settles with the user's role and status.
-  const redirectAfterLogin = (role, status) => {
-    if (status === 'suspended') {
-      setError('Your account has been suspended. Please contact support.');
-      return false;
-    }
-    if (status === 'pending') {
-      navigate('/pending-approval', { replace: true });
-      return true;
-    }
-    if (role === 'super_admin') {
-      navigate('/admin', { replace: true });
-      return true;
-    }
-    if (role === 'business_partner') {
-      navigate('/business', { replace: true });
-      return true;
-    }
-    navigate('/dashboard', { replace: true });
-    return true;
-  };
-
-  /* ── Smarter login that reads profile after auth ── */
+  /* ── LOGIN — reads Firestore profile to route correctly ─────────────────
+     Flow:
+       1. signInWithEmailAndPassword (Firebase Auth)
+       2. auth.currentUser.uid is available synchronously after resolve
+       3. Fetch users/{uid} from Firestore → check status + role
+       4. Route: pending → /pending-approval
+                 suspended → show inline error
+                 super_admin → /admin
+                 business_partner active → /business
+                 customer active → /dashboard
+  ── */
   const handleLoginSmart = async (e) => {
     e.preventDefault();
     setError('');
@@ -413,20 +365,24 @@ const LoginPage = () => {
     const r = await login(email, password);
     if (!r.ok) {
       setLoading(false);
-      setError(
-        r.error.includes('invalid-credential')
-          ? 'Invalid email or password.'
-          : r.error.includes('user-not-found')
-            ? 'No account found with this email.'
-            : r.error
-      );
+      const code = r.error || '';
+      if (
+        code.includes('invalid-credential') ||
+        code.includes('wrong-password') ||
+        code.includes('user-not-found') ||
+        code.includes('invalid-email')
+      ) {
+        setError('Incorrect email or password. Please try again.');
+      } else if (code.includes('too-many-requests')) {
+        setError('Too many attempts. Please try again later.');
+      } else {
+        setError('Sign in failed. Please try again.');
+      }
       return;
     }
 
-    // Wait briefly for onAuthStateChanged + Firestore fetch to complete in AuthContext
-    // then read the profile from Firestore directly for the redirect decision.
+    // auth.currentUser is set synchronously after signInWithEmailAndPassword resolves
     try {
-      // auth.currentUser is set synchronously after signInWithEmailAndPassword resolves
       const { getAuth } = await import('firebase/auth');
       const fbAuth = getAuth();
       const uid = fbAuth.currentUser?.uid;
@@ -435,13 +391,25 @@ const LoginPage = () => {
         const snap = await getDoc(fsDoc(db, 'users', uid));
         if (snap.exists()) {
           const { role, status } = snap.data();
+          setLoading(false);
           if (status === 'suspended') {
-            setLoading(false);
             setError('Your account has been suspended. Please contact support.');
             return;
           }
-          setLoading(false);
-          redirectAfterLogin(role, status);
+          if (status === 'pending') {
+            navigate('/pending-approval', { replace: true });
+            return;
+          }
+          if (role === 'super_admin') {
+            navigate('/admin', { replace: true });
+            return;
+          }
+          if (role === 'business_partner') {
+            navigate('/business', { replace: true });
+            return;
+          }
+          // customer active
+          navigate('/dashboard', { replace: true });
           return;
         }
       }
@@ -1107,7 +1075,10 @@ const LoginPage = () => {
           >
             Already have an account?{' '}
             <button
-              onClick={() => go('login')}
+              onClick={() => {
+                setSelectedRole('customer'); // back to sign-in, no role selector
+                go('login');
+              }}
               style={{
                 background: 'none',
                 border: 'none',
@@ -1209,13 +1180,6 @@ const LoginPage = () => {
               </button>
             </div>
           </div>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              style={{ accentColor: 'var(--accent)', width: 15, height: 15 }}
-            />
-            <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Keep me signed in</span>
-          </label>
           <Btn loading={loading}>
             Sign In <ArrowRight size={15} />
           </Btn>
@@ -1230,7 +1194,10 @@ const LoginPage = () => {
         >
           Don't have an account?{' '}
           <button
-            onClick={() => setSelectedRole(null)}
+            onClick={() => {
+              setSelectedRole(null); // show role selector → then sign-up
+              setError('');
+            }}
             style={{
               background: 'none',
               border: 'none',
@@ -1240,7 +1207,7 @@ const LoginPage = () => {
               fontFamily: 'var(--font-sans)',
             }}
           >
-            Create one free →
+            Create one →
           </button>
         </p>
       </div>

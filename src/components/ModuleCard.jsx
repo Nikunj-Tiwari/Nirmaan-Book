@@ -26,7 +26,10 @@ const ModuleCard = React.forwardRef(
     const SEL_GLOW = 'rgba(34,197,94,0.15)';
     const SEL_IMG_TINT = 'rgba(34,197,94,0.06)';
 
-    const imagePath = getModuleImagePath(module.id);
+    // Image priority: Firestore imageUrl → local path map → SVG placeholder
+    const firestoreImage = module.imageUrl || null;
+    const localPath = getModuleImagePath(module.id);
+    const imagePath = firestoreImage || localPath;
     const placeholderImage = generateModulePlaceholder(module.layout || {});
 
     const handleImageError = () => {
@@ -118,7 +121,7 @@ const ModuleCard = React.forwardRef(
           style={{
             position: 'relative',
             width: '100%',
-            aspectRatio: '3 / 4',
+            aspectRatio: '4 / 3',
             overflow: 'hidden',
             background: isSelected ? '#dcfce7' : 'var(--bg-primary)',
             borderBottom: `1px solid ${isSelected ? '#bbf7d0' : 'var(--border)'}`,
@@ -263,18 +266,16 @@ const ModuleCard = React.forwardRef(
           )}
         </div>
 
-        {/* ── Content Block ────────────────────────────────────────────
-            Compact: code → name → [dimensions + counter] on one row.
-            No extra gaps or decorative dividers. */}
+        {/* ── Content Block ──────────────────────────────────────────── */}
         <div
           style={{
-            padding: '10px 12px 12px 12px',
+            padding: '8px 10px 10px 10px',
             display: 'flex',
             flexDirection: 'column',
             gap: 2,
           }}
         >
-          {/* Module code — light enough to read on dark bg, muted on light bg */}
+          {/* Module code */}
           <span
             style={{
               fontSize: 11,
@@ -295,92 +296,120 @@ const ModuleCard = React.forwardRef(
               color: 'var(--text-primary)',
               lineHeight: 1.3,
               letterSpacing: '-0.01em',
-              marginBottom: 6,
+              marginBottom: 4,
             }}
           >
             {module.name}
           </span>
 
-          {/* Dimensions (left) + Counter (right) — same flex row */}
+          {/* Price + Dimensions row */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              gap: 8,
+              gap: 4,
+              marginBottom: 2,
             }}
           >
-            <span style={{ fontSize: 12, color: 'var(--text-muted)', flexShrink: 1, minWidth: 0 }}>
-              W: {module.width}mm&nbsp;•&nbsp;H: {module.height}mm
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', flexShrink: 1, minWidth: 0 }}>
+              W:{module.width}&nbsp;×&nbsp;H:{module.height}mm
             </span>
-
-            {/* − / count / + */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
-              <button
-                onClick={handleRemoveModule}
-                onMouseDown={handleRemoveBtnMouseDown}
-                onMouseUp={handleRemoveBtnMouseUp}
-                onMouseLeave={handleRemoveBtnMouseUp}
-                disabled={qty === 0}
-                title={qty > 0 ? 'Hold to remove all' : 'None added'}
-                aria-label={`Remove one ${module.name}`}
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 8,
-                  border: '1px solid var(--border)',
-                  background: qty === 0 ? 'var(--bg-tertiary)' : 'var(--bg-secondary)',
-                  color: qty === 0 ? 'var(--text-muted)' : 'var(--text-primary)',
-                  cursor: qty === 0 ? 'not-allowed' : 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 16,
-                  fontWeight: 700,
-                  transition: 'all 0.15s ease',
-                  lineHeight: 1,
-                }}
-              >
-                −
-              </button>
-
+            {module.basePrice != null && (
               <span
                 style={{
-                  width: 28,
-                  textAlign: 'center',
-                  fontSize: 14,
+                  fontSize: 12,
                   fontWeight: 700,
-                  color: isSelected ? '#16a34a' : 'var(--text-primary)',
+                  color: isSelected ? '#16a34a' : 'var(--accent)',
+                  flexShrink: 0,
                 }}
               >
-                {qty}
+                ₹{Number(module.basePrice).toLocaleString('en-IN')}
               </span>
+            )}
+          </div>
 
-              <button
-                onClick={handleAddModule}
-                disabled={!canAdd}
-                title={!canAdd ? 'Not enough space' : 'Add module (Enter)'}
-                aria-label={`Add one ${module.name}`}
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 8,
-                  border: 'none',
-                  background: canAdd ? 'var(--accent)' : 'var(--bg-tertiary)',
-                  color: canAdd ? 'white' : 'var(--text-muted)',
-                  cursor: canAdd ? 'pointer' : 'not-allowed',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 18,
-                  fontWeight: 700,
-                  transition: 'all 0.15s ease',
-                  lineHeight: 1,
-                }}
-              >
-                +
-              </button>
-            </div>
+          {/* Added-by badge */}
+          {module.createdByName && (
+            <span style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 4 }}>
+              by {module.createdByName}
+            </span>
+          )}
+
+          {/* − / count / + counter */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              gap: 5,
+              marginTop: 4,
+            }}
+          >
+            <button
+              onClick={handleRemoveModule}
+              onMouseDown={handleRemoveBtnMouseDown}
+              onMouseUp={handleRemoveBtnMouseUp}
+              onMouseLeave={handleRemoveBtnMouseUp}
+              disabled={qty === 0}
+              title={qty > 0 ? 'Hold to remove all' : 'None added'}
+              aria-label={`Remove one ${module.name}`}
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 8,
+                border: '1px solid var(--border)',
+                background: qty === 0 ? 'var(--bg-tertiary)' : 'var(--bg-secondary)',
+                color: qty === 0 ? 'var(--text-muted)' : 'var(--text-primary)',
+                cursor: qty === 0 ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 16,
+                fontWeight: 700,
+                transition: 'all 0.15s ease',
+                lineHeight: 1,
+              }}
+            >
+              −
+            </button>
+
+            <span
+              style={{
+                width: 28,
+                textAlign: 'center',
+                fontSize: 14,
+                fontWeight: 700,
+                color: isSelected ? '#16a34a' : 'var(--text-primary)',
+              }}
+            >
+              {qty}
+            </span>
+
+            <button
+              onClick={handleAddModule}
+              disabled={!canAdd}
+              title={!canAdd ? 'Not enough space' : 'Add module (Enter)'}
+              aria-label={`Add one ${module.name}`}
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 8,
+                border: 'none',
+                background: canAdd ? 'var(--accent)' : 'var(--bg-tertiary)',
+                color: canAdd ? 'white' : 'var(--text-muted)',
+                cursor: canAdd ? 'pointer' : 'not-allowed',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 18,
+                fontWeight: 700,
+                transition: 'all 0.15s ease',
+                lineHeight: 1,
+              }}
+            >
+              +
+            </button>
           </div>
         </div>
       </div>

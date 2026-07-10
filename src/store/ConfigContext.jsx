@@ -8,7 +8,10 @@ import React, {
   useState,
   useCallback,
 } from 'react';
-import { COLOURS, MATERIALS, HANDLES, LIGHTING, BRANDS } from '../data/config.jsx';
+import { COLOURS, MATERIALS, HANDLES, ACCESSORIES, LIGHTING, BRANDS } from '../data/config.jsx';
+import { MODULES } from '../data/modules';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '../firebase';
 import {
   updateModuleQty,
   updateFinishes,
@@ -114,7 +117,7 @@ export const ConfigProvider = ({ children }) => {
   const [config, dispatch] = useReducer(configReducer, initialState);
   const [lastDraftSave, setLastDraftSave] = useState(null);
 
-  // ── CHANGED: activePricing state — null until Firestore fetch completes ───
+  // ── activePricing state — null until Firestore fetch completes ───
   const [activePricing, setActivePricing] = useState(null);
   // pricingLoaded: false while fetching, true once resolved (success or fallback)
   const [pricingLoaded, setPricingLoaded] = useState(false);
@@ -123,9 +126,13 @@ export const ConfigProvider = ({ children }) => {
   // Track which uid/businessId the current pricing was fetched for
   const pricingFetchedFor = useRef(null);
 
-  // ── CHANGED: read user profile from AuthContext ───────────────────────────
-  // Use optional chaining — ConfigProvider may render before AuthProvider
-  // settles, so we tolerate undefined safely.
+  // ── Catalog state: Firestore data with local fallbacks ───────────────────
+  const [activeModules, setActiveModules] = useState(MODULES);
+  const [activeMaterials, setActiveMaterials] = useState(MATERIALS);
+  const [activeHandles, setActiveHandles] = useState(HANDLES);
+  const [activeAccessories, setActiveAccessories] = useState(ACCESSORIES);
+
+  // ── Read user profile from AuthContext (safe for use before auth settles) ─
   const auth = (() => {
     try {
       // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -136,48 +143,188 @@ export const ConfigProvider = ({ children }) => {
   })();
   const currentUser = auth?.currentUser ?? null;
   const linkedBusinessId = auth?.linkedBusinessId ?? null;
+  const role = auth?.role ?? null;
 
-  // ── CHANGED: fetch active pricing once per login / businessId change ──────
+  // ── Fetch active pricing (no longer merges price_overrides) ──────────────
   const loadPricing = useCallback(async () => {
     const fetchKey = currentUser?.uid ?? 'anonymous';
-    if (pricingFetchedFor.current === fetchKey) return; // already fetched for this session
+    if (pricingFetchedFor.current === fetchKey) return;
     pricingFetchedFor.current = fetchKey;
-
     setPricingLoaded(false);
     try {
-      const pricing = await fetchActivePricing(linkedBusinessId);
+      const pricing = await fetchActivePricing();
       setActivePricing(pricing);
       console.info('[ConfigContext] Pricing loaded from Firestore', {
-        linkedBusinessId,
         modulesCount: Object.keys(pricing.modules).length,
       });
     } catch (err) {
-      // CHANGED: fall back to local data silently on Firestore failure
-      console.error('[ConfigContext] Firestore pricing fetch failed, using local fallback:', err);
+      console.error('[ConfigContext] Pricing fetch failed, using local fallback:', err);
       setActivePricing(buildLocalFallbackPricing());
     } finally {
       setPricingLoaded(true);
     }
-  }, [currentUser?.uid, linkedBusinessId]);
+  }, [currentUser?.uid]);
+
+  // ── Fetch all 4 catalog types + business modules in parallel ──────────────
+  const loadCatalog = useCallback(async () => {
+    // Helper: normalise a platform_catalog doc to module shape
+    const normModule = (m) => ({
+      id: m.id,
+      name: m.name || m.id,
+      type: (m.category || 'other').toLowerCase().replace(/\s+/g, '_'),
+      category: m.category || '',
+      width: Number(m.width) || 600,
+      height: Number(m.height) || 2400,
+      depth: Number(m.depth) || 600,
+      basePrice: Number(m.basePrice) || 0,
+      imageUrl: m.imageUrl || null,
+      layout: m.layout || {},
+      createdByName: m.createdByName || 'Admin',
+      source: 'platform',
+    });
+
+    const active = (docs) => docs.filter((d) => d.isActive !== false && d.isDeleted !== true);
+
+    // -- 1. platform_catalog/catalog/modules --------------------------------
+    const fetchPlatformModules = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'platform_catalog', 'catalog', 'modules'));
+        const rows = active(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        return rows.length > 0 ? rows.map(normModule) : null;
+      } catch (err) {
+        console.error('[ConfigContext] modules fetch failed:', err);
+        return null;
+      }
+    };
+
+    // -- 2. platform_catalog/catalog/materials ------------------------------
+    const fetchMaterials = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'platform_catalog', 'catalog', 'materials'));
+        const rows = active(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        if (!rows.length) return null;
+        return rows.map((m) => ({
+          id: m.id,
+          name: m.name || m.id,
+          sub: m.sub || '',
+          multiplier: Number(m.priceMultiplier ?? m.multiplier) || 1.0,
+          imageUrl: m.imageUrl || null,
+        }));
+      } catch (err) {
+        console.error('[ConfigContext] materials fetch failed:', err);
+        return null;
+      }
+    };
+
+    // -- 3. platform_catalog/catalog/handles --------------------------------
+    const fetchHandles = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'platform_catalog', 'catalog', 'handles'));
+        const rows = active(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        if (!rows.length) return null;
+        return rows.map((h) => ({
+          id: h.id,
+          name: h.name || h.id,
+          sub: h.sub || '',
+          price: Number(h.basePrice ?? h.price) || 0,
+          icon: null, // JSX icons can't be stored in Firestore; rendered generically in UI
+          imageUrl: h.imageUrl || null,
+        }));
+      } catch (err) {
+        console.error('[ConfigContext] handles fetch failed:', err);
+        return null;
+      }
+    };
+
+    // -- 4. platform_catalog/catalog/accessories ----------------------------
+    const fetchAccessories = async () => {
+      try {
+        const snap = await getDocs(collection(db, 'platform_catalog', 'catalog', 'accessories'));
+        const rows = active(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        if (!rows.length) return null;
+        return rows.map((a) => ({
+          id: a.id,
+          name: a.name || a.id,
+          desc: a.desc || a.description || '',
+          price: Number(a.basePrice ?? a.price) || 0,
+          icon: null,
+          category: a.category || '',
+        }));
+      } catch (err) {
+        console.error('[ConfigContext] accessories fetch failed:', err);
+        return null;
+      }
+    };
+
+    // -- 5. business_modules (own for BP, linked business for customer) ------
+    const fetchBusinessModules = async (businessId) => {
+      if (!businessId) return [];
+      try {
+        const snap = await getDocs(collection(db, 'business_modules', businessId, 'modules'));
+        const rows = active(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+        return rows.map((m) => ({
+          ...normModule(m),
+          createdByName: m.createdByName || 'My Business',
+          source: 'business',
+        }));
+      } catch (err) {
+        console.error('[ConfigContext] business modules fetch failed:', err);
+        return [];
+      }
+    };
+
+    const [mods, mats, hdls, accs] = await Promise.all([
+      fetchPlatformModules(),
+      fetchMaterials(),
+      fetchHandles(),
+      fetchAccessories(),
+    ]);
+
+    // Apply results — fall back to local if Firestore returned null/empty
+    const platformModules =
+      mods ?? MODULES.map((m) => ({ ...m, source: 'platform', createdByName: 'Admin' }));
+    if (mods)
+      console.info('[ConfigContext] Loaded', mods.length, 'platform modules from Firestore');
+    if (mats) setActiveMaterials(mats);
+    if (hdls) setActiveHandles(hdls);
+    if (accs) setActiveAccessories(accs);
+
+    // Append business modules (own for BP, linked business for customer)
+    const bizId =
+      role === 'business_partner'
+        ? currentUser?.uid
+        : role === 'customer'
+          ? linkedBusinessId
+          : null;
+    const bizMods = await fetchBusinessModules(bizId);
+
+    const allModules = [...platformModules, ...bizMods];
+    setActiveModules(allModules);
+    console.info('[ConfigContext] Total modules available:', allModules.length);
+  }, [currentUser?.uid, role, linkedBusinessId]);
 
   // Run on auth state change (login / logout)
   useEffect(() => {
-    if (currentUser) {
+    if (currentUser?.uid) {
       loadPricing();
+      loadCatalog();
     } else {
-      // Logged out — reset to local fallback so the configurator still works
       setActivePricing(buildLocalFallbackPricing());
+      setActiveModules(MODULES.map((m) => ({ ...m, source: 'platform', createdByName: 'Admin' })));
+      setActiveMaterials(MATERIALS);
+      setActiveHandles(HANDLES);
+      setActiveAccessories(ACCESSORIES);
       setPricingLoaded(true);
       pricingFetchedFor.current = null;
     }
-  }, [currentUser?.uid, loadPricing]);
+  }, [currentUser?.uid, loadPricing, loadCatalog]);
 
-  // ── CHANGED: refreshPricing action — re-fetches from Firestore and dismisses banner ──
   const refreshPricing = useCallback(async () => {
-    pricingFetchedFor.current = null; // force re-fetch
+    pricingFetchedFor.current = null;
     setPricingChangedBanner(false);
     await loadPricing();
-  }, [loadPricing]);
+    await loadCatalog();
+  }, [loadPricing, loadCatalog]);
 
   // Derived metrics are memoized for performance
   // ── CHANGED: pass activePricing to calculateValuation ────────────────────
@@ -235,19 +382,23 @@ export const ConfigProvider = ({ children }) => {
   };
 
   return (
-    // ── CHANGED: expose activePricing, pricingLoaded, pricingChangedBanner, refreshPricing ──
     <ConfigContext.Provider
       value={{
         config,
         derived,
         actions,
         lastDraftSave,
-        // New pricing fields
+        // Pricing fields
         activePricing,
         pricingLoaded,
         pricingChangedBanner,
-        setPricingChangedBanner, // so StepBOQ can dismiss it
+        setPricingChangedBanner,
         refreshPricing,
+        // Catalog from Firestore (with local fallbacks)
+        activeModules,
+        activeMaterials,
+        activeHandles,
+        activeAccessories,
       }}
     >
       {children}

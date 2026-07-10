@@ -1,13 +1,49 @@
 import React, { useState, useMemo, useRef, useCallback } from 'react';
-import { MODULES, CATEGORIES, TYPE_COLORS, TYPE_LABELS } from '../data/modules';
+import { CATEGORIES, TYPE_COLORS, TYPE_LABELS } from '../data/modules';
 import { canAddModule } from '../utils/rules';
 import { useConfig } from '../store/ConfigContext';
-import { Search, Grid3X3, List } from 'lucide-react';
+import { Search, Grid3X3, List, Zap } from 'lucide-react';
 import ModuleCard from './ModuleCard';
 import { useResponsive } from '../hooks/useResponsive';
+import { useToast } from './ToastProvider';
+
+const QUICK_TEMPLATES = [
+  {
+    name: 'Basic',
+    subtitle: 'Essentials only',
+    emoji: '🪄',
+    // 2× Full hanging
+    modules: { 'OW/SW 01': 2 },
+    estimatedPrice: 11000,
+  },
+  {
+    name: 'Standard',
+    subtitle: 'Most popular',
+    emoji: '⭐',
+    highlighted: true,
+    // 2× Full hanging + 1× Short hang+3 drawers + 1× Long hang+3 shelves
+    modules: { 'OW/SW 01': 2, 'OW/SW 07': 1, 'OW/SW 04': 1 },
+    estimatedPrice: 25600,
+  },
+  {
+    name: 'Premium',
+    subtitle: 'Great for couples',
+    emoji: '💎',
+    modules: { 'OW/SW 01': 2, 'OW/SW 07': 1, 'OW/SW 04': 1, 'OW/SW 08': 1 },
+    estimatedPrice: 34100,
+  },
+  {
+    name: 'Master',
+    subtitle: 'Walk-in ready',
+    emoji: '🏆',
+    modules: { 'OW/SW 01': 2, 'OW/SW 07': 2, 'OW/SW 04': 1, 'OW/SW 08': 1 },
+    estimatedPrice: 41900,
+  },
+];
 
 const StepModules = () => {
-  const { config, derived, actions } = useConfig();
+  const { config, derived, actions, activeModules } = useConfig();
+  const { addToast } = useToast();
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
@@ -36,7 +72,8 @@ const StepModules = () => {
   }, []);
 
   const filteredModules = useMemo(() => {
-    let modules = filter === 'all' ? MODULES : MODULES.filter((m) => m.type === filter);
+    const source = activeModules && activeModules.length > 0 ? activeModules : [];
+    let modules = filter === 'all' ? source : source.filter((m) => m.type === filter);
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase();
       modules = modules.filter(
@@ -44,7 +81,7 @@ const StepModules = () => {
       );
     }
     return modules;
-  }, [filter, searchTerm]);
+  }, [filter, searchTerm, activeModules]);
 
   const { remainingWidth, usedWidth, validation } = useMemo(
     () => ({
@@ -57,8 +94,25 @@ const StepModules = () => {
 
   const chQty = (code, delta) => actions.setModuleQty(code, delta);
 
+  // Apply a quick-start template: reset all modules then set template quantities
+  const applyTemplate = useCallback(
+    (template) => {
+      // Reset every currently selected module to 0
+      Object.keys(config.modules).forEach((id) => {
+        const qty = config.modules[id] || 0;
+        if (qty > 0) actions.setModuleQty(id, -qty);
+      });
+      // Then add template quantities
+      Object.entries(template.modules).forEach(([id, qty]) => {
+        actions.setModuleQty(id, qty);
+      });
+      addToast(`"${template.name}" template applied! Customise further below.`, 'success');
+    },
+    [config.modules, actions, addToast]
+  );
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }} className="animate-fade-in">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }} className="animate-fade-in">
       {/* Header */}
       <h2
         style={{
@@ -71,6 +125,85 @@ const StepModules = () => {
       >
         Choose Modules
       </h2>
+
+      {/* ── Quick Start Templates ── */}
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+          <Zap size={13} color="var(--accent)" />
+          <span
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              color: 'var(--text-secondary)',
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase',
+            }}
+          >
+            Quick Start Templates
+          </span>
+        </div>
+        <div
+          style={{
+            display: 'flex',
+            gap: 10,
+            overflowX: 'auto',
+            paddingBottom: 4,
+            WebkitOverflowScrolling: 'touch',
+          }}
+          className="no-scrollbar"
+        >
+          {QUICK_TEMPLATES.map((tpl) => (
+            <button
+              key={tpl.name}
+              onClick={() => applyTemplate(tpl)}
+              style={{
+                flexShrink: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'flex-start',
+                gap: 2,
+                padding: '10px 14px',
+                borderRadius: 10,
+                border: `1.5px solid ${tpl.highlighted ? 'var(--accent)' : 'var(--border)'}`,
+                background: tpl.highlighted ? 'var(--accent-light)' : 'var(--bg-secondary)',
+                cursor: 'pointer',
+                fontFamily: 'var(--font-sans)',
+                textAlign: 'left',
+                transition: 'all 0.15s',
+                minWidth: 120,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--accent)';
+                e.currentTarget.style.background = 'var(--accent-light)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = tpl.highlighted
+                  ? 'var(--accent)'
+                  : 'var(--border)';
+                e.currentTarget.style.background = tpl.highlighted
+                  ? 'var(--accent-light)'
+                  : 'var(--bg-secondary)';
+              }}
+            >
+              <span style={{ fontSize: 18, lineHeight: 1 }}>{tpl.emoji}</span>
+              <span
+                style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: tpl.highlighted ? 'var(--accent)' : 'var(--text-primary)',
+                  marginTop: 4,
+                }}
+              >
+                {tpl.name}
+              </span>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{tpl.subtitle}</span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--accent)', marginTop: 2 }}>
+                ~₹{tpl.estimatedPrice.toLocaleString()}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Filter pills + View Toggle */}
       <div
@@ -219,12 +352,8 @@ const StepModules = () => {
             className="module-grid"
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
-              gap: '18px',
-              /* Responsive grid via media queries in CSS */
-              /* Desktop: 3-4 columns */
-              /* Tablet: 2 columns */
-              /* Mobile: 1 column */
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: '12px',
             }}
           >
             {filteredModules.map((m) => {

@@ -692,12 +692,42 @@ const AnimatedDemo = () => {
 
 const EnhancedHomePage = ({ onStart, activeConfigId, setActiveConfigId, onLaunchConfigurator }) => {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, logout, role } = useAuth();
   const { addToast } = useToast();
   const [scrolled, setScrolled] = useState(false);
   const [savedDrawerOpen, setSavedDrawerOpen] = useState(false);
   const [savedCount, setSavedCount] = useState(() => getConfigs().length);
   const { isMobile } = useResponsive();
+
+  // ── Footer modal state (Bug 8) ──
+  const [footerModal, setFooterModal] = useState(null); // null | { title, content }
+
+  const FOOTER_LINKS = [
+    {
+      label: 'Documentation',
+      title: 'Documentation',
+      content:
+        'NirmanBook Wardrobe Configurator allows interior designers and retailers to build detailed wardrobe configurations, generate accurate quotes, and export professional PDFs. Navigate through the 6-step wizard: Project → Dimensions → Modules → Materials → Hardware → Summary. Each step is guided and auto-saves your progress. For more help, reach out to support@nirmanbook.com.',
+    },
+    {
+      label: 'Support',
+      title: 'Support',
+      content:
+        'Need help? Reach us at support@nirmanbook.com or WhatsApp us at +91-XXXXXXXXXX. Our support team is available Monday to Saturday, 10am–6pm IST. For urgent order queries, please include your quote ID in the message.',
+    },
+    {
+      label: 'Privacy',
+      title: 'Privacy Policy',
+      content:
+        'NirmanBook collects only the information needed to provide the wardrobe configurator service: your name, email, and design configurations. We do not sell or share your personal data with third parties. All data is stored securely in Google Firebase infrastructure. You may request deletion of your data at any time by contacting support@nirmanbook.com.',
+    },
+    {
+      label: 'Terms',
+      title: 'Terms of Use',
+      content:
+        'By using NirmanBook, you agree to use the platform for lawful purposes only. Quotes generated are indicative and subject to final measurement and site conditions. NirmanBook is not liable for manufacturing defects arising from incorrect dimensions provided by the user. Pricing is valid for 30 days from quote generation. Unauthorised reproduction of quote documents is prohibited.',
+    },
+  ];
 
   // Refresh count whenever drawer closes
   const handleDrawerClose = () => {
@@ -722,10 +752,20 @@ const EnhancedHomePage = ({ onStart, activeConfigId, setActiveConfigId, onLaunch
 
   const handleStart = () => {
     if (!user) {
-      // Not logged in — redirect to login, then come back
+      // Not logged in — redirect to login
       navigate('/login', { state: { from: { pathname: '/' } } });
       return;
     }
+    // Role-based routing: admins and business partners go to their dashboards
+    if (role === 'super_admin') {
+      navigate('/admin');
+      return;
+    }
+    if (role === 'business_partner') {
+      navigate('/business');
+      return;
+    }
+    // Customer — launch the configurator
     if (onStart) onStart();
   };
 
@@ -879,6 +919,7 @@ const EnhancedHomePage = ({ onStart, activeConfigId, setActiveConfigId, onLaunch
                 <span style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 500 }}>
                   Hi, {user.name.split(' ')[0]}
                 </span>
+                {/* Role-based primary button */}
                 <button
                   onClick={handleStart}
                   style={{
@@ -899,7 +940,19 @@ const EnhancedHomePage = ({ onStart, activeConfigId, setActiveConfigId, onLaunch
                   onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--accent-hover)')}
                   onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--accent)')}
                 >
-                  Open Configurator <ChevronRight size={14} />
+                  {role === 'super_admin' ? (
+                    <>
+                      Admin Panel <ChevronRight size={14} />
+                    </>
+                  ) : role === 'business_partner' ? (
+                    <>
+                      Business Portal <ChevronRight size={14} />
+                    </>
+                  ) : (
+                    <>
+                      Open Configurator <ChevronRight size={14} />
+                    </>
+                  )}
                 </button>
                 <button
                   onClick={logout}
@@ -1084,9 +1137,19 @@ const EnhancedHomePage = ({ onStart, activeConfigId, setActiveConfigId, onLaunch
               }}
             >
               {user ? (
-                <>
-                  Open Configurator <ChevronRight size={16} />
-                </>
+                role === 'super_admin' ? (
+                  <>
+                    Admin Panel <ChevronRight size={16} />
+                  </>
+                ) : role === 'business_partner' ? (
+                  <>
+                    Business Portal <ChevronRight size={16} />
+                  </>
+                ) : (
+                  <>
+                    Open Configurator <ChevronRight size={16} />
+                  </>
+                )
               ) : (
                 <>
                   Start Configuring Free <ArrowRight size={16} />
@@ -1857,9 +1920,19 @@ const EnhancedHomePage = ({ onStart, activeConfigId, setActiveConfigId, onLaunch
             }}
           >
             {user ? (
-              <>
-                Open Configurator <ChevronRight size={18} />
-              </>
+              role === 'super_admin' ? (
+                <>
+                  Admin Panel <ChevronRight size={18} />
+                </>
+              ) : role === 'business_partner' ? (
+                <>
+                  Business Portal <ChevronRight size={18} />
+                </>
+              ) : (
+                <>
+                  Open Configurator <ChevronRight size={18} />
+                </>
+              )
             ) : (
               <>
                 Start Configuring — It's Free <ArrowRight size={17} />
@@ -1926,9 +1999,10 @@ const EnhancedHomePage = ({ onStart, activeConfigId, setActiveConfigId, onLaunch
             <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 4 }}>© 2026</span>
           </div>
           <div style={{ display: 'flex', gap: 24 }}>
-            {['Documentation', 'Support', 'Privacy', 'Terms'].map((l) => (
+            {FOOTER_LINKS.map(({ label, title, content }) => (
               <span
-                key={l}
+                key={label}
+                onClick={() => setFooterModal({ title, content })}
                 style={{
                   fontSize: 13,
                   color: 'var(--text-secondary)',
@@ -1938,13 +2012,105 @@ const EnhancedHomePage = ({ onStart, activeConfigId, setActiveConfigId, onLaunch
                 onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--accent)')}
                 onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-secondary)')}
               >
-                {l}
+                {label}
               </span>
             ))}
           </div>
         </footer>
       </div>
 
+      {/* ── Footer Info Modal (Bug 8) ── */}
+      {footerModal && (
+        <div
+          onClick={() => setFooterModal(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            background: 'rgba(0,0,0,0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backdropFilter: 'blur(4px)',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'var(--bg-secondary)',
+              border: '1.5px solid var(--border)',
+              borderRadius: 18,
+              padding: '32px',
+              maxWidth: 480,
+              width: '92%',
+              fontFamily: 'var(--font-sans)',
+              boxShadow: '0 24px 60px rgba(0,0,0,0.35)',
+              maxHeight: '80vh',
+              overflowY: 'auto',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: 20,
+              }}
+            >
+              <h2
+                style={{
+                  fontSize: 18,
+                  fontWeight: 800,
+                  color: 'var(--text-primary)',
+                  letterSpacing: '-0.03em',
+                }}
+              >
+                {footerModal.title}
+              </h2>
+              <button
+                onClick={() => setFooterModal(null)}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 8,
+                  border: '1px solid var(--border)',
+                  background: 'var(--bg-tertiary)',
+                  color: 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  fontSize: 16,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontFamily: 'var(--font-sans)',
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.75 }}>
+              {footerModal.content}
+            </p>
+            <button
+              onClick={() => setFooterModal(null)}
+              style={{
+                marginTop: 24,
+                width: '100%',
+                padding: '11px',
+                borderRadius: 9,
+                border: 'none',
+                background: 'var(--accent)',
+                color: 'white',
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: 'pointer',
+                fontFamily: 'var(--font-sans)',
+              }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
       {/* Saved Designs Drawer */}
       <SavedDesignsDrawer
         isOpen={savedDrawerOpen}

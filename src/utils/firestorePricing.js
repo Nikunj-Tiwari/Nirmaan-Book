@@ -31,7 +31,9 @@ import { MATERIALS, HANDLES } from '../data/config.jsx';
  * @returns {Object}       – { [docId]: docData }
  */
 async function fetchCatalogItems(subCol) {
-  const snap = await getDocs(collection(db, 'platform_catalog', subCol, 'items'));
+  // Path: platform_catalog/catalog/{subCol}/{itemId}
+  // 'catalog' is the bridging document so the subcollection path has 3 segments (odd = valid)
+  const snap = await getDocs(collection(db, 'platform_catalog', 'catalog', subCol));
   const result = {};
   snap.forEach((doc) => {
     // Only include active, non-deleted items
@@ -103,11 +105,14 @@ export function buildLocalFallbackPricing() {
 /**
  * Main entry point called by ConfigContext.
  *
- * @param {string|null} linkedBusinessId  – from the user's Firestore profile
- * @returns {Promise<Object>}             – activePricing  (throws on hard failure)
+ * Architecture change: price_overrides are no longer read at runtime.
+ * Platform prices (admin-set basePrice) are final.
+ * Business partner's own modules use their own basePrice stored in business_modules.
+ *
+ * @returns {Promise<Object>} activePricing (throws on hard failure)
  */
-export async function fetchActivePricing(linkedBusinessId) {
-  // 1. Fetch all 4 platform_catalog sub-collections in parallel
+export async function fetchActivePricing() {
+  // Fetch all 4 platform_catalog sub-collections in parallel
   const [fsModules, fsMaterials, fsHandles, fsAccessories] = await Promise.all([
     fetchCatalogItems('modules'),
     fetchCatalogItems('materials'),
@@ -115,56 +120,32 @@ export async function fetchActivePricing(linkedBusinessId) {
     fetchCatalogItems('accessories'),
   ]);
 
-  // 2. Optionally fetch price overrides for this business
-  let overrides = {};
-  if (linkedBusinessId) {
-    overrides = await fetchPriceOverrides(linkedBusinessId);
-  }
-
-  // 3. Merge modules — override customPrice wins
+  // Modules — resolvedPrice = admin's basePrice (final, no override)
   const modules = {};
   Object.entries(fsModules).forEach(([id, data]) => {
-    const override = overrides[id];
-    modules[id] = {
-      ...data,
-      // CHANGED DATA SOURCE: resolvedPrice = override.customPrice OR platform basePrice
-      resolvedPrice: override?.customPrice ?? data.basePrice ?? 0,
-    };
+    modules[id] = { ...data, resolvedPrice: data.basePrice ?? 0 };
   });
 
-  // 4. Merge materials — override customPrice used as multiplier override
+  // Materials — resolvedMultiplier = admin's priceMultiplier (final)
   const materials = {};
   Object.entries(fsMaterials).forEach(([id, data]) => {
-    const override = overrides[id];
     materials[id] = {
       ...data,
-      // CHANGED DATA SOURCE: resolvedMultiplier = override.customPrice OR platform multiplier
-      resolvedMultiplier: override?.customPrice ?? data.priceMultiplier ?? 1.0,
+      resolvedMultiplier: data.priceMultiplier ?? data.multiplier ?? 1.0,
     };
   });
 
-  // 5. Merge handles
+  // Handles — resolvedPrice = admin's basePrice (final)
   const handles = {};
   Object.entries(fsHandles).forEach(([id, data]) => {
-    const override = overrides[id];
-    handles[id] = {
-      ...data,
-      // CHANGED DATA SOURCE: resolvedPrice = override.customPrice OR platform basePrice
-      resolvedPrice: override?.customPrice ?? data.basePrice ?? 0,
-    };
-    // Also index by name for backwards compatibility with config.handle.name lookups
-    if (data.name) handles[data.name] = handles[id];
+    handles[id] = { ...data, resolvedPrice: data.basePrice ?? 0 };
+    if (data.name) handles[data.name] = handles[id]; // backwards compat name lookup
   });
 
-  // 6. Merge accessories
+  // Accessories — resolvedPrice = admin's basePrice (final)
   const accessories = {};
   Object.entries(fsAccessories).forEach(([id, data]) => {
-    const override = overrides[id];
-    accessories[id] = {
-      ...data,
-      // CHANGED DATA SOURCE: resolvedPrice = override.customPrice OR platform basePrice
-      resolvedPrice: override?.customPrice ?? data.basePrice ?? 0,
-    };
+    accessories[id] = { ...data, resolvedPrice: data.basePrice ?? 0 };
   });
 
   return { modules, materials, handles, accessories };

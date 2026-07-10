@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState, useCallback } from 'react';
+import React, { useMemo, useRef, useState, useCallback, useEffect } from 'react';
 import { MODULES } from '../data/modules';
 import { ACCESSORIES } from '../data/config.jsx';
 import {
@@ -12,7 +12,12 @@ import {
   Bookmark,
   RefreshCw,
   AlertTriangle,
+  Send,
+  ChevronLeft,
+  MoreHorizontal,
+  Plus,
 } from 'lucide-react';
+import { createQuote } from '../utils/quotesService';
 import { useResponsive } from '../hooks/useResponsive';
 import { useConfig } from '../store/ConfigContext';
 import { handlePrint, generatePDF, exportQuoteJSON, exportTextSummary } from '../utils/export';
@@ -238,6 +243,58 @@ const StepBOQ = ({ activeConfigId, setActiveConfigId, onRefreshCount }) => {
     },
     [currentUser, linkedBusinessId, activePricing, valuation.total]
   );
+
+  // ── Share Quote — saves to Firestore with full config snapshot ──────────
+  const [sendQuoteState, setSendQuoteState] = useState('idle'); // 'idle' | 'loading' | 'done'
+  const handleSendQuote = useCallback(async () => {
+    if (!currentUser?.uid) {
+      addToast('Please log in to send a quote.', 'error');
+      return;
+    }
+    setSendQuoteState('loading');
+    try {
+      await createQuote({
+        customerId: currentUser.uid,
+        customerEmail: currentUser.email ?? '',
+        businessId: linkedBusinessId ?? 'platform',
+        projectName: config.projectInfo?.name || 'Wardrobe Design',
+        wallType: config.wallType,
+        modules: config.modules,
+        activePricing,
+        valuation,
+        configSnapshot: config, // full config snapshot for round-trip reload
+      });
+      setSendQuoteState('done');
+      addToast('Quote sent successfully!', 'success');
+    } catch (err) {
+      console.error('[StepBOQ] Share quote failed:', err);
+      addToast('Failed to save quote. Please try again.', 'error');
+      setSendQuoteState('idle');
+    }
+  }, [currentUser, linkedBusinessId, config, activePricing, valuation, addToast]);
+
+  // ── More dropdown state ────────────────────────────────────────────────────
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const moreMenuRef = useRef(null);
+  useEffect(() => {
+    if (!showMoreMenu) return;
+    const handleClick = (e) => {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target)) {
+        setShowMoreMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [showMoreMenu]);
+
+  // ── Start New Design confirm dialog ───────────────────────────────────────
+  const [showNewDesignConfirm, setShowNewDesignConfirm] = useState(false);
+  // Listen for the custom event fired by ConfiguratorFlow's "Start New Design" button
+  useEffect(() => {
+    const handler = () => setShowNewDesignConfirm(true);
+    window.addEventListener('nirmanbook:startNew', handler);
+    return () => window.removeEventListener('nirmanbook:startNew', handler);
+  }, []);
 
   const handleSaveName = async (name) => {
     const newList = saveConfig({ name, configState: config, totalPrice: valuation.total });
@@ -509,46 +566,34 @@ const StepBOQ = ({ activeConfigId, setActiveConfigId, onRefreshCount }) => {
             </p>
           </div>
 
-          {/* ── Action Buttons Row ── */}
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            {/* SAVE / UPDATE */}
+          {/* ── Action Buttons Row (max 4 + More dropdown) ── */}
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+            {/* 1. ← Edit Design / Save Design */}
             {activeConfigId ? (
-              <div
+              <button
+                id="boq-edit-design-btn"
+                onClick={handleUpdate}
                 style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'flex-start',
-                  gap: 4,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 7,
+                  padding: '10px 18px',
+                  borderRadius: 8,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontFamily: 'var(--font-sans)',
+                  border: `1px solid ${updateDone ? '#16a34a' : 'var(--border)'}`,
+                  background: updateDone ? '#f0fdf4' : 'var(--bg-secondary)',
+                  color: updateDone ? '#16a34a' : 'var(--text-primary)',
+                  transition: 'all 0.2s',
+                  whiteSpace: 'nowrap',
+                  boxShadow: 'var(--shadow-xs)',
                 }}
               >
-                <button
-                  id="boq-update-design-btn"
-                  onClick={handleUpdate}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 7,
-                    padding: '10px 18px',
-                    borderRadius: 8,
-                    fontSize: 13,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    fontFamily: 'var(--font-sans)',
-                    border: `1px solid ${updateDone ? '#16a34a' : 'var(--border)'}`,
-                    background: updateDone ? '#f0fdf4' : 'var(--bg-secondary)',
-                    color: updateDone ? '#16a34a' : 'var(--text-primary)',
-                    transition: 'all 0.2s',
-                    whiteSpace: 'nowrap',
-                    boxShadow: 'var(--shadow-xs)',
-                  }}
-                >
-                  {updateDone ? <Check size={15} /> : <RefreshCw size={15} />}
-                  {updateDone ? 'Updated ✓' : 'Update Design'}
-                </button>
-                <span style={{ fontSize: 11, color: 'var(--text-muted)', paddingLeft: 2 }}>
-                  Overwrites the saved version
-                </span>
-              </div>
+                {updateDone ? <Check size={15} /> : <ChevronLeft size={15} />}
+                {updateDone ? 'Updated ✓' : '← Edit Design'}
+              </button>
             ) : (
               <button
                 id="boq-save-design-btn"
@@ -584,16 +629,8 @@ const StepBOQ = ({ activeConfigId, setActiveConfigId, onRefreshCount }) => {
                 Save Design
               </button>
             )}
-            {/* PRINT */}
-            <ActionButton
-              label="Print"
-              icon={Printer}
-              doneLabel="Sent to Printer"
-              variant="ghost"
-              onClick={async () => handlePrint()}
-            />
 
-            {/* EXPORT PDF — captures 3D screenshot first, then generates */}
+            {/* 2. Export PDF */}
             <ActionButton
               label="Export PDF"
               loadingLabel="Generating…"
@@ -603,25 +640,137 @@ const StepBOQ = ({ activeConfigId, setActiveConfigId, onRefreshCount }) => {
               onClick={handleExportPDF}
             />
 
-            {/* EXPORT JSON */}
-            <ActionButton
-              label="Export Quote"
-              loadingLabel="Exporting…"
-              doneLabel="Quote Exported"
-              icon={FileJson}
-              variant="ghost"
-              onClick={async () => exportQuoteJSON(exportPayload)}
-            />
+            {/* 3. Share Quote (was Send Quote) */}
+            <button
+              id="boq-send-quote-btn"
+              onClick={handleSendQuote}
+              disabled={sendQuoteState === 'loading' || sendQuoteState === 'done'}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 7,
+                padding: '10px 18px',
+                borderRadius: 8,
+                fontSize: 13,
+                fontWeight: 600,
+                cursor:
+                  sendQuoteState !== 'idle'
+                    ? sendQuoteState === 'loading'
+                      ? 'wait'
+                      : 'default'
+                    : 'pointer',
+                fontFamily: 'var(--font-sans)',
+                border: 'none',
+                background: sendQuoteState === 'done' ? '#22c55e' : '#4f46e5',
+                color: 'white',
+                transition: 'all 0.18s',
+                whiteSpace: 'nowrap',
+                opacity: sendQuoteState === 'loading' ? 0.75 : 1,
+              }}
+            >
+              {sendQuoteState === 'loading' ? (
+                <>
+                  <Loader2 size={14} style={{ animation: 'spin 0.8s linear infinite' }} /> Sharing…
+                </>
+              ) : sendQuoteState === 'done' ? (
+                <>
+                  <Check size={14} /> Quote Sent ✓
+                </>
+              ) : (
+                <>
+                  <Share2 size={14} /> Share Quote
+                </>
+              )}
+            </button>
 
-            {/* EXPORT TEXT SUMMARY */}
-            <ActionButton
-              label="Text Summary"
-              loadingLabel="Generating…"
-              doneLabel="Downloaded"
-              icon={FileText}
-              variant="ghost"
-              onClick={async () => exportTextSummary(exportPayload)}
-            />
+            {/* 4. ⋯ More dropdown */}
+            <div ref={moreMenuRef} style={{ position: 'relative' }}>
+              <button
+                id="boq-more-btn"
+                onClick={() => setShowMoreMenu((v) => !v)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '10px 14px',
+                  borderRadius: 8,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontFamily: 'var(--font-sans)',
+                  border: '1px solid var(--border)',
+                  background: showMoreMenu ? 'var(--bg-tertiary)' : 'var(--bg-secondary)',
+                  color: 'var(--text-primary)',
+                  transition: 'all 0.15s',
+                  whiteSpace: 'nowrap',
+                  boxShadow: 'var(--shadow-xs)',
+                }}
+              >
+                <MoreHorizontal size={15} /> More
+              </button>
+              {showMoreMenu && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 6px)',
+                    right: 0,
+                    background: 'var(--bg-secondary)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 10,
+                    boxShadow: 'var(--shadow-lg)',
+                    zIndex: 100,
+                    minWidth: 180,
+                    overflow: 'hidden',
+                    padding: '4px 0',
+                  }}
+                >
+                  {[
+                    { label: 'Print', icon: Printer, fn: () => handlePrint() },
+                    {
+                      label: 'Text Summary',
+                      icon: FileText,
+                      fn: () => exportTextSummary(exportPayload),
+                    },
+                    {
+                      label: 'Export JSON',
+                      icon: FileJson,
+                      fn: () => exportQuoteJSON(exportPayload),
+                    },
+                  ].map(({ label, icon: Icon, fn }) => (
+                    <button
+                      key={label}
+                      onClick={() => {
+                        fn();
+                        setShowMoreMenu(false);
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        width: '100%',
+                        padding: '10px 14px',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontSize: 13,
+                        fontWeight: 500,
+                        color: 'var(--text-primary)',
+                        fontFamily: 'var(--font-sans)',
+                        textAlign: 'left',
+                        transition: 'background 0.1s',
+                      }}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.background = 'var(--bg-tertiary)')
+                      }
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+                    >
+                      <Icon size={14} color="var(--text-muted)" />
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -1000,61 +1149,7 @@ const StepBOQ = ({ activeConfigId, setActiveConfigId, onRefreshCount }) => {
               </div>
             </div>
 
-            {/* CTA / Export Card */}
-            <div
-              className="print-cta-card"
-              style={{
-                background: 'var(--accent-light)',
-                border: '1.5px solid var(--accent-border)',
-                borderRadius: 12,
-                padding: '24px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 16,
-                boxShadow: 'var(--shadow-sm)',
-              }}
-            >
-              <div>
-                <h4
-                  style={{ fontSize: 16, fontWeight: 700, color: 'var(--accent)', marginBottom: 8 }}
-                >
-                  Ready to Proceed?
-                </h4>
-                <p
-                  style={{
-                    fontSize: 13,
-                    color: 'var(--text-secondary)',
-                    lineHeight: 1.6,
-                    maxWidth: '65ch',
-                  }}
-                >
-                  Export this quote as a PDF, share the JSON data file, or download a plain-text
-                  summary. Pricing is valid for 30 days.
-                </p>
-              </div>
-              <div
-                className="print:hidden"
-                data-html2canvas-ignore="true"
-                style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}
-              >
-                <ActionButton
-                  label="Export PDF"
-                  loadingLabel="Generating…"
-                  doneLabel="PDF Downloaded"
-                  icon={Download}
-                  variant="primary"
-                  onClick={() => generatePDF(printRef.current)}
-                />
-                <ActionButton
-                  label="Export JSON"
-                  loadingLabel="Exporting…"
-                  doneLabel="Exported"
-                  icon={FileJson}
-                  variant="ghost"
-                  onClick={async () => exportQuoteJSON(exportPayload)}
-                />
-              </div>
-            </div>
+            {/* CTA card removed — duplicate export buttons were here (Bug 3 fix) */}
           </div>
         </div>
         {/* end printRef zone */}
@@ -1120,6 +1215,115 @@ const StepBOQ = ({ activeConfigId, setActiveConfigId, onRefreshCount }) => {
           onConfirm={handleSaveName}
           onClose={() => setShowSaveModal(false)}
         />
+      )}
+
+      {/* ── Start New Design confirm dialog (Bug 2) ── */}
+      {showNewDesignConfirm && (
+        <div
+          onClick={() => setShowNewDesignConfirm(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            background: 'rgba(0,0,0,0.55)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backdropFilter: 'blur(2px)',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'var(--bg-secondary)',
+              border: '1.5px solid var(--border)',
+              borderRadius: 16,
+              padding: '28px 28px 22px',
+              maxWidth: 420,
+              width: '90%',
+              fontFamily: 'var(--font-sans)',
+              boxShadow: 'var(--shadow-xl)',
+            }}
+          >
+            <div
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: 14,
+                background: 'rgba(239,68,68,0.1)',
+                border: '1.5px solid rgba(239,68,68,0.25)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 16,
+              }}
+            >
+              <RefreshCw size={22} color="#ef4444" />
+            </div>
+            <h3
+              style={{
+                fontSize: 17,
+                fontWeight: 800,
+                color: 'var(--text-primary)',
+                marginBottom: 10,
+              }}
+            >
+              Start a New Design?
+            </h3>
+            <p
+              style={{
+                fontSize: 13,
+                color: 'var(--text-secondary)',
+                lineHeight: 1.65,
+                marginBottom: 24,
+              }}
+            >
+              Starting a new design will clear your current configuration. Make sure you have
+              exported or saved your quote first. Continue?
+            </p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => {
+                  setShowNewDesignConfirm(false);
+                  // We need to call reset from actions — passed via useConfig
+                  // This is handled by the parent ConfiguratorFlow via navigation
+                  window.__nirmanbook_startNew?.();
+                }}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  borderRadius: 9,
+                  border: 'none',
+                  background: '#ef4444',
+                  color: 'white',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  fontFamily: 'var(--font-sans)',
+                }}
+              >
+                Yes, Start New
+              </button>
+              <button
+                onClick={() => setShowNewDesignConfirm(false)}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  borderRadius: 9,
+                  border: '1.5px solid var(--border)',
+                  background: 'transparent',
+                  color: 'var(--text-secondary)',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontFamily: 'var(--font-sans)',
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );

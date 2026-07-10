@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { Bookmark } from 'lucide-react';
 import logo from './assets/logo.png';
@@ -22,8 +22,19 @@ import AdminRoute from './components/guards/AdminRoute';
 // ── New: pages (placeholders until their dedicated steps) ──
 import PendingApproval from './components/PendingApproval';
 import CustomerDashboard from './components/CustomerDashboard';
-import BusinessDashboard from './components/BusinessDashboard';
+// BusinessDashboard and BusinessPricing now live in components/business/
+import BusinessDashboard from './components/business/BusinessDashboard';
+import BusinessPricing from './components/business/BusinessPricing';
+import BusinessCatalog from './components/business/BusinessCatalog';
+// AdminDashboard: new structured admin panel (3 sections)
+import AdminDashboard from './components/admin/AdminDashboard';
+// AdminPanel: legacy full-featured panel — kept for /admin/full
 import AdminPanel from './components/AdminPanel';
+// Admin sub-pages
+import AdminUsers from './components/admin/AdminUsers';
+import AdminCatalog from './components/admin/AdminCatalog';
+import AdminQuotes from './components/admin/AdminQuotes';
+import AdminSeed from './components/admin/AdminSeed';
 
 // Global State
 import { useConfig } from './store/ConfigContext';
@@ -108,8 +119,21 @@ const ConfiguratorApp = ({ setConfigured, activeConfigId, setActiveConfigId }) =
   const [savedDrawerOpen, setSavedDrawerOpen] = useState(false);
   const [draftBanner, setDraftBanner] = useState(null);
   const { actions, lastDraftSave } = useConfig();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { addToast } = useToast();
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef(null);
+
+  // Close profile dropdown on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (profileRef.current && !profileRef.current.contains(e.target)) {
+        setProfileOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   // Reactive saved-design count
   const [savedCount, setSavedCount] = useState(() => getConfigs().length);
@@ -325,23 +349,117 @@ const ConfiguratorApp = ({ setConfigured, activeConfigId, setActiveConfigId }) =
               <ThemeToggle size="sm" />
 
               {user && (
-                <div
-                  title={`Logged in as ${user.name}`}
-                  style={{
-                    width: 30,
-                    height: 30,
-                    borderRadius: '50%',
-                    background: 'var(--accent)',
-                    color: 'white',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 700,
-                    fontSize: 12,
-                    flexShrink: 0,
-                  }}
-                >
-                  {user.name?.charAt(0)?.toUpperCase() || 'U'}
+                <div ref={profileRef} style={{ position: 'relative' }}>
+                  <button
+                    id="configurator-profile-btn"
+                    title={`Logged in as ${user.name || user.email}`}
+                    onClick={() => setProfileOpen((o) => !o)}
+                    style={{
+                      width: 30,
+                      height: 30,
+                      borderRadius: '50%',
+                      background: profileOpen ? 'var(--accent-hover, #2563eb)' : 'var(--accent)',
+                      color: 'white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 700,
+                      fontSize: 12,
+                      flexShrink: 0,
+                      border: 'none',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    {user.name?.charAt(0)?.toUpperCase() ||
+                      user.email?.charAt(0)?.toUpperCase() ||
+                      'U'}
+                  </button>
+                  {profileOpen && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 38,
+                        right: 0,
+                        minWidth: 200,
+                        background: 'var(--bg-secondary)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 12,
+                        boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+                        padding: '8px 0',
+                        zIndex: 100,
+                      }}
+                    >
+                      <div
+                        style={{
+                          padding: '8px 14px 10px',
+                          borderBottom: '1px solid var(--border)',
+                        }}
+                      >
+                        <div
+                          style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}
+                        >
+                          {user.name || 'User'}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                          {user.email}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setProfileOpen(false);
+                          navigate('/dashboard');
+                        }}
+                        style={{
+                          display: 'flex',
+                          width: '100%',
+                          padding: '9px 14px',
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--text-secondary)',
+                          fontSize: 13,
+                          fontWeight: 500,
+                          cursor: 'pointer',
+                          fontFamily: 'var(--font-sans)',
+                          textAlign: 'left',
+                          transition: 'background 0.1s',
+                        }}
+                        onMouseEnter={(e) =>
+                          (e.currentTarget.style.background = 'var(--bg-tertiary)')
+                        }
+                        onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+                      >
+                        My Dashboard
+                      </button>
+                      <button
+                        onClick={async () => {
+                          setProfileOpen(false);
+                          await logout();
+                          navigate('/login', { replace: true });
+                        }}
+                        style={{
+                          display: 'flex',
+                          width: '100%',
+                          padding: '9px 14px',
+                          background: 'none',
+                          border: 'none',
+                          color: '#dc2626',
+                          fontSize: 13,
+                          fontWeight: 500,
+                          cursor: 'pointer',
+                          fontFamily: 'var(--font-sans)',
+                          textAlign: 'left',
+                          transition: 'background 0.1s',
+                        }}
+                        onMouseEnter={(e) =>
+                          (e.currentTarget.style.background = 'var(--bg-tertiary)')
+                        }
+                        onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+                      >
+                        Sign Out
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -480,8 +598,15 @@ const App = () => {
           path="/business/pricing"
           element={
             <BusinessRoute>
-              {/* BusinessPricing placeholder — built in Step 5 */}
-              <BusinessDashboard />
+              <BusinessPricing />
+            </BusinessRoute>
+          }
+        />
+        <Route
+          path="/business/catalog"
+          element={
+            <BusinessRoute>
+              <BusinessCatalog />
             </BusinessRoute>
           }
         />
@@ -489,6 +614,47 @@ const App = () => {
         {/* ── Admin routes ── */}
         <Route
           path="/admin"
+          element={
+            <AdminRoute>
+              <AdminDashboard />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/users"
+          element={
+            <AdminRoute>
+              <AdminUsers />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/catalog"
+          element={
+            <AdminRoute>
+              <AdminCatalog />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/quotes"
+          element={
+            <AdminRoute>
+              <AdminQuotes />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/seed"
+          element={
+            <AdminRoute>
+              <AdminSeed />
+            </AdminRoute>
+          }
+        />
+        {/* /admin/full → legacy full AdminPanel with all tabs */}
+        <Route
+          path="/admin/full"
           element={
             <AdminRoute>
               <AdminPanel />

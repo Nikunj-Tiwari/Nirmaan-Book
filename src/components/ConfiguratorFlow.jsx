@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ChevronRight, ChevronLeft } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Plus } from 'lucide-react';
 import HorizontalStepper from './HorizontalStepper';
 import StepProject from './StepProject';
 import PreviewPanel from './PreviewPanel';
@@ -34,7 +34,7 @@ const ConfiguratorFlow = ({ activeConfigId, setActiveConfigId, onRefreshCount })
   const location = useLocation();
   const { isMobile } = useResponsive();
   const { addToast } = useToast();
-  const { derived } = useConfig();
+  const { derived, pricingLoaded, actions } = useConfig(); // ── added actions for reset
   const { isStepLocked, getLockReason, canNavigateTo } = useStepGuard();
   const { valuation } = derived;
 
@@ -49,6 +49,17 @@ const ConfiguratorFlow = ({ activeConfigId, setActiveConfigId, onRefreshCount })
       navigate('/configure/project', { replace: true });
     }
   }, [currentPath, navigate]);
+
+  // Register global callback so StepBOQ's confirm dialog can trigger the reset
+  useEffect(() => {
+    window.__nirmanbook_startNew = () => {
+      actions.reset();
+      navigate('/configure/project', { replace: true });
+    };
+    return () => {
+      delete window.__nirmanbook_startNew;
+    };
+  }, [actions, navigate]);
 
   const navigateToStep = useCallback(
     (stepId) => {
@@ -75,7 +86,41 @@ const ConfiguratorFlow = ({ activeConfigId, setActiveConfigId, onRefreshCount })
   }, [currentStep, navigateToStep]);
 
   // Render the active step's control panel content
+  // ── CHANGED: gate steps 2+ on pricingLoaded (Firestore pricing must be ready) ──
   const renderStepContent = () => {
+    // Steps 2–6 need resolved pricing data before rendering.
+    // Step 1 (Project Info) has no pricing dependency — always render it.
+    if (currentStep > 1 && !pricingLoaded) {
+      return (
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '100%',
+            gap: 14,
+            color: 'var(--text-muted)',
+            fontFamily: 'var(--font-sans)',
+          }}
+        >
+          {/* Spinner */}
+          <div
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: '50%',
+              border: '3px solid var(--border)',
+              borderTopColor: 'var(--accent)',
+              animation: 'cfgSpin 0.8s linear infinite',
+            }}
+          />
+          <span style={{ fontSize: 13, fontWeight: 500 }}>Loading catalog…</span>
+          <style>{`@keyframes cfgSpin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      );
+    }
+
     switch (currentStep) {
       case 1:
         return <StepProject />;
@@ -420,46 +465,76 @@ const BottomNav = ({
       <div style={{ flex: 1 }} />
     )}
 
-    {/* Continue */}
-    <button
-      onClick={onNext}
-      disabled={currentStep === 6 || isNextLocked}
-      title={
-        isNextLocked && getLockReason
-          ? getLockReason(currentStep + 1)
-          : currentStep === 6
-            ? 'You are on the final step'
-            : 'Continue to next step'
-      }
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 5,
-        padding: '7px 20px',
-        borderRadius: 8,
-        border: 'none',
-        background: currentStep === 6 || isNextLocked ? 'var(--bg-tertiary)' : 'var(--accent)',
-        color: currentStep === 6 || isNextLocked ? 'var(--text-muted)' : 'white',
-        fontSize: 13,
-        fontWeight: 700,
-        cursor: currentStep === 6 || isNextLocked ? 'not-allowed' : 'pointer',
-        opacity: currentStep === 6 || isNextLocked ? 0.5 : 1,
-        fontFamily: 'var(--font-sans)',
-        transition: 'all 0.15s',
-        boxShadow: currentStep < 6 && !isNextLocked ? 'var(--shadow-sm)' : 'none',
-      }}
-      onMouseEnter={(e) => {
-        if (currentStep < 6 && !isNextLocked)
-          e.currentTarget.style.background = 'var(--accent-dark, #1d4ed8)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background =
-          currentStep === 6 || isNextLocked ? 'var(--bg-tertiary)' : 'var(--accent)';
-      }}
-    >
-      {currentStep === 6 ? 'Complete' : 'Continue'}
-      {currentStep < 6 && <ChevronRight size={14} />}
-    </button>
+    {/* Continue / Start New Design */}
+    {currentStep === 6 ? (
+      <button
+        id="boq-start-new-btn"
+        onClick={() => {
+          // Trigger the confirm dialog inside StepBOQ via the global callback chain:
+          // StepBOQ's dialog calls window.__nirmanbook_startNew on confirm.
+          // We open the dialog by dispatching a custom event that StepBOQ listens to.
+          window.dispatchEvent(new CustomEvent('nirmanbook:startNew'));
+        }}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 5,
+          padding: '7px 20px',
+          borderRadius: 8,
+          border: '1px solid var(--border)',
+          background: 'var(--bg-secondary)',
+          color: 'var(--text-primary)',
+          fontSize: 13,
+          fontWeight: 700,
+          cursor: 'pointer',
+          fontFamily: 'var(--font-sans)',
+          transition: 'all 0.15s',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.borderColor = 'var(--accent)';
+          e.currentTarget.style.color = 'var(--accent)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.borderColor = 'var(--border)';
+          e.currentTarget.style.color = 'var(--text-primary)';
+        }}
+      >
+        <Plus size={14} /> Start New Design
+      </button>
+    ) : (
+      <button
+        onClick={onNext}
+        disabled={isNextLocked}
+        title={
+          isNextLocked && getLockReason ? getLockReason(currentStep + 1) : 'Continue to next step'
+        }
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 5,
+          padding: '7px 20px',
+          borderRadius: 8,
+          border: 'none',
+          background: isNextLocked ? 'var(--bg-tertiary)' : 'var(--accent)',
+          color: isNextLocked ? 'var(--text-muted)' : 'white',
+          fontSize: 13,
+          fontWeight: 700,
+          cursor: isNextLocked ? 'not-allowed' : 'pointer',
+          opacity: isNextLocked ? 0.5 : 1,
+          fontFamily: 'var(--font-sans)',
+          transition: 'all 0.15s',
+          boxShadow: !isNextLocked ? 'var(--shadow-sm)' : 'none',
+        }}
+        onMouseEnter={(e) => {
+          if (!isNextLocked) e.currentTarget.style.background = 'var(--accent-dark, #1d4ed8)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = isNextLocked ? 'var(--bg-tertiary)' : 'var(--accent)';
+        }}
+      >
+        Continue <ChevronRight size={14} />
+      </button>
+    )}
   </div>
 );
 

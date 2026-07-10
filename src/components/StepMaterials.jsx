@@ -1,6 +1,6 @@
 import React from 'react';
 import { Check } from 'lucide-react';
-import { MATERIALS, COLOURS } from '../data/config.jsx';
+import { COLOURS } from '../data/config.jsx';
 import { useConfig } from '../store/ConfigContext';
 import { useToast } from './ToastProvider';
 import Tooltip from './Tooltip';
@@ -12,7 +12,7 @@ import { useResponsive } from '../hooks/useResponsive';
  * Part of the 5-step configurator flow.
  */
 const StepMaterials = () => {
-  const { config, actions } = useConfig();
+  const { config, actions, activeMaterials } = useConfig();
   const { addToast } = useToast();
   const { material, colour, fascia } = config;
   const { isMobile } = useResponsive();
@@ -60,7 +60,7 @@ const StepMaterials = () => {
         <div>
           <div className="section-title">Core Material</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {MATERIALS.map((m) => (
+            {(activeMaterials || []).map((m) => (
               <button
                 key={m.id}
                 onClick={() => {

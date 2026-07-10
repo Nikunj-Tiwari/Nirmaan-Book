@@ -10,16 +10,24 @@ import { AuthSpinner } from './CustomerRoute';
  *   role == "super_admin"
  *
  * Otherwise:
- *   loading                 → spinner
- *   not signed in           → /login  (preserving from-location)
- *   role == "customer"      → /dashboard
+ *   loading                    → spinner
+ *   user signed in, role null  → spinner (profile still resolving)
+ *   not signed in              → /login  (preserving from-location)
+ *   role == "customer"         → /dashboard
  *   role == "business_partner" → /business  (or /pending-approval if pending)
  */
 const AdminRoute = ({ children }) => {
   const { currentUser, role, status, loading } = useAuth();
   const location = useLocation();
 
+  // Auth context still resolving — wait
   if (loading) return <AuthSpinner label="Verifying admin access..." />;
+
+  // User is signed in but Firestore profile hasn't resolved role yet — wait
+  // This prevents premature redirect when Firebase auth fires before Firestore read completes
+  if (currentUser && role === null) {
+    return <AuthSpinner label="Loading admin profile..." />;
+  }
 
   if (!currentUser) {
     return <Navigate to="/login" state={{ from: location }} replace />;

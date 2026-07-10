@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Maximize2 } from 'lucide-react';
 import { useConfig } from '../store/ConfigContext';
+import { ACCESSORIES } from '../data/config.jsx';
 import FullscreenPreviewModal from './FullscreenPreviewModal';
 import Viewer3D from './Viewer3D';
 import { drawBlueprintLight } from '../utils/visuals';
@@ -18,6 +19,9 @@ const PreviewPanel = ({ currentStep }) => {
   const containerRef = useRef(null);
 
   const { totalModules, modulesList } = derived;
+
+  // Derive active accessories list for the overlay badge
+  const activeAccessories = ACCESSORIES.filter((a) => config.selectedAccessories?.has?.(a.id));
 
   // ── Responsive canvas: match container size & redraw on resize ───────────
   const draw = useCallback(() => {
@@ -225,6 +229,68 @@ const PreviewPanel = ({ currentStep }) => {
             width3={config.width3}
             darkMode={true}
           />
+        )}
+
+        {/* ── Active Accessories overlay (shown only in 3D mode) ── */}
+        {viewMode === '3d' && activeAccessories.length > 0 && (
+          <div
+            style={{
+              position: 'absolute',
+              bottom: 14,
+              left: 14,
+              zIndex: 10,
+              background: 'rgba(0,0,0,0.55)',
+              backdropFilter: 'blur(8px)',
+              border: '1px solid rgba(197,139,78,0.25)',
+              borderRadius: 10,
+              padding: '8px 12px',
+              maxWidth: 200,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 9,
+                fontWeight: 700,
+                color: 'rgba(197,139,78,0.85)',
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                marginBottom: 6,
+              }}
+            >
+              Active Accessories
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              {activeAccessories.slice(0, 4).map((acc) => (
+                <div
+                  key={acc.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    fontSize: 11,
+                    color: '#F3EEE7',
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 5,
+                      height: 5,
+                      borderRadius: '50%',
+                      background: 'var(--accent)',
+                      flexShrink: 0,
+                      display: 'block',
+                    }}
+                  />
+                  {acc.name}
+                </div>
+              ))}
+              {activeAccessories.length > 4 && (
+                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', paddingLeft: 11 }}>
+                  +{activeAccessories.length - 4} more
+                </div>
+              )}
+            </div>
+          </div>
         )}
       </div>
 

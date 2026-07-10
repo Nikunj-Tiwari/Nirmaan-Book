@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { HANDLES, LIGHTING, ACCESSORIES, BRANDS } from '../data/config.jsx';
+import { LIGHTING, BRANDS } from '../data/config.jsx';
 import { useConfig } from '../store/ConfigContext';
 import { useToast } from './ToastProvider';
 import { Check, ChevronDown } from 'lucide-react';
@@ -174,7 +174,7 @@ const OptionCard = ({ item, isSelected, onClick }) => (
    Main component
 ───────────────────────────────────────────── */
 const StepHardware = () => {
-  const { config, actions } = useConfig();
+  const { config, actions, activeHandles, activeAccessories } = useConfig();
   const { addToast } = useToast();
   const { handle, lighting, brand, selectedAccessories } = config;
 
@@ -292,7 +292,7 @@ const StepHardware = () => {
               <AccordionBody open={handlesOpen}>
                 <div style={{ padding: '0 10px 12px 14px' }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                    {HANDLES.map((h) => (
+                    {(activeHandles || []).map((h) => (
                       <OptionCard
                         key={h.name}
                         item={h}
@@ -370,7 +370,7 @@ const StepHardware = () => {
 
             {/* Vertical checkbox list — all items from ACCESSORIES data */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {ACCESSORIES.map((acc) => {
+              {(activeAccessories || []).map((acc) => {
                 const isSelected = selectedAccessories.has(acc.id);
                 return (
                   <button
