@@ -2,15 +2,13 @@
  * Firebase Cloud Functions — NirmanBook
  *
  * getImageKitAuthParams:
- *   Generates server-side auth parameters for direct ImageKit uploads.
- *   The client (ImageUploadField.jsx) calls this, then POSTs directly to
- *   ImageKit's upload endpoint. No Firebase Storage / Blaze plan needed.
+ *   Returns signed auth params for direct ImageKit uploads from the browser.
+ *   Uses modern process.env (Firebase Functions v2 style) — no legacy config.
  *
- * Setup:
- *   firebase functions:config:set imagekit.private_key="YOUR_PRIVATE_KEY"
- *   firebase functions:config:set imagekit.public_key="YOUR_PUBLIC_KEY"
- *   firebase functions:config:set imagekit.url_endpoint="https://ik.imagekit.io/YOUR_ID"
- *   firebase deploy --only functions
+ * Secrets loaded from functions/.env (never committed):
+ *   IMAGEKIT_PRIVATE_KEY
+ *   IMAGEKIT_PUBLIC_KEY
+ *   IMAGEKIT_URL_ENDPOINT
  */
 
 const functions = require('firebase-functions');
@@ -20,33 +18,22 @@ const ImageKit = require('@imagekit/nodejs');
 admin.initializeApp();
 
 exports.getImageKitAuthParams = functions.https.onCall(async (data, context) => {
-  // Only logged-in users can request upload auth
   if (!context.auth) {
-    throw new functions.https.HttpsError(
-      'unauthenticated',
-      'You must be logged in to upload images.'
-    );
+    throw new functions.https.HttpsError('unauthenticated', 'Login required to upload images.');
   }
 
-  const privateKey = functions.config().imagekit?.private_key;
-  const publicKey = functions.config().imagekit?.public_key;
-  const urlEndpoint = functions.config().imagekit?.url_endpoint;
+  const privateKey = process.env.IMAGEKIT_PRIVATE_KEY;
+  const publicKey = process.env.IMAGEKIT_PUBLIC_KEY;
+  const urlEndpoint = process.env.IMAGEKIT_URL_ENDPOINT;
 
   if (!privateKey) {
     throw new functions.https.HttpsError(
       'failed-precondition',
-      'ImageKit private key is not configured. Run: firebase functions:config:set imagekit.private_key="YOUR_KEY"'
+      'ImageKit private key not configured. Add IMAGEKIT_PRIVATE_KEY to functions/.env'
     );
   }
 
-  const imagekit = new ImageKit({
-    publicKey: publicKey || '',
-    privateKey,
-    urlEndpoint: urlEndpoint || '',
-  });
-
-  // Generate time-limited auth signature (valid ~30 minutes)
+  const imagekit = new ImageKit({ publicKey, privateKey, urlEndpoint });
   const authParams = imagekit.getAuthenticationParameters();
-
   return authParams; // { token, expire, signature }
 });
