@@ -5,6 +5,15 @@ import * as THREE from 'three';
 import RoomEnvironment from './three/RoomEnvironment';
 import WardrobeAssembly from './three/WardrobeAssembly';
 import { useConfig } from '../store/ConfigContext';
+import {
+  wardrobeModules,
+  cornerUnits,
+  wardrobeAccessories as STATIC_ACCESSORIES,
+} from '../../wardrobeCatalogueData.js';
+
+// ─── Static catalogue lookup (works before/after Firestore seeding) ────────────
+const ALL_CATALOGUE_DEFS = [...wardrobeModules, ...cornerUnits];
+const CATALOGUE_BY_ID = Object.fromEntries(ALL_CATALOGUE_DEFS.map((m) => [m.id, m]));
 
 const mmToMeters = (v) => v / 1000;
 
@@ -217,13 +226,25 @@ export function Viewer3D({
   width3 = 1200,
   onGLReady,
 }) {
-  const { actions, config } = useConfig();
+  const { actions, config, activeAccessories } = useConfig();
   const [viewPreset, setViewPreset] = useState('perspective');
   const [hoveredModule, setHoveredModule] = useState(null);
   const [selectedModule, setSelectedModule] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showWallPanel, setShowWallPanel] = useState(false);
   const orbitRef = useRef();
+
+  // Augment each module with selectedAccessory from the Interior Fitting selector (Fix 6 + Round 2).
+  // This is the bridge from config.moduleAccessories → ModuleMesh.jsx without touching engine.js
+  // or WardrobeAssembly.jsx — module objects already carry all fields transparently.
+  const modulesWithAccessory = useMemo(
+    () =>
+      modules.map((m) => ({
+        ...m,
+        selectedAccessory: config.moduleAccessories?.[m.id] ?? null,
+      })),
+    [modules, config.moduleAccessories]
+  );
 
   const isMultiWall = wallType === 'l-shape' || wallType === 'u-shape';
   const availableWalls = wallType === 'u-shape' ? ['A', 'B', 'C'] : ['A', 'B'];
@@ -315,7 +336,7 @@ export function Viewer3D({
         <color attach="background" args={[bgColor]} />
 
         <CameraRig
-          modules={modules}
+          modules={modulesWithAccessory}
           roomWidth={roomWidth}
           roomHeight={roomHeight}
           roomDepth={roomDepth}
@@ -347,9 +368,9 @@ export function Viewer3D({
             width3={width3}
           />
 
-          {modules.length > 0 && (
+          {modulesWithAccessory.length > 0 && (
             <WardrobeAssembly
-              modules={modules}
+              modules={modulesWithAccessory}
               material={material}
               roomDimensions={{
                 width: roomWidth || 2400,
@@ -404,9 +425,9 @@ export function Viewer3D({
           ◈ Live 3D Preview
         </div>
         <div style={{ fontSize: 15, fontWeight: 700, color: '#f1f5f9' }}>
-          {modules.length === 0
+          {modulesWithAccessory.length === 0
             ? 'No modules'
-            : `${modules.length} Module${modules.length !== 1 ? 's' : ''}`}
+            : `${modulesWithAccessory.length} Module${modulesWithAccessory.length !== 1 ? 's' : ''}`}
         </div>
         {hoveredModule && (
           <div
@@ -708,6 +729,124 @@ export function Viewer3D({
               </div>
             )}
           </div>
+
+          {/* ── Interior Fitting (Fix 6) ───────────────────────────────────
+               Shown only for modules with accessoryEditable === true.
+               Looked up from wardrobeCatalogueData.js so it works before
+               Firestore is seeded.  Selection stored in config.moduleAccessories.
+          ──────────────────────────────────────────────────────────────── */}
+          {(() => {
+            const catDef = CATALOGUE_BY_ID[selectedModule.id];
+            if (!catDef?.accessoryEditable) return null;
+
+            // Build fitting options: prefer Firestore accessories (have images),
+            // fall back to static list from wardrobeCatalogueData.js.
+            // IMPORTANT: use strict slotType === 'accessory' — do NOT default null/undefined
+            // slotType to 'accessory', or hardware items (hinges, lift motors, etc.) leak in.
+            const firestoreOpts = (activeAccessories || []).filter(
+              (a) => a.slotType === 'accessory'
+            );
+            const staticOpts = STATIC_ACCESSORIES.filter((a) => a.slotType === 'accessory');
+            // Use Firestore list if it has properly-tagged items; otherwise fall back to static
+            const fittingOptions = firestoreOpts.length > 0 ? firestoreOpts : staticOpts;
+
+            // Default = what the module's sections say; override = whatever user picked
+            const defaultSlot =
+              (catDef.sections || []).find((s) => s.type === 'accessory')?.slot ?? null;
+            const currentId = (config.moduleAccessories || {})[selectedModule.id] ?? defaultSlot;
+
+            if (fittingOptions.length === 0) return null;
+
+            return (
+              <div>
+                <div
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 600,
+                    color: 'rgba(255,255,255,0.6)',
+                    marginBottom: 8,
+                  }}
+                >
+                  INTERIOR FITTING
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {fittingOptions.map((acc) => {
+                    const isSelected = currentId === acc.id;
+                    return (
+                      <button
+                        key={acc.id}
+                        onClick={() => {
+                          actions.setModuleAccessory(selectedModule.id, acc.id);
+                          console.log(
+                            '[Fix6] Interior fitting set:',
+                            selectedModule.id,
+                            '->',
+                            acc.id
+                          );
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '6px 8px',
+                          borderRadius: 6,
+                          border: isSelected
+                            ? '1px solid #3b82f6'
+                            : '1px solid rgba(255,255,255,0.1)',
+                          background: isSelected
+                            ? 'rgba(59,130,246,0.2)'
+                            : 'rgba(255,255,255,0.05)',
+                          color: isSelected ? '#60a5fa' : 'rgba(255,255,255,0.55)',
+                          fontSize: 11,
+                          fontWeight: isSelected ? 700 : 500,
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          transition: 'all 0.15s',
+                          fontFamily: 'inherit',
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isSelected)
+                            e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isSelected)
+                            e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                        }}
+                      >
+                        {isSelected && (
+                          <span style={{ color: '#3b82f6', fontSize: 9, flexShrink: 0 }}>✓</span>
+                        )}
+                        {acc.name}
+                      </button>
+                    );
+                  })}
+                </div>
+                {currentId && currentId !== defaultSlot && (
+                  <button
+                    onClick={() => {
+                      actions.setModuleAccessory(selectedModule.id, null);
+                      console.log('[Fix6] Interior fitting reset to default:', selectedModule.id);
+                    }}
+                    style={{
+                      marginTop: 4,
+                      width: '100%',
+                      padding: '3px',
+                      background: 'none',
+                      border: 'none',
+                      color: 'rgba(255,255,255,0.3)',
+                      fontSize: 9,
+                      cursor: 'pointer',
+                      textDecoration: 'underline',
+                      fontFamily: 'inherit',
+                    }}
+                  >
+                    Reset to default
+                  </button>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Wall Control */}
           {isMultiWall && (

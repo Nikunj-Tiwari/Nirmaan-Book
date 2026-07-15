@@ -51,6 +51,9 @@ const initialState = {
   lighting: LIGHTING[0],
   brand: BRANDS[0],
   selectedAccessories: new Set(),
+  // moduleAccessories: maps moduleId -> selected accessory id (for accessoryEditable modules)
+  // Defaults to the module's original sections accessory slot; customer can swap.
+  moduleAccessories: {},
   projectInfo: {
     name: '',
     type: 'Consultation',
@@ -104,6 +107,16 @@ function configReducer(state, action) {
         newAccessories.add(action.payload.id);
       }
       return { ...state, selectedAccessories: newAccessories };
+    }
+    case 'SET_MODULE_ACCESSORY': {
+      const { moduleId, accessoryId } = action.payload;
+      const newModuleAccessories = { ...state.moduleAccessories };
+      if (!accessoryId) {
+        delete newModuleAccessories[moduleId];
+      } else {
+        newModuleAccessories[moduleId] = accessoryId;
+      }
+      return { ...state, moduleAccessories: newModuleAccessories };
     }
     case 'LOAD_CONFIG':
       return { ...initialState, ...action.payload };
@@ -180,6 +193,12 @@ export const ConfigProvider = ({ children }) => {
       basePrice: Number(m.basePrice) || 0,
       imageUrl: m.imageUrl || null,
       layout: m.layout || {},
+      // Preserve catalogue fields needed for Fix 6 accessory swap UI
+      sections: m.sections || [],
+      accessoryEditable: m.accessoryEditable || false,
+      displayId: m.displayId || m.id,
+      availableIn: m.availableIn || [],
+      cornerVariant: m.cornerVariant || null,
       createdByName: m.createdByName || 'Admin',
       source: 'platform',
     });
@@ -250,6 +269,9 @@ export const ConfigProvider = ({ children }) => {
           price: Number(a.basePrice ?? a.price) || 0,
           icon: null,
           category: a.category || '',
+          // Preserve slotType for interior fittings selector (Fix 6)
+          slotType: a.slotType || null,
+          imageUrl: a.imageUrl || null,
         }));
       } catch (err) {
         console.error('[ConfigContext] accessories fetch failed:', err);
@@ -383,6 +405,8 @@ export const ConfigProvider = ({ children }) => {
     setWallOffset: (wall, offset) =>
       dispatch({ type: 'SET_WALL_OFFSET', payload: { wall, offset } }),
     toggleAccessory: (id) => dispatch({ type: 'TOGGLE_ACCESSORY', payload: { id } }),
+    setModuleAccessory: (moduleId, accessoryId) =>
+      dispatch({ type: 'SET_MODULE_ACCESSORY', payload: { moduleId, accessoryId } }),
     reset: () => dispatch({ type: 'RESET_CONFIG' }),
     loadConfig: (data) => {
       dispatch({ type: 'LOAD_CONFIG', payload: dataToConfig(data) });
@@ -413,6 +437,8 @@ export const ConfigProvider = ({ children }) => {
         activeMaterials,
         activeHandles,
         activeAccessories,
+        // moduleAccessories: moduleId -> selected accessory id
+        moduleAccessories: config.moduleAccessories,
       }}
     >
       {children}

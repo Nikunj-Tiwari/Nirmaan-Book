@@ -6,6 +6,7 @@ import { Search, Grid3X3, List, Zap } from 'lucide-react';
 import ModuleCard from './ModuleCard';
 import { useResponsive } from '../hooks/useResponsive';
 import { useToast } from './ToastProvider';
+import { wardrobeAccessories as STATIC_ACCESSORIES } from '../../wardrobeCatalogueData.js';
 
 const QUICK_TEMPLATES = [
   {
@@ -42,7 +43,8 @@ const QUICK_TEMPLATES = [
 ];
 
 const StepModules = () => {
-  const { config, derived, actions, activeModules } = useConfig();
+  const { config, derived, actions, activeModules, activeAccessories, moduleAccessories } =
+    useConfig();
   const { addToast } = useToast();
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -362,21 +364,125 @@ const StepModules = () => {
 
               const { onFocusNext, onFocusPrev } = createFocusHandlers(m.id, filteredModules);
 
+              // ── Interior fitting inline selector (Fix 6) ──────────────
+              // Only compute this for selected accessoryEditable modules.
+              const showFittingSelector = qty > 0 && m.accessoryEditable === true;
+              let fittingSelector = null;
+              if (showFittingSelector) {
+                const defaultSlotEntry = (m.sections || []).find((s) => s.type === 'accessory');
+                const defaultSlot = defaultSlotEntry?.slot ?? null;
+                const firestoreOpts = (activeAccessories || []).filter(
+                  (a) => a.slotType === 'accessory'
+                );
+                const staticOpts = STATIC_ACCESSORIES.filter((a) => a.slotType === 'accessory');
+                const fittingOpts = firestoreOpts.length > 0 ? firestoreOpts : staticOpts;
+                const currentId = moduleAccessories?.[m.id] ?? defaultSlot ?? null;
+
+                fittingSelector =
+                  fittingOpts.length > 0 ? (
+                    <div
+                      style={{
+                        background: '#f0fdf4',
+                        border: '1px solid #bbf7d0',
+                        borderTop: 'none',
+                        borderRadius: '0 0 var(--radius-lg) var(--radius-lg)',
+                        padding: '8px 10px 10px',
+                        minWidth: 0,
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          color: '#16a34a',
+                          letterSpacing: '0.06em',
+                          textTransform: 'uppercase',
+                          marginBottom: 6,
+                        }}
+                      >
+                        Interior fitting
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                        {fittingOpts.map((acc) => {
+                          const isActive = currentId === acc.id;
+                          return (
+                            <button
+                              key={acc.id}
+                              onClick={() => actions.setModuleAccessory(m.id, acc.id)}
+                              title={
+                                acc.price
+                                  ? `₹${Number(acc.price).toLocaleString('en-IN')}`
+                                  : acc.name
+                              }
+                              style={{
+                                padding: '3px 9px',
+                                borderRadius: 99,
+                                border: `1.5px solid ${isActive ? '#16a34a' : '#86efac'}`,
+                                background: isActive ? '#16a34a' : 'white',
+                                color: isActive ? 'white' : '#15803d',
+                                fontSize: 11,
+                                fontWeight: isActive ? 700 : 500,
+                                cursor: 'pointer',
+                                transition: 'all 0.15s',
+                                fontFamily: 'var(--font-sans)',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {isActive && <span style={{ marginRight: 3 }}>✓</span>}
+                              {acc.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {currentId && currentId !== defaultSlot && (
+                        <button
+                          onClick={() => actions.setModuleAccessory(m.id, null)}
+                          style={{
+                            marginTop: 5,
+                            background: 'none',
+                            border: 'none',
+                            padding: 0,
+                            fontSize: 10,
+                            color: '#86efac',
+                            cursor: 'pointer',
+                            textDecoration: 'underline',
+                            fontFamily: 'var(--font-sans)',
+                          }}
+                        >
+                          Reset to default
+                        </button>
+                      )}
+                    </div>
+                  ) : null;
+              }
+
               return (
-                <ModuleCard
-                  key={m.id}
-                  ref={(el) => {
-                    moduleRefs.current[m.id] = el;
-                  }}
-                  module={m}
-                  qty={qty}
-                  canAdd={canAdd}
-                  onQtyChange={chQty}
-                  typeColors={TYPE_COLORS}
-                  typeLabels={TYPE_LABELS}
-                  onFocusNext={onFocusNext}
-                  onFocusPrev={onFocusPrev}
-                />
+                <div key={m.id} style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                  <ModuleCard
+                    ref={(el) => {
+                      moduleRefs.current[m.id] = el;
+                    }}
+                    module={m}
+                    qty={qty}
+                    canAdd={canAdd}
+                    onQtyChange={chQty}
+                    typeColors={TYPE_COLORS}
+                    typeLabels={TYPE_LABELS}
+                    onFocusNext={onFocusNext}
+                    onFocusPrev={onFocusPrev}
+                    cardStyleOverride={
+                      fittingSelector
+                        ? {
+                            borderBottomLeftRadius: 0,
+                            borderBottomRightRadius: 0,
+                            boxShadow: 'none',
+                          }
+                        : undefined
+                    }
+                  />
+                  {fittingSelector}
+                </div>
               );
             })}
           </div>
@@ -551,6 +657,199 @@ const StepModules = () => {
           No modules found matching "{searchTerm}"
         </div>
       )}
+      {/* ── Interior Fittings (Fix 6) ─────────────────────────────────────────
+          Shown only when at least one accessoryEditable module is selected.
+          Lets the customer swap the fitting slot (tray / trouser rack / etc).
+      ─────────────────────────────────────────────────────────────────────── */}
+      {(() => {
+        // Find selected modules that have accessoryEditable === true
+        const editableSelected = activeModules.filter(
+          (m) => m.accessoryEditable === true && (config.modules[m.id] || 0) > 0
+        );
+        if (editableSelected.length === 0) return null;
+
+        return (
+          <div
+            style={{
+              background: 'var(--bg-secondary)',
+              border: '1px solid var(--border)',
+              borderRadius: 12,
+              overflow: 'hidden',
+            }}
+          >
+            {/* Header */}
+            <div
+              style={{
+                padding: '12px 16px 10px',
+                borderBottom: '1px solid var(--border)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+              }}
+            >
+              <span style={{ fontSize: 15 }}>🪄</span>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+                  Interior Fittings
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
+                  Swap the fitting inside each module — choose from matching options
+                </div>
+              </div>
+            </div>
+
+            {/* One row per accessoryEditable module */}
+            {editableSelected.map((mod) => {
+              // Get default slot from sections (the accessory section's slot value)
+              const defaultSlotEntry = (mod.sections || []).find((s) => s.type === 'accessory');
+              const defaultSlot = defaultSlotEntry?.slot ?? null;
+
+              // IMPORTANT: strict slotType === 'accessory' — do NOT default null/undefined
+              // to 'accessory', or hardware items (hinges, lift motors, etc.) will leak in.
+              const matchingSlotType = 'accessory';
+
+              // Filter Firestore accessories by strict slotType, then fall back to static catalogue
+              const firestoreOpts = (activeAccessories || []).filter(
+                (a) => a.slotType === matchingSlotType
+              );
+              const staticOpts = STATIC_ACCESSORIES.filter((a) => a.slotType === matchingSlotType);
+              const matchingAccessories = firestoreOpts.length > 0 ? firestoreOpts : staticOpts;
+
+              // Current selection: from state, or fall back to the default slot
+              const currentId = moduleAccessories?.[mod.id] ?? defaultSlot ?? null;
+
+              return (
+                <div
+                  key={mod.id}
+                  style={{
+                    padding: '12px 16px',
+                    borderBottom: '1px solid var(--border)',
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    alignItems: 'center',
+                    gap: 10,
+                  }}
+                >
+                  {/* Module name */}
+                  <div style={{ minWidth: 160, flex: '0 0 auto' }}>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: 'var(--text-primary)',
+                        lineHeight: 1.3,
+                      }}
+                    >
+                      {mod.name}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 10,
+                        color: 'var(--text-muted)',
+                        fontFamily: 'monospace',
+                        marginTop: 2,
+                      }}
+                    >
+                      {mod.id}
+                    </div>
+                  </div>
+
+                  {/* Label */}
+                  <div
+                    style={{
+                      fontSize: 11,
+                      color: 'var(--text-secondary)',
+                      fontWeight: 600,
+                      flexShrink: 0,
+                    }}
+                  >
+                    Interior fitting:
+                  </div>
+
+                  {/* Pill selector */}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {matchingAccessories.length === 0 ? (
+                      <span
+                        style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}
+                      >
+                        No fittings available yet (import catalogue first)
+                      </span>
+                    ) : (
+                      matchingAccessories.map((acc) => {
+                        const isSelected = currentId === acc.id;
+                        return (
+                          <button
+                            key={acc.id}
+                            onClick={() => actions.setModuleAccessory(mod.id, acc.id)}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 6,
+                              padding: '5px 12px',
+                              borderRadius: 99,
+                              border: `1.5px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}`,
+                              background: isSelected ? 'var(--accent-light)' : 'var(--bg-primary)',
+                              color: isSelected ? 'var(--accent)' : 'var(--text-secondary)',
+                              fontSize: 12,
+                              fontWeight: isSelected ? 700 : 500,
+                              cursor: 'pointer',
+                              transition: 'all 0.15s',
+                              fontFamily: 'var(--font-sans)',
+                              whiteSpace: 'nowrap',
+                            }}
+                            title={acc.price ? `₹${acc.price.toLocaleString()}` : ''}
+                          >
+                            {acc.imageUrl && (
+                              <img
+                                src={acc.imageUrl}
+                                alt=""
+                                style={{
+                                  width: 18,
+                                  height: 18,
+                                  borderRadius: 4,
+                                  objectFit: 'cover',
+                                  flexShrink: 0,
+                                }}
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                }}
+                              />
+                            )}
+                            {acc.name}
+                            {isSelected && (
+                              <span style={{ fontSize: 9, opacity: 0.7, marginLeft: 2 }}>✓</span>
+                            )}
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  {/* Reset to default link */}
+                  {currentId && currentId !== defaultSlot && (
+                    <button
+                      onClick={() => actions.setModuleAccessory(mod.id, null)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        fontSize: 11,
+                        color: 'var(--text-muted)',
+                        cursor: 'pointer',
+                        textDecoration: 'underline',
+                        fontFamily: 'var(--font-sans)',
+                        flexShrink: 0,
+                      }}
+                    >
+                      Reset to default
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
     </div>
   );
 };

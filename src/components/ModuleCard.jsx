@@ -12,7 +12,20 @@ import { useToast } from './ToastProvider';
  *   - Category badge had no blur/pill treatment
  */
 const ModuleCard = React.forwardRef(
-  ({ module, qty, canAdd, onQtyChange, typeColors, typeLabels, onFocusNext, onFocusPrev }, ref) => {
+  (
+    {
+      module,
+      qty,
+      canAdd,
+      onQtyChange,
+      typeColors,
+      typeLabels,
+      onFocusNext,
+      onFocusPrev,
+      cardStyleOverride,
+    },
+    ref
+  ) => {
     const { addToast } = useToast();
     const [imageError, setImageError] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
@@ -110,6 +123,7 @@ const ModuleCard = React.forwardRef(
           transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
           transform: isHovered ? 'translateY(-3px)' : 'translateY(0)',
           position: 'relative',
+          ...(cardStyleOverride || {}),
         }}
       >
         {/* ── Image Container ──────────────────────────────────────────

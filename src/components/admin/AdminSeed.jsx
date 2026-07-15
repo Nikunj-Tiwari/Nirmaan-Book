@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   collection,
   getDocs,
@@ -10,18 +10,20 @@ import {
 } from 'firebase/firestore';
 import { db } from '../../firebase';
 import AdminLayout from './AdminLayout';
-import { Sprout, AlertTriangle, CheckCircle, Loader } from 'lucide-react';
+import { Sprout, AlertTriangle, CheckCircle, Loader, Download, BookOpen } from 'lucide-react';
+import { importCatalogueData } from '../../utils/importCatalogueData';
 
 // ── Platform catalog seed data ────────────────────────────────────────────────
 const SEED_MODULES = [
   {
     id: 'full-hanging',
     name: 'Full Hanging',
-    category: 'Storage',
+    category: 'Hanging',
     basePrice: 5500,
     width: 600,
     height: 2100,
     depth: 580,
+    layout: { hang: 1, shelves: 0, drawers: 0, shoe: 0, cubbies: 0 },
     isActive: true,
     isDeleted: false,
   },
@@ -33,50 +35,55 @@ const SEED_MODULES = [
     width: 450,
     height: 2100,
     depth: 580,
+    layout: { hang: 0, shelves: 0, drawers: 5, shoe: 0, cubbies: 0 },
     isActive: true,
     isDeleted: false,
   },
   {
     id: 'shoe-rack',
     name: 'Shoe Rack',
-    category: 'Accessories',
+    category: 'Shoe',
     basePrice: 6500,
     width: 450,
     height: 2100,
     depth: 580,
+    layout: { hang: 0, shelves: 0, drawers: 0, shoe: 5, cubbies: 0 },
     isActive: true,
     isDeleted: false,
   },
   {
     id: 'half-hanging',
     name: 'Half Hanging',
-    category: 'Storage',
+    category: 'Hanging',
     basePrice: 4800,
     width: 600,
     height: 1050,
     depth: 580,
+    layout: { hang: 1, shelves: 1, drawers: 0, shoe: 0, cubbies: 0 },
     isActive: true,
     isDeleted: false,
   },
   {
     id: 'locker-unit',
     name: 'Locker Unit',
-    category: 'Storage',
+    category: 'Shelves',
     basePrice: 3200,
     width: 300,
     height: 2100,
     depth: 580,
+    layout: { hang: 0, shelves: 4, drawers: 0, shoe: 0, cubbies: 0 },
     isActive: true,
     isDeleted: false,
   },
   {
     id: 'open-shelf',
     name: 'Open Shelf Unit',
-    category: 'Display',
+    category: 'Shelves',
     basePrice: 2800,
     width: 600,
     height: 600,
     depth: 400,
+    layout: { hang: 0, shelves: 3, drawers: 0, shoe: 0, cubbies: 0 },
     isActive: true,
     isDeleted: false,
   },
@@ -202,6 +209,35 @@ const AdminSeed = () => {
   const [phase, setPhase] = useState('idle'); // idle | checking | confirm | seeding | done | error
   const [progress, setProgress] = useState('');
   const [error, setError] = useState('');
+
+  // ── Real Catalogue Import state ──────────────────────────────────────────
+  const [importPhase, setImportPhase] = useState('idle'); // idle | running | done | error
+  const [importLog, setImportLog] = useState([]);
+  const [importError, setImportError] = useState('');
+  const [importSummary, setImportSummary] = useState(null);
+  const logEndRef = useRef(null);
+
+  const doImport = async () => {
+    setImportPhase('running');
+    setImportLog([]);
+    setImportError('');
+    setImportSummary(null);
+    const lines = [];
+    try {
+      const summary = await importCatalogueData({
+        onProgress: (msg) => {
+          lines.push(msg);
+          setImportLog([...lines]);
+          setTimeout(() => logEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
+        },
+      });
+      setImportSummary(summary);
+      setImportPhase('done');
+    } catch (err) {
+      setImportError(err.message);
+      setImportPhase('error');
+    }
+  };
 
   const handleSeedClick = async () => {
     setPhase('checking');
@@ -508,6 +544,224 @@ const AdminSeed = () => {
               Try Again
             </button>
           </>
+        )}
+      </div>
+
+      {/* ── Real Catalogue Import Card ──────────────────────────────────────── */}
+      <div
+        style={{
+          background: 'var(--bg-secondary)',
+          border: '1px solid var(--border)',
+          borderRadius: 16,
+          padding: 40,
+          maxWidth: 700,
+          marginTop: 28,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
+          <div
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: 12,
+              background: 'rgba(99,102,241,0.1)',
+              border: '1px solid rgba(99,102,241,0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            <BookOpen size={22} color="#6366f1" />
+          </div>
+          <div>
+            <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+              Import Real Catalogue Data
+            </h2>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 0' }}>
+              Uploads 71 product images to ImageKit, then seeds 49 modules, 7 colours, 9 fascia and
+              6 accessories into Firestore.
+            </p>
+          </div>
+        </div>
+
+        <div
+          style={{
+            background: 'rgba(245,158,11,0.08)',
+            border: '1px solid rgba(245,158,11,0.25)',
+            borderRadius: 8,
+            padding: '10px 14px',
+            fontSize: 12,
+            color: '#d97706',
+            marginBottom: 20,
+            lineHeight: 1.6,
+          }}
+        >
+          ⚠️ <strong>Pricing placeholder:</strong> All modules import with basePrice&nbsp;=&nbsp;0.
+          Set real prices in Admin Catalog → Modules tab afterward.
+        </div>
+
+        {importPhase === 'idle' && (
+          <button
+            onClick={doImport}
+            style={{ ...btnBase, background: '#6366f1', color: 'white' }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = '#4f46e5')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = '#6366f1')}
+          >
+            <Download size={16} /> Import Real Catalogue Data
+          </button>
+        )}
+
+        {importPhase === 'running' && (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+              <Loader
+                size={18}
+                color="#6366f1"
+                style={{ animation: 'spin 1s linear infinite', flexShrink: 0 }}
+              />
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+                Importing… please wait
+              </span>
+            </div>
+            <div
+              style={{
+                background: 'var(--bg-primary)',
+                border: '1px solid var(--border)',
+                borderRadius: 8,
+                padding: 12,
+                maxHeight: 260,
+                overflowY: 'auto',
+                fontFamily: 'monospace',
+                fontSize: 11,
+                lineHeight: 1.7,
+                color: 'var(--text-secondary)',
+              }}
+            >
+              {importLog.map((line, i) => (
+                <div key={i} style={{ whiteSpace: 'pre-wrap' }}>
+                  {line || '\u00a0'}
+                </div>
+              ))}
+              <div ref={logEndRef} />
+            </div>
+          </div>
+        )}
+
+        {importPhase === 'done' && importSummary && (
+          <div>
+            <div
+              style={{
+                display: 'flex',
+                gap: 12,
+                alignItems: 'flex-start',
+                background: 'rgba(34,197,94,0.08)',
+                border: '1px solid rgba(34,197,94,0.25)',
+                borderRadius: 10,
+                padding: '14px 16px',
+                marginBottom: 16,
+              }}
+            >
+              <CheckCircle size={18} color="#16a34a" style={{ flexShrink: 0, marginTop: 1 }} />
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#15803d', marginBottom: 6 }}>
+                  Import complete!
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.8 }}>
+                  <div>
+                    Images uploaded:{' '}
+                    <strong>
+                      {importSummary.imagesUploaded}/
+                      {importSummary.imagesUploaded + importSummary.imagesFailed}
+                    </strong>
+                  </div>
+                  <div>
+                    Modules + corners:{' '}
+                    <strong>
+                      {importSummary.modulesWritten + importSummary.cornerUnitsWritten}
+                    </strong>
+                  </div>
+                  <div>
+                    Internal colours: <strong>{importSummary.coloursWritten}</strong>
+                  </div>
+                  <div>
+                    Drawer fascia: <strong>{importSummary.fasciaWritten}</strong>
+                  </div>
+                  <div>
+                    Accessories: <strong>{importSummary.accessoriesWritten}</strong>
+                  </div>
+                  {importSummary.imagesFailed > 0 && (
+                    <div style={{ color: '#dc2626', marginTop: 4 }}>
+                      ⚠️ {importSummary.imagesFailed} image(s) failed — check console
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setImportPhase('idle');
+                setImportLog([]);
+                setImportSummary(null);
+              }}
+              style={{
+                ...btnBase,
+                background: 'var(--bg-tertiary)',
+                color: 'var(--text-secondary)',
+                border: '1px solid var(--border)',
+              }}
+            >
+              Run Again
+            </button>
+          </div>
+        )}
+
+        {importPhase === 'error' && (
+          <div>
+            <div
+              style={{
+                display: 'flex',
+                gap: 12,
+                alignItems: 'flex-start',
+                background: 'rgba(220,38,38,0.08)',
+                border: '1px solid rgba(220,38,38,0.25)',
+                borderRadius: 10,
+                padding: '14px 16px',
+                marginBottom: 16,
+              }}
+            >
+              <AlertTriangle size={18} color="#dc2626" style={{ flexShrink: 0, marginTop: 1 }} />
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#dc2626', marginBottom: 4 }}>
+                  Import failed
+                </div>
+                <p
+                  style={{
+                    fontSize: 12,
+                    color: 'var(--text-secondary)',
+                    margin: 0,
+                    fontFamily: 'monospace',
+                  }}
+                >
+                  {importError}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setImportPhase('idle');
+                setImportLog([]);
+              }}
+              style={{
+                ...btnBase,
+                background: 'var(--bg-tertiary)',
+                color: 'var(--text-secondary)',
+                border: '1px solid var(--border)',
+              }}
+            >
+              Try Again
+            </button>
+          </div>
         )}
       </div>
     </AdminLayout>

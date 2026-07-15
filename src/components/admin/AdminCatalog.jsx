@@ -67,13 +67,25 @@ const sel = {
   paddingRight: 30,
 };
 
-const MODULE_CATS = ['Shelves', 'Hanging', 'Drawers', 'Shoe', 'Corner', 'Specialty', 'Other'];
+const MODULE_CATS = [
+  'Shelves',
+  'Hanging',
+  'Drawers',
+  'Shoe',
+  'Corner',
+  'Specialty',
+  'Mixed',
+  'Other',
+];
 const ACC_CATS = ['Trouser Rack', 'Jewellery', 'Shoe Storage', 'Hanger', 'Mirror', 'Tray', 'Other'];
+const ACC_SLOT_TYPES = ['hanging', 'accessory', 'shoe'];
 const TABS = [
   { id: 'modules', label: 'Modules' },
   { id: 'materials', label: 'Materials' },
   { id: 'handles', label: 'Handles' },
   { id: 'accessories', label: 'Accessories' },
+  { id: 'internalColours', label: 'Internal Colours' },
+  { id: 'drawerFascia', label: 'Drawer Fascia' },
 ];
 
 function makeId(name) {
@@ -167,50 +179,132 @@ const TF = ({ label: l, field, form, setForm, type = 'text', ph = '' }) => (
   </div>
 );
 
-const ModuleForm = ({ form, setForm }) => (
-  <div
-    style={{
-      display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-      gap: 14,
-    }}
-  >
-    <TF label="Name" field="name" form={form} setForm={setForm} ph="Module name" />
-    <div style={fld}>
-      <label style={lbl}>Category</label>
-      <CategorySelect
-        value={form.category || ''}
-        options={MODULE_CATS}
-        onChange={(v) => setForm((p) => ({ ...p, category: v }))}
-      />
-    </div>
-    <TF
-      label="Base Price (Rs)"
-      field="basePrice"
-      form={form}
-      setForm={setForm}
+// Category → sensible default layout (used when Admin picks a category in the form)
+const CATEGORY_LAYOUT_DEFAULTS = {
+  Hanging: { hang: 1, shelves: 1, drawers: 0, shoe: 0, cubbies: 0 },
+  Shelves: { hang: 0, shelves: 4, drawers: 0, shoe: 0, cubbies: 0 },
+  Drawers: { hang: 0, shelves: 0, drawers: 4, shoe: 0, cubbies: 0 },
+  Shoe: { hang: 0, shelves: 0, drawers: 0, shoe: 4, cubbies: 0 },
+  Corner: { hang: 0, shelves: 3, drawers: 0, shoe: 0, cubbies: 2 },
+  Specialty: { hang: 0, shelves: 2, drawers: 1, shoe: 0, cubbies: 0 },
+  Other: { hang: 0, shelves: 2, drawers: 0, shoe: 0, cubbies: 0 },
+};
+
+const LayoutField = ({ label: l, layoutKey, form, setForm }) => (
+  <div style={fld}>
+    <label style={lbl}>{l}</label>
+    <input
+      style={inp}
       type="number"
-      ph="5500"
+      min={0}
+      max={10}
+      value={(form.layout || {})[layoutKey] ?? 0}
+      onChange={(e) =>
+        setForm((p) => ({
+          ...p,
+          layout: { ...(p.layout || {}), [layoutKey]: Number(e.target.value) },
+        }))
+      }
+      onFocus={focAcc}
+      onBlur={blrBdr}
     />
-    <TF label="Width (mm)" field="width" form={form} setForm={setForm} type="number" ph="600" />
-    <TF label="Height (mm)" field="height" form={form} setForm={setForm} type="number" ph="2400" />
-    <TF label="Depth (mm)" field="depth" form={form} setForm={setForm} type="number" ph="600" />
-    <div style={{ ...fld, gridColumn: 'span 2' }}>
-      <label style={lbl}>Module Image (optional)</label>
-      <ImageUploadField
-        value={form.imageUrl || ''}
-        onChange={(v) => setForm((p) => ({ ...p, imageUrl: v }))}
-      />
-    </div>
-    <div style={fld}>
-      <label style={lbl}>Status</label>
-      <StatusToggle
-        value={form.isActive !== false}
-        onChange={(v) => setForm((p) => ({ ...p, isActive: v }))}
-      />
-    </div>
   </div>
 );
+
+const ModuleForm = ({ form, setForm }) => {
+  // Auto-fill layout defaults when category changes
+  const handleCategoryChange = (v) => {
+    const defaults = CATEGORY_LAYOUT_DEFAULTS[v] || CATEGORY_LAYOUT_DEFAULTS.Other;
+    setForm((p) => ({
+      ...p,
+      category: v,
+      layout: p.layout && Object.values(p.layout).some((n) => n > 0) ? p.layout : { ...defaults },
+    }));
+  };
+
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+        gap: 14,
+      }}
+    >
+      <TF label="Name" field="name" form={form} setForm={setForm} ph="Module name" />
+      <div style={fld}>
+        <label style={lbl}>Category</label>
+        <CategorySelect
+          value={form.category || ''}
+          options={MODULE_CATS}
+          onChange={handleCategoryChange}
+        />
+      </div>
+      <TF
+        label="Base Price (Rs)"
+        field="basePrice"
+        form={form}
+        setForm={setForm}
+        type="number"
+        ph="5500"
+      />
+      <TF label="Width (mm)" field="width" form={form} setForm={setForm} type="number" ph="600" />
+      <TF
+        label="Height (mm)"
+        field="height"
+        form={form}
+        setForm={setForm}
+        type="number"
+        ph="2400"
+      />
+      <TF label="Depth (mm)" field="depth" form={form} setForm={setForm} type="number" ph="600" />
+      {/* ── 3D Layout fields — controls what appears in the 3D preview ── */}
+      <div style={{ gridColumn: '1 / -1', marginTop: 4 }}>
+        <p
+          style={{
+            ...lbl,
+            marginBottom: 10,
+            fontSize: 11,
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+          }}
+        >
+          3D Interior Layout
+          <span
+            style={{ fontSize: 10, fontWeight: 400, color: 'var(--text-muted)', marginLeft: 8 }}
+          >
+            Controls shelves/drawers/rails shown in 3D preview
+          </span>
+        </p>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
+            gap: 10,
+          }}
+        >
+          <LayoutField label="Hanging Rails" layoutKey="hang" form={form} setForm={setForm} />
+          <LayoutField label="Shelves" layoutKey="shelves" form={form} setForm={setForm} />
+          <LayoutField label="Drawers" layoutKey="drawers" form={form} setForm={setForm} />
+          <LayoutField label="Shoe Levels" layoutKey="shoe" form={form} setForm={setForm} />
+        </div>
+      </div>
+      <div style={{ ...fld, gridColumn: 'span 2' }}>
+        <label style={lbl}>Module Image (optional)</label>
+        <ImageUploadField
+          value={form.imageUrl || ''}
+          onChange={(v) => setForm((p) => ({ ...p, imageUrl: v }))}
+        />
+      </div>
+      <div style={fld}>
+        <label style={lbl}>Status</label>
+        <StatusToggle
+          value={form.isActive !== false}
+          onChange={(v) => setForm((p) => ({ ...p, isActive: v }))}
+        />
+      </div>
+    </div>
+  );
+};
 
 const MaterialForm = ({ form, setForm }) => (
   <div
@@ -298,6 +392,23 @@ const AccessoryForm = ({ form, setForm }) => (
         onChange={(v) => setForm((p) => ({ ...p, category: v }))}
       />
     </div>
+    <div style={fld}>
+      <label style={lbl}>Slot Type</label>
+      <select
+        style={sel}
+        value={form.slotType || ''}
+        onFocus={focAcc}
+        onBlur={blrBdr}
+        onChange={(e) => setForm((p) => ({ ...p, slotType: e.target.value }))}
+      >
+        <option value="">Select slot type…</option>
+        {ACC_SLOT_TYPES.map((s) => (
+          <option key={s} value={s}>
+            {s}
+          </option>
+        ))}
+      </select>
+    </div>
     <TF
       label="Base Price (Rs)"
       field="basePrice"
@@ -306,6 +417,92 @@ const AccessoryForm = ({ form, setForm }) => (
       type="number"
       ph="1200"
     />
+    <div style={fld}>
+      <label style={lbl}>Status</label>
+      <StatusToggle
+        value={form.isActive !== false}
+        onChange={(v) => setForm((p) => ({ ...p, isActive: v }))}
+      />
+    </div>
+  </div>
+);
+
+const InternalColourForm = ({ form, setForm }) => (
+  <div
+    style={{
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+      gap: 14,
+    }}
+  >
+    <TF label="Name" field="name" form={form} setForm={setForm} ph="e.g. Twist Ivory" />
+    <div style={fld}>
+      <label style={lbl}>Hex Colour</label>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <input
+          type="color"
+          value={form.hex || '#ffffff'}
+          onChange={(e) => setForm((p) => ({ ...p, hex: e.target.value }))}
+          style={{
+            width: 38,
+            height: 38,
+            border: '1.5px solid var(--border)',
+            borderRadius: 6,
+            cursor: 'pointer',
+            padding: 2,
+          }}
+        />
+        <input
+          style={{ ...inp, flex: 1 }}
+          type="text"
+          value={form.hex || ''}
+          placeholder="#f2f1ec"
+          onChange={(e) => setForm((p) => ({ ...p, hex: e.target.value }))}
+          onFocus={focAcc}
+          onBlur={blrBdr}
+        />
+      </div>
+    </div>
+    <div style={{ ...fld, gridColumn: 'span 2' }}>
+      <label style={lbl}>Colour Swatch Image (optional)</label>
+      <ImageUploadField
+        value={form.imageUrl || ''}
+        onChange={(v) => setForm((p) => ({ ...p, imageUrl: v }))}
+      />
+    </div>
+    <div style={fld}>
+      <label style={lbl}>Status</label>
+      <StatusToggle
+        value={form.isActive !== false}
+        onChange={(v) => setForm((p) => ({ ...p, isActive: v }))}
+      />
+    </div>
+  </div>
+);
+
+const DrawerFasciaForm = ({ form, setForm }) => (
+  <div
+    style={{
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+      gap: 14,
+    }}
+  >
+    <TF label="Name" field="name" form={form} setForm={setForm} ph="e.g. Akila" />
+    <TF
+      label="Handle Style"
+      field="handleStyle"
+      form={form}
+      setForm={setForm}
+      ph="e.g. twin-pull"
+    />
+    <div style={{ ...fld, gridColumn: 'span 2' }}>
+      <label style={lbl}>Fascia Image (optional)</label>
+      <ImageUploadField
+        value={form.imageUrl || ''}
+        onChange={(v) => setForm((p) => ({ ...p, imageUrl: v }))}
+      />
+    </div>
     <div style={fld}>
       <label style={lbl}>Status</label>
       <StatusToggle
@@ -328,6 +525,7 @@ const itemToForm = (item, type) => {
       height: item.height ?? '',
       depth: item.depth ?? '',
       imageUrl: item.imageUrl || '',
+      layout: item.layout || { hang: 0, shelves: 0, drawers: 0, shoe: 0, cubbies: 0 },
     };
   if (type === 'materials')
     return {
@@ -349,13 +547,31 @@ const itemToForm = (item, type) => {
       ...b,
       name: item.name || '',
       category: item.category || '',
+      slotType: item.slotType || '',
       basePrice: item.basePrice ?? '',
+      imageUrl: item.imageUrl || '',
+    };
+  if (type === 'internalColours')
+    return {
+      ...b,
+      name: item.name || '',
+      hex: item.hex || '#ffffff',
+      imageUrl: item.imageUrl || '',
+    };
+  if (type === 'drawerFascia')
+    return {
+      ...b,
+      name: item.name || '',
+      handleStyle: item.handleStyle || '',
       imageUrl: item.imageUrl || '',
     };
   return { ...b };
 };
 
 const displayCat = (item) => {
+  if (item.hex) return item.hex; // internalColours
+  if (item.handleStyle) return item.handleStyle; // drawerFascia
+  if (item.slotType) return 'slot: ' + item.slotType; // accessories with slotType
   if (item.category) return item.category;
   if (item.priceMultiplier != null) return 'x' + item.priceMultiplier;
   return '-';
@@ -527,6 +743,8 @@ const AdminCatalog = () => {
     if (tab === 'materials') return <MaterialForm form={form} setForm={setForm} />;
     if (tab === 'handles') return <HandleForm form={form} setForm={setForm} />;
     if (tab === 'accessories') return <AccessoryForm form={form} setForm={setForm} />;
+    if (tab === 'internalColours') return <InternalColourForm form={form} setForm={setForm} />;
+    if (tab === 'drawerFascia') return <DrawerFasciaForm form={form} setForm={setForm} />;
     return null;
   };
 
@@ -573,7 +791,7 @@ const AdminCatalog = () => {
             Platform Catalog
           </h1>
           <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-            Manage all modules, materials, handles and accessories
+            Manage all modules, materials, handles, accessories, internal colours and drawer fascia
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -759,7 +977,26 @@ const AdminCatalog = () => {
                           {item.id}
                         </div>
                       </td>
-                      <td style={{ ...td, color: 'var(--text-secondary)' }}>{displayCat(item)}</td>
+                      <td style={{ ...td, color: 'var(--text-secondary)' }}>
+                        {item.hex ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                            <span
+                              style={{
+                                display: 'inline-block',
+                                width: 18,
+                                height: 18,
+                                borderRadius: 4,
+                                background: item.hex,
+                                border: '1px solid var(--border)',
+                                flexShrink: 0,
+                              }}
+                            />
+                            {item.hex}
+                          </div>
+                        ) : (
+                          displayCat(item)
+                        )}
+                      </td>
                       <td style={td}>
                         {item.basePrice != null
                           ? 'Rs ' + Number(item.basePrice).toLocaleString('en-IN')

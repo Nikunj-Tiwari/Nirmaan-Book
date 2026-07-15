@@ -95,7 +95,7 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
   const numHang = layout.hang || 0;
   const numShoe = layout.shoe || 0;
   const numCubbies = layout.cubbies || 0;
-  const isCorner = layout.corner === true;
+  const isCorner = layout.corner === true || !!module.cornerVariant;
 
   /**
    * isOpenFront — true for all 'hanging' type modules.
@@ -185,10 +185,13 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
     const topShelfY = height - pt - height * 0.15;
 
     // Identify specific corner module
-    const is20A = module.id === 'OW 20A' || module.id === 'OW 20 A';
-    const is20B = module.id === 'OW 20B' || module.id === 'OW 20 B';
-    const is21A = module.id === 'OW 21A' || module.id === 'OW 21 A';
-    const is21B = module.id === 'OW 21B' || module.id === 'OW 21 B';
+    // Use displayId for corner sub-type matching so Firestore-loaded modules
+    // (id: 'OW-20A') match correctly via their displayId ('OW 20 A').
+    const dispId = module.displayId || module.id;
+    const is20A = dispId === 'OW 20 A' || dispId === 'OW 20A';
+    const is20B = dispId === 'OW 20 B' || dispId === 'OW 20B';
+    const is21A = dispId === 'OW 21 A' || dispId === 'OW 21A';
+    const is21B = dispId === 'OW 21 B' || dispId === 'OW 21B';
 
     const hasSwingDoor = is20A || is21A;
     const leftHasShelves = is20B || is21B; // 21B says "open", photo shows shelves in left arm? Wait, 21B says "open", let's assume it matches 20B's interior
@@ -405,10 +408,54 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
     <Rail key={key} position={[xCenter, y, 0]} length={(halfWidth - pt) * 0.88} />
   );
 
+  // ── Accessory-zone swap helpers ────────────────────────────────────────────
+  // glassTray: thin translucent panel (jewellery or accessory tray)
+  const glassTray = (key, y) => (
+    <mesh key={key} position={[0, y, 0]} castShadow receiveShadow>
+      <boxGeometry args={[innerW, pt * 0.6, innerD]} />
+      <meshStandardMaterial
+        color="#b8d8e8"
+        roughness={0.04}
+        metalness={0.12}
+        transparent
+        opacity={0.42}
+      />
+    </mesh>
+  );
+  // trouserRackBars: 3 angled chrome pull-out bars
+  const trouserRackBars = (key, yBot, yTop) => {
+    const span = yTop - yBot;
+    return (
+      <>
+        {[0.25, 0.5, 0.75].map((f, i) => (
+          <mesh
+            key={`${key}-${i}`}
+            position={[0, yBot + span * f, innerD * 0.05]}
+            rotation={[Math.PI * 0.08, 0, 0]}
+            castShadow
+          >
+            <cylinderGeometry args={[0.008, 0.008, innerW * 0.88, 14]} />
+            <meshStandardMaterial color="#c0bdb5" roughness={0.18} metalness={0.92} />
+          </mesh>
+        ))}
+      </>
+    );
+  };
+
   const renderOpenFrontInterior = () => {
-    switch (module.id) {
-      case 'OW/SW 01':
-        return <>{renderShelves(numShelves, interiorBot, H, highlightColor, roughness)}</>;
+    const sections = module.sections || [];
+    const accessorySec = sections.find((s) => s.type === 'accessory');
+    // effectiveSlot: live UI choice (Step 3 fitting selector) overrides catalogue default
+    const effectiveSlot = module.selectedAccessory ?? accessorySec?.slot ?? null;
+    // Fix A: dispatch on displayId (slash+space, e.g. 'OW/SW 22') so Firestore catalogue
+    // modules match the named cases. Falls back to module.id for static MODULES path.
+    switch (module.displayId || module.id) {
+      case 'OW/SW 01': {
+        // Firestore modules carry sections instead of layout.shelves — use whichever is available.
+        const shelfCount =
+          numShelves > 0 ? numShelves : sections.find((s) => s.type === 'shelf')?.count || 6;
+        return <>{renderShelves(shelfCount, interiorBot, H, highlightColor, roughness)}</>;
+      }
 
       case 'OW/SW 02':
         return (
@@ -830,19 +877,13 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
             {shelf('top', H * 0.85)}
             {rail('rail', H * 0.83)}
             {shelf('zone-top22', H * 0.4)}
-            {/* Glass accessory shelf — thin translucent panel */}
-            <mesh key="glass22" position={[0, glass22Y, 0]} castShadow receiveShadow>
-              <boxGeometry args={[innerW, pt * 0.7, innerD]} />
-              <meshStandardMaterial
-                color="#b8d8e8"
-                roughness={0.05}
-                metalness={0.1}
-                transparent
-                opacity={0.45}
-              />
-            </mesh>
-            {/* 1 drawer in zone 25%–37% */}
-            {renderDrawers(1, H * 0.25, glass22Y, highlightColor, roughness)}
+            {/* Accessory zone — swappable: glass/jewellery tray ↔ trouser rack */}
+            {effectiveSlot === 'trouser-rack'
+              ? trouserRackBars('tr22', H * 0.25, H * 0.4)
+              : glassTray('glass22', glass22Y)}
+            {/* 1 drawer in zone 25%–37% only when showing a tray (rack fills that space) */}
+            {effectiveSlot !== 'trouser-rack' &&
+              renderDrawers(1, H * 0.25, glass22Y, highlightColor, roughness)}
             {shelf('bot1-22', H * 0.125)}
             {shelf('bot2-22', H * 0.25)}
           </>
@@ -863,26 +904,18 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
       // top shelf 15% | hang 45% | glass tray 5% | 1 drawer 10% | 2 shelves 12.5% each
       case 'OW/SW 23':
       case 'OW/SW 41': {
-        const tray23Y = H * 0.37; // glass tray at 37%  (bottom of 40%–45% tray zone)
-        const tray23TY = H * 0.4; // cap shelf at 40%
+        const tray23Y = H * 0.37;
+        const tray23TY = H * 0.4;
         return (
           <>
             {shelf('top', H * 0.85)}
             {rail('rail', H * 0.83)}
             {shelf('tray-cap', tray23TY)}
-            {/* Glass jewellery tray — thin translucent panel */}
-            <mesh key="glass-tray" position={[0, tray23Y, 0]} castShadow receiveShadow>
-              <boxGeometry args={[innerW, pt * 0.6, innerD]} />
-              <meshStandardMaterial
-                color="#b8d8e8"
-                roughness={0.04}
-                metalness={0.12}
-                transparent
-                opacity={0.42}
-              />
-            </mesh>
-            {/* 1 drawer in zone 27%–37% */}
-            {renderDrawers(1, H * 0.27, tray23Y, highlightColor, roughness)}
+            {effectiveSlot === 'trouser-rack'
+              ? trouserRackBars('tr23', H * 0.27, tray23TY)
+              : glassTray('glass-tray23', tray23Y)}
+            {effectiveSlot !== 'trouser-rack' &&
+              renderDrawers(1, H * 0.27, tray23Y, highlightColor, roughness)}
             {shelf('bot1', H * 0.125)}
             {shelf('bot2', H * 0.27)}
           </>
@@ -899,15 +932,20 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
             {shelf('top', H * 0.85)}
             {rail('rail', H * 0.83)}
             {shelf('tray-cap', tray42TY)}
-            {/* Solid wood tray — opaque, full roughness */}
-            <Panel
-              key="solid-tray"
-              color={highlightColor}
-              roughness={roughness}
-              position={[0, tray42Y, 0]}
-              size={[innerW, pt * 1.2, innerD]}
-            />
-            {renderDrawers(1, H * 0.27, tray42Y, highlightColor, roughness)}
+            {/* Solid wood tray by default; swappable to trouser rack */}
+            {effectiveSlot === 'trouser-rack' ? (
+              trouserRackBars('tr42', H * 0.27, tray42TY)
+            ) : (
+              <Panel
+                key="solid-tray"
+                color={highlightColor}
+                roughness={roughness}
+                position={[0, tray42Y, 0]}
+                size={[innerW, pt * 1.2, innerD]}
+              />
+            )}
+            {effectiveSlot !== 'trouser-rack' &&
+              renderDrawers(1, H * 0.27, tray42Y, highlightColor, roughness)}
             {shelf('bot1', H * 0.125)}
             {shelf('bot2', H * 0.27)}
           </>
@@ -917,26 +955,18 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
       // ── OW/SW 24 ─────────────────────────────────────────────────────────
       // top shelf 15% | hang 40% | glass tray 5% | 2 drawers 13.3% each | shelf 13.3%
       case 'OW/SW 24': {
-        const tray24Y = H * 0.4; // tray at 40% (top of tray zone = 45%)
+        const tray24Y = H * 0.4;
         const tray24T = H * 0.45;
         return (
           <>
             {shelf('top', H * 0.85)}
             {rail('rail', H * 0.83)}
             {shelf('tray-cap24', tray24T)}
-            <mesh key="glass-tray24" position={[0, tray24Y, 0]} castShadow receiveShadow>
-              <boxGeometry args={[innerW, pt * 0.6, innerD]} />
-              <meshStandardMaterial
-                color="#b8d8e8"
-                roughness={0.04}
-                metalness={0.12}
-                transparent
-                opacity={0.42}
-              />
-            </mesh>
-            {/* 2 stacked drawers in zone 13.3%–40% */}
-            {renderDrawers(2, H * 0.133, tray24Y, highlightColor, roughness)}
-            {/* Open shelf at the base 0%–13.3% */}
+            {effectiveSlot === 'trouser-rack'
+              ? trouserRackBars('tr24', H * 0.133, tray24T)
+              : glassTray('glass-tray24', tray24Y)}
+            {effectiveSlot !== 'trouser-rack' &&
+              renderDrawers(2, H * 0.133, tray24Y, highlightColor, roughness)}
             {shelf('bot24', H * 0.133)}
           </>
         );
@@ -952,19 +982,11 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
             {shelf('top', H * 0.85)}
             {rail('rail', H * 0.83)}
             {shelf('tray-cap25', tray25T)}
-            <mesh key="glass-tray25" position={[0, tray25Y, 0]} castShadow receiveShadow>
-              <boxGeometry args={[innerW, pt * 0.6, innerD]} />
-              <meshStandardMaterial
-                color="#b8d8e8"
-                roughness={0.04}
-                metalness={0.12}
-                transparent
-                opacity={0.42}
-              />
-            </mesh>
-            {/* 2 stacked drawers in zone 15%–37% */}
-            {renderDrawers(2, H * 0.15, tray25Y, highlightColor, roughness)}
-            {/* Open shelf at base 0%–15% */}
+            {effectiveSlot === 'trouser-rack'
+              ? trouserRackBars('tr25', H * 0.15, tray25T)
+              : glassTray('glass-tray25', tray25Y)}
+            {effectiveSlot !== 'trouser-rack' &&
+              renderDrawers(2, H * 0.15, tray25Y, highlightColor, roughness)}
             {shelf('bot25', H * 0.15)}
           </>
         );
@@ -982,18 +1004,11 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
             {shelf('top', H * 0.85)}
             {rail('rail', H * 0.83)}
             {shelf('tray-cap26', tray26T)}
-            <mesh key="glass-tray26" position={[0, tray26Y, 0]} castShadow receiveShadow>
-              <boxGeometry args={[innerW, pt * 0.6, innerD]} />
-              <meshStandardMaterial
-                color="#b8d8e8"
-                roughness={0.04}
-                metalness={0.12}
-                transparent
-                opacity={0.42}
-              />
-            </mesh>
-            {/* 3 stacked drawers fill zone 0%–40% */}
-            {renderDrawers(3, interiorBot, tray26Y, highlightColor, roughness)}
+            {effectiveSlot === 'trouser-rack'
+              ? trouserRackBars('tr26', interiorBot, tray26T)
+              : glassTray('glass-tray26', tray26Y)}
+            {effectiveSlot !== 'trouser-rack' &&
+              renderDrawers(3, interiorBot, tray26Y, highlightColor, roughness)}
           </>
         );
       }
@@ -1001,28 +1016,17 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
       // ── OW/SW 28 ─────────────────────────────────────────────────────────
       // top shelf 15% | upper hang 42.5% | trouser rack unit 42.5% (no separate rod)
       case 'OW/SW 28': {
-        // Trouser rack: 3 evenly spaced angled bars in the lower zone
         const tr28Bot = interiorBot;
         const tr28Top = H * 0.425;
-        const tr28Span = tr28Top - tr28Bot;
         return (
           <>
             {shelf('top', H * 0.85)}
             {rail('rail-upper', H * 0.83)}
-            {/* Separator shelf at top of trouser rack zone */}
             {shelf('rack-cap28', tr28Top)}
-            {/* Trouser rack — 3 pull-out bars at angled intervals */}
-            {[0.25, 0.5, 0.75].map((f, i) => (
-              <mesh
-                key={`tr28-${i}`}
-                position={[0, tr28Bot + tr28Span * f, innerD * 0.05]}
-                rotation={[Math.PI * 0.08, 0, 0]}
-                castShadow
-              >
-                <cylinderGeometry args={[0.008, 0.008, innerW * 0.88, 14]} />
-                <meshStandardMaterial color="#c0bdb5" roughness={0.18} metalness={0.92} />
-              </mesh>
-            ))}
+            {/* Accessory zone — trouser rack by default; swappable to glass tray */}
+            {effectiveSlot === 'jewellery-tray' || effectiveSlot === 'accessory-tray'
+              ? glassTray('tray28', tr28Bot + (tr28Top - tr28Bot) * 0.5)
+              : trouserRackBars('tr28', tr28Bot, tr28Top)}
           </>
         );
       }
@@ -1032,28 +1036,17 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
       case 'OW/SW 29': {
         const tr29Bot = interiorBot;
         const tr29Top = H * 0.35;
-        const tr29Span = tr29Top - tr29Bot;
         return (
           <>
             {shelf('top', H * 0.85)}
             {rail('rail-upper', H * 0.83)}
             {shelf('hang-floor29', H * 0.45)}
-            {/* 1 drawer in 35%–45% zone */}
             {renderDrawers(1, H * 0.35, H * 0.45, highlightColor, roughness)}
-            {/* Separator shelf at top of trouser zone */}
             {shelf('rack-cap29', tr29Top)}
-            {/* Trouser rack — 3 bars */}
-            {[0.25, 0.5, 0.75].map((f, i) => (
-              <mesh
-                key={`tr29-${i}`}
-                position={[0, tr29Bot + tr29Span * f, innerD * 0.05]}
-                rotation={[Math.PI * 0.08, 0, 0]}
-                castShadow
-              >
-                <cylinderGeometry args={[0.008, 0.008, innerW * 0.88, 14]} />
-                <meshStandardMaterial color="#c0bdb5" roughness={0.18} metalness={0.92} />
-              </mesh>
-            ))}
+            {/* Accessory zone — trouser rack by default; swappable to glass tray */}
+            {effectiveSlot === 'jewellery-tray' || effectiveSlot === 'accessory-tray'
+              ? glassTray('tray29', tr29Bot + (tr29Top - tr29Bot) * 0.5)
+              : trouserRackBars('tr29', tr29Bot, tr29Top)}
           </>
         );
       }
@@ -1608,28 +1601,130 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
         );
       }
 
-      default:
-        // ── Generic fallback (any other hanging-type module) ──────────────
-        if (numHang === 0 && numShelves > 0)
-          return <>{renderShelves(numShelves, interiorBot, H, highlightColor, roughness)}</>;
-        if (numHang >= 2 && numShelves === 0)
-          return (
-            <>
-              <Rail position={[0, H * 0.95, 0]} length={innerW * 0.88} />
-              <Rail position={[0, H * 0.5, 0]} length={innerW * 0.88} />
-            </>
-          );
-        if (numHang === 1 && numShelves === 0 && numDrawers === 0)
-          return <Rail position={[0, H * 0.88, 0]} length={innerW * 0.88} />;
-        if (numHang === 1 && numShelves > 0 && numDrawers === 0)
-          return (
-            <>
-              {shelf('top', H * 0.85)}
-              {rail('rail', H * 0.83)}
-              {renderShelves(numShelves - 1, interiorBot, H * 0.4, highlightColor, roughness)}
-            </>
-          );
-        return null;
+      default: {
+        // ── Sections-driven fallback ──────────────────────────────────────────
+        // Handles: Admin-added modules, OW/SW 43–47, any future module without
+        // a named case. When sections is empty (static MODULES path for unauthenticated
+        // users), falls back to the original layout-field logic — no regression.
+        if (!sections || sections.length === 0) {
+          if (numHang === 0 && numShelves > 0)
+            return <>{renderShelves(numShelves, interiorBot, H, highlightColor, roughness)}</>;
+          if (numHang >= 2 && numShelves === 0)
+            return (
+              <>
+                <Rail position={[0, H * 0.95, 0]} length={innerW * 0.88} />
+                <Rail position={[0, H * 0.5, 0]} length={innerW * 0.88} />
+              </>
+            );
+          if (numHang === 1 && numShelves === 0 && numDrawers === 0)
+            return <Rail position={[0, H * 0.88, 0]} length={innerW * 0.88} />;
+          if (numHang === 1 && numShelves > 0 && numDrawers === 0)
+            return (
+              <>
+                {shelf('top', H * 0.85)}
+                {rail('rail', H * 0.83)}
+                {renderShelves(numShelves - 1, interiorBot, H * 0.4, highlightColor, roughness)}
+              </>
+            );
+          return null;
+        }
+
+        // Proportional sections renderer — stacks zones top→bottom by weight.
+        // Weight per section: hanging=2, door=2, shelf/drawer/accessory=count (min 1).
+        const sectionWeights = sections.map((s) => {
+          if (s.type === 'hanging' || s.type === 'door') return 2;
+          return Math.max(s.count || 1, 1);
+        });
+        const totalWeight = sectionWeights.reduce((a, b) => a + b, 0) || 1;
+        const interiorSpan = H * 0.97 - interiorBot;
+
+        // Build zone array: each entry gets [yBot, yTop] allocated top-to-bottom
+        const zones = [];
+        let cursor = H * 0.97;
+        sections.forEach((sec, idx) => {
+          const zH = (sectionWeights[idx] / totalWeight) * interiorSpan;
+          zones.push({ sec, yTop: cursor, yBot: cursor - zH });
+          cursor -= zH;
+        });
+
+        return (
+          <>
+            {zones.map(({ sec, yTop, yBot }, idx) => {
+              const zKey = `dflt-${idx}`;
+              if (sec.type === 'shelf') {
+                return (
+                  <React.Fragment key={zKey}>
+                    {shelf(`${zKey}-cap`, yTop)}
+                    {renderShelves(
+                      Math.max((sec.count || 1) - 1, 0),
+                      yBot,
+                      yTop,
+                      highlightColor,
+                      roughness
+                    )}
+                  </React.Fragment>
+                );
+              }
+              if (sec.type === 'hanging') {
+                return (
+                  <React.Fragment key={zKey}>
+                    {shelf(`${zKey}-cap`, yTop)}
+                    {rail(`${zKey}-rail`, yTop - 0.05)}
+                  </React.Fragment>
+                );
+              }
+              if (sec.type === 'drawer') {
+                return (
+                  <React.Fragment key={zKey}>
+                    {shelf(`${zKey}-cap`, yTop)}
+                    {renderDrawers(sec.count || 1, yBot, yTop, highlightColor, roughness)}
+                  </React.Fragment>
+                );
+              }
+              if (sec.type === 'accessory') {
+                const midY = yBot + (yTop - yBot) * 0.5;
+                return (
+                  <React.Fragment key={zKey}>
+                    {shelf(`${zKey}-cap`, yTop)}
+                    {effectiveSlot === 'trouser-rack'
+                      ? trouserRackBars(`${zKey}-rack`, yBot, yTop)
+                      : glassTray(`${zKey}-tray`, midY)}
+                  </React.Fragment>
+                );
+              }
+              if (sec.type === 'door') {
+                const hw = innerW / 2;
+                const doorCY = yBot + (yTop - yBot) / 2;
+                return (
+                  <React.Fragment key={zKey}>
+                    <Door
+                      key={`${zKey}-L`}
+                      color={highlightColor}
+                      roughness={roughness}
+                      x={-hw / 2}
+                      yCenter={doorCY}
+                      w={hw}
+                      h={yTop - yBot}
+                      depth={depth}
+                    />
+                    <Door
+                      key={`${zKey}-R`}
+                      color={highlightColor}
+                      roughness={roughness}
+                      x={hw / 2}
+                      yCenter={doorCY}
+                      w={hw}
+                      h={yTop - yBot}
+                      depth={depth}
+                    />
+                  </React.Fragment>
+                );
+              }
+              return null;
+            })}
+          </>
+        );
+      }
     }
   };
 

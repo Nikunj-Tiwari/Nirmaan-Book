@@ -143,8 +143,9 @@ export function RoomEnvironment({ width, height, depth, wallType, width2 = 0, wi
         wallColor={wallColor}
         wallRoughness={wallRoughness}
       />
-      {/* Baseboard on back wall */}
-      <mesh position={[0, bh / 2, bt / 2]}>
+      {/* Baseboard on back wall — sits flush against back wall face (z=-bt/2)
+           so it is hidden behind wardrobe carcasses and only visible in side gaps. */}
+      <mesh position={[0, bh / 2, -bt / 2]}>
         <boxGeometry args={[roomW, bh, bt]} />
         <meshStandardMaterial color="#e8e3db" roughness={0.75} />
       </mesh>

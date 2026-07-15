@@ -198,6 +198,36 @@ const BusinessCatalog = () => {
   const [bulkImporting, setBulkImporting] = useState(false);
   const [bulkDone, setBulkDone] = useState(false);
 
+  // ── Reference tabs (read-only platform data) ────────────────────────
+  const [activeTab, setActiveTab] = useState('myModules'); // 'myModules' | 'internalColours' | 'drawerFascia'
+  const [refItems, setRefItems] = useState([]);
+  const [refLoading, setRefLoading] = useState(false);
+
+  const loadRefTab = useCallback(async (collectionName) => {
+    setRefLoading(true);
+    try {
+      const snap = await getDocs(collection(db, 'platform_catalog', 'catalog', collectionName));
+      setRefItems(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    } catch (err) {
+      console.error('[BusinessCatalog] ref load error:', err);
+    } finally {
+      setRefLoading(false);
+    }
+  }, []);
+
+  // Load reference data when tab changes
+  useEffect(() => {
+    if (activeTab === 'internalColours' || activeTab === 'drawerFascia') {
+      loadRefTab(activeTab);
+    }
+  }, [activeTab, loadRefTab]);
+
+  const TABS = [
+    { id: 'myModules', label: 'My Modules' },
+    { id: 'internalColours', label: 'Internal Colours' },
+    { id: 'drawerFascia', label: 'Drawer Fascia' },
+  ];
+
   // Fetch business name for createdByName
   useEffect(() => {
     if (!businessId) return;
@@ -412,54 +442,239 @@ const BusinessCatalog = () => {
             Custom modules unique to your business
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button
-            onClick={() => {
-              setBulkModal(true);
-              setBulkRows(null);
-              setBulkErrors([]);
-              setBulkDone(false);
-            }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '9px 16px',
-              borderRadius: 9,
-              border: '1.5px solid var(--border)',
-              background: 'var(--bg-secondary)',
-              color: 'var(--text-secondary)',
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: 'pointer',
-              fontFamily: 'var(--font-sans)',
-            }}
-          >
-            <Upload size={14} /> Bulk Import
-          </button>
-          <button
-            onClick={startAdd}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '9px 16px',
-              borderRadius: 9,
-              border: 'none',
-              background: 'var(--accent)',
-              color: 'white',
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: 'pointer',
-              fontFamily: 'var(--font-sans)',
-            }}
-          >
-            <Plus size={15} /> Add Module
-          </button>
-        </div>
+        {activeTab === 'myModules' && (
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={() => {
+                setBulkModal(true);
+                setBulkRows(null);
+                setBulkErrors([]);
+                setBulkDone(false);
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '9px 16px',
+                borderRadius: 9,
+                border: '1.5px solid var(--border)',
+                background: 'var(--bg-secondary)',
+                color: 'var(--text-secondary)',
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: 'pointer',
+                fontFamily: 'var(--font-sans)',
+              }}
+            >
+              <Upload size={14} /> Bulk Import
+            </button>
+            <button
+              onClick={startAdd}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '9px 16px',
+                borderRadius: 9,
+                border: 'none',
+                background: 'var(--accent)',
+                color: 'white',
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: 'pointer',
+                fontFamily: 'var(--font-sans)',
+              }}
+            >
+              <Plus size={15} /> Add Module
+            </button>
+          </div>
+        )}
       </div>
 
-      {(addingNew || editId) && (
+      {/* ── Tab bar ──────────────────────────────────────────────────────── */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
+        {TABS.map(({ id, label }) => (
+          <button
+            key={id}
+            onClick={() => {
+              setActiveTab(id);
+              cancelEdit();
+            }}
+            style={{
+              padding: '7px 16px',
+              borderRadius: 8,
+              border: `1px solid ${activeTab === id ? 'var(--accent)' : 'var(--border)'}`,
+              background: activeTab === id ? 'var(--accent)' : 'var(--bg-secondary)',
+              color: activeTab === id ? 'white' : 'var(--text-secondary)',
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontFamily: 'var(--font-sans)',
+              transition: 'all 0.15s',
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Reference Tab: Internal Colours / Drawer Fascia ─────────────── */}
+      {(activeTab === 'internalColours' || activeTab === 'drawerFascia') && (
+        <div style={card}>
+          {refLoading ? (
+            <div style={{ textAlign: 'center', padding: 48, color: 'var(--text-muted)' }}>
+              Loading reference data…
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <div
+                style={{
+                  padding: '10px 16px 8px',
+                  fontSize: 11,
+                  color: 'var(--text-muted)',
+                  borderBottom: '1px solid var(--border)',
+                  fontStyle: 'italic',
+                }}
+              >
+                Read-only platform reference — these are set by your administrator
+              </div>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    {activeTab === 'internalColours'
+                      ? ['Name', 'Hex', 'Swatch / Image', 'Status'].map((h) => (
+                          <th key={h} style={th}>
+                            {h}
+                          </th>
+                        ))
+                      : ['Name', 'Handle Style', 'Image', 'Status'].map((h) => (
+                          <th key={h} style={th}>
+                            {h}
+                          </th>
+                        ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {refItems.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={4}
+                        style={{
+                          ...td,
+                          textAlign: 'center',
+                          color: 'var(--text-muted)',
+                          padding: 40,
+                        }}
+                      >
+                        No items yet — ask your administrator to import the catalogue.
+                      </td>
+                    </tr>
+                  ) : (
+                    refItems.map((item) => (
+                      <tr key={item.id} style={{ opacity: item.isActive === false ? 0.45 : 1 }}>
+                        <td style={td}>
+                          <div style={{ fontWeight: 600 }}>{item.name}</div>
+                          <div
+                            style={{
+                              fontSize: 11,
+                              color: 'var(--text-muted)',
+                              fontFamily: 'monospace',
+                            }}
+                          >
+                            {item.id}
+                          </div>
+                        </td>
+                        {activeTab === 'internalColours' ? (
+                          <>
+                            <td style={{ ...td, fontFamily: 'monospace', fontSize: 12 }}>
+                              {item.hex || '-'}
+                            </td>
+                            <td style={td}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                {item.hex && (
+                                  <span
+                                    style={{
+                                      display: 'inline-block',
+                                      width: 28,
+                                      height: 28,
+                                      borderRadius: 6,
+                                      background: item.hex,
+                                      border: '1px solid var(--border)',
+                                    }}
+                                  />
+                                )}
+                                {item.imageUrl && (
+                                  <img
+                                    src={item.imageUrl}
+                                    alt=""
+                                    style={{
+                                      width: 36,
+                                      height: 36,
+                                      objectFit: 'cover',
+                                      borderRadius: 6,
+                                      border: '1px solid var(--border)',
+                                    }}
+                                    onError={(e) => {
+                                      e.target.style.display = 'none';
+                                    }}
+                                  />
+                                )}
+                              </div>
+                            </td>
+                          </>
+                        ) : (
+                          <>
+                            <td style={{ ...td, color: 'var(--text-secondary)', fontSize: 12 }}>
+                              {item.handleStyle || '-'}
+                            </td>
+                            <td style={td}>
+                              {item.imageUrl ? (
+                                <img
+                                  src={item.imageUrl}
+                                  alt=""
+                                  style={{
+                                    width: 40,
+                                    height: 40,
+                                    objectFit: 'cover',
+                                    borderRadius: 6,
+                                    border: '1px solid var(--border)',
+                                  }}
+                                  onError={(e) => {
+                                    e.target.style.display = 'none';
+                                  }}
+                                />
+                              ) : (
+                                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>-</span>
+                              )}
+                            </td>
+                          </>
+                        )}
+                        <td style={td}>
+                          <span
+                            style={{
+                              background: item.isActive !== false ? '#dcfce7' : '#fee2e2',
+                              color: item.isActive !== false ? '#16a34a' : '#dc2626',
+                              borderRadius: 99,
+                              padding: '2px 10px',
+                              fontSize: 11,
+                              fontWeight: 700,
+                            }}
+                          >
+                            {item.isActive !== false ? 'Active' : 'Inactive'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── My Modules tab ────────────────────────────────────────────────── */}
+      {activeTab === 'myModules' && (addingNew || editId) && (
         <div style={{ ...card, marginBottom: 20, padding: 24 }}>
           <h3
             style={{
@@ -571,151 +786,159 @@ const BusinessCatalog = () => {
         </div>
       )}
 
-      <div style={card}>
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: 48, color: 'var(--text-muted)' }}>
-            Loading your modules...
-          </div>
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>
-                  {['Name', 'Category', 'Price', 'Dimensions', 'Added By', 'Status', 'Actions'].map(
-                    (h) => (
+      {activeTab === 'myModules' && (
+        <div style={card}>
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: 48, color: 'var(--text-muted)' }}>
+              Loading your modules...
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    {[
+                      'Name',
+                      'Category',
+                      'Price',
+                      'Dimensions',
+                      'Added By',
+                      'Status',
+                      'Actions',
+                    ].map((h) => (
                       <th key={h} style={th}>
                         {h}
                       </th>
-                    )
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {items.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      style={{
-                        ...td,
-                        textAlign: 'center',
-                        color: 'var(--text-muted)',
-                        padding: 40,
-                      }}
-                    >
-                      <Package
-                        size={28}
-                        style={{ opacity: 0.3, display: 'block', margin: '0 auto 8px' }}
-                      />
-                      No custom modules yet. Click Add Module to create your first.
-                    </td>
+                    ))}
                   </tr>
-                ) : (
-                  items.map((item) => (
-                    <tr key={item.id} style={{ opacity: item.isActive === false ? 0.5 : 1 }}>
-                      <td style={td}>
-                        <div style={{ fontWeight: 600 }}>{item.name}</div>
-                        <div
-                          style={{
-                            fontSize: 11,
-                            color: 'var(--text-muted)',
-                            fontFamily: 'monospace',
-                          }}
-                        >
-                          {item.id}
-                        </div>
-                      </td>
-                      <td style={{ ...td, color: 'var(--text-secondary)' }}>
-                        {item.category || '-'}
-                      </td>
-                      <td style={td}>
-                        {item.basePrice != null
-                          ? 'Rs ' + Number(item.basePrice).toLocaleString('en-IN')
-                          : '-'}
-                      </td>
-                      <td style={{ ...td, color: 'var(--text-secondary)', fontSize: 12 }}>
-                        {item.width ? `${item.width} x ${item.height} x ${item.depth} mm` : '-'}
-                      </td>
-                      <td style={{ ...td, color: 'var(--text-muted)', fontSize: 12 }}>
-                        {item.createdByName ?? businessName ?? 'My Business'}
-                      </td>
-                      <td style={td}>
-                        <span
-                          style={{
-                            background: item.isActive !== false ? '#dcfce7' : '#fee2e2',
-                            color: item.isActive !== false ? '#16a34a' : '#dc2626',
-                            borderRadius: 99,
-                            padding: '2px 10px',
-                            fontSize: 11,
-                            fontWeight: 700,
-                          }}
-                        >
-                          {item.isActive !== false ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                      <td style={td}>
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          <button
-                            onClick={() => startEdit(item)}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 4,
-                              padding: '4px 10px',
-                              borderRadius: 6,
-                              border: '1px solid rgba(59,130,246,0.25)',
-                              background: 'rgba(59,130,246,0.07)',
-                              color: 'var(--accent)',
-                              fontSize: 11,
-                              fontWeight: 700,
-                              cursor: 'pointer',
-                              fontFamily: 'var(--font-sans)',
-                            }}
-                          >
-                            <Pencil size={11} /> Edit
-                          </button>
-                          <button
-                            onClick={() => toggleActive(item)}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 4,
-                              padding: '4px 10px',
-                              borderRadius: 6,
-                              border:
-                                item.isActive !== false
-                                  ? '1px solid rgba(220,38,38,0.25)'
-                                  : '1px solid rgba(22,163,74,0.25)',
-                              background:
-                                item.isActive !== false
-                                  ? 'rgba(220,38,38,0.07)'
-                                  : 'rgba(22,163,74,0.07)',
-                              color: item.isActive !== false ? '#dc2626' : '#16a34a',
-                              fontSize: 11,
-                              fontWeight: 700,
-                              cursor: 'pointer',
-                              fontFamily: 'var(--font-sans)',
-                            }}
-                          >
-                            {item.isActive !== false ? (
-                              <>
-                                <XCircle size={11} /> Deactivate
-                              </>
-                            ) : (
-                              <>
-                                <CheckCircle size={11} /> Activate
-                              </>
-                            )}
-                          </button>
-                        </div>
+                </thead>
+                <tbody>
+                  {items.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={6}
+                        style={{
+                          ...td,
+                          textAlign: 'center',
+                          color: 'var(--text-muted)',
+                          padding: 40,
+                        }}
+                      >
+                        <Package
+                          size={28}
+                          style={{ opacity: 0.3, display: 'block', margin: '0 auto 8px' }}
+                        />
+                        No custom modules yet. Click Add Module to create your first.
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                  ) : (
+                    items.map((item) => (
+                      <tr key={item.id} style={{ opacity: item.isActive === false ? 0.5 : 1 }}>
+                        <td style={td}>
+                          <div style={{ fontWeight: 600 }}>{item.name}</div>
+                          <div
+                            style={{
+                              fontSize: 11,
+                              color: 'var(--text-muted)',
+                              fontFamily: 'monospace',
+                            }}
+                          >
+                            {item.id}
+                          </div>
+                        </td>
+                        <td style={{ ...td, color: 'var(--text-secondary)' }}>
+                          {item.category || '-'}
+                        </td>
+                        <td style={td}>
+                          {item.basePrice != null
+                            ? 'Rs ' + Number(item.basePrice).toLocaleString('en-IN')
+                            : '-'}
+                        </td>
+                        <td style={{ ...td, color: 'var(--text-secondary)', fontSize: 12 }}>
+                          {item.width ? `${item.width} x ${item.height} x ${item.depth} mm` : '-'}
+                        </td>
+                        <td style={{ ...td, color: 'var(--text-muted)', fontSize: 12 }}>
+                          {item.createdByName ?? businessName ?? 'My Business'}
+                        </td>
+                        <td style={td}>
+                          <span
+                            style={{
+                              background: item.isActive !== false ? '#dcfce7' : '#fee2e2',
+                              color: item.isActive !== false ? '#16a34a' : '#dc2626',
+                              borderRadius: 99,
+                              padding: '2px 10px',
+                              fontSize: 11,
+                              fontWeight: 700,
+                            }}
+                          >
+                            {item.isActive !== false ? 'Active' : 'Inactive'}
+                          </span>
+                        </td>
+                        <td style={td}>
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <button
+                              onClick={() => startEdit(item)}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                padding: '4px 10px',
+                                borderRadius: 6,
+                                border: '1px solid rgba(59,130,246,0.25)',
+                                background: 'rgba(59,130,246,0.07)',
+                                color: 'var(--accent)',
+                                fontSize: 11,
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                fontFamily: 'var(--font-sans)',
+                              }}
+                            >
+                              <Pencil size={11} /> Edit
+                            </button>
+                            <button
+                              onClick={() => toggleActive(item)}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                padding: '4px 10px',
+                                borderRadius: 6,
+                                border:
+                                  item.isActive !== false
+                                    ? '1px solid rgba(220,38,38,0.25)'
+                                    : '1px solid rgba(22,163,74,0.25)',
+                                background:
+                                  item.isActive !== false
+                                    ? 'rgba(220,38,38,0.07)'
+                                    : 'rgba(22,163,74,0.07)',
+                                color: item.isActive !== false ? '#dc2626' : '#16a34a',
+                                fontSize: 11,
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                fontFamily: 'var(--font-sans)',
+                              }}
+                            >
+                              {item.isActive !== false ? (
+                                <>
+                                  <XCircle size={11} /> Deactivate
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle size={11} /> Activate
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
       {/* ── Bulk Import Modal ── */}
       {bulkModal && (
         <div

@@ -9,6 +9,7 @@ A comprehensive, rule-based web application tailored for designing, modularizing
 - **Interactive Configuration Steps:** Streamlined wizard for selecting dimensions and constraints.
 - **Rule-Based Design Engine:** Validates available width, calculates correct door sizes, and dynamically enforces layout integrity.
 - **2D Visualizations:** Offers a live preview of the structural elements rendering panels, hanging spaces, drawers, and shelving.
+- **Compositional 3D Renderer:** Provides an interactive 3D view of the wardrobe, rendering accurate interior layouts (shelves, rails, drawers, glass trays, trouser racks) based on dynamic sections and responsive accessory slots.
 - **Dynamic Real-Time Pricing:** Synchronizes material layers, cabinet depths, specific handles, lighting, and internal accessories instantly.
 - **PDF & JSON Exports:** Generate professional paper layouts directly from the DOM using custom Print media pipelines or export raw structured JSON configuration data.
 - **Firebase Intregration:** Basic authorization shell enabled through Google Firebase backend bindings.
