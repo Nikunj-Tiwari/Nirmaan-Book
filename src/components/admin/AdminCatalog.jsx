@@ -1,5 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { collection, getDocs, doc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import {
+  collection,
+  collectionGroup,
+  getDocs,
+  doc,
+  setDoc,
+  updateDoc,
+  serverTimestamp,
+} from 'firebase/firestore';
 import { db } from '../../firebase';
 import AdminLayout from './AdminLayout';
 import {
@@ -11,8 +19,10 @@ import {
   Upload,
   Download,
   X as XIcon,
+  Trash2,
 } from 'lucide-react';
 import ImageUploadField from './ImageUploadField';
+import Model3DUploadField from './Model3DUploadField';
 import { parseFile, validateRows, downloadTemplate } from '../../utils/bulkImport';
 
 const card = {
@@ -81,6 +91,7 @@ const ACC_CATS = ['Trouser Rack', 'Jewellery', 'Shoe Storage', 'Hanger', 'Mirror
 const ACC_SLOT_TYPES = ['hanging', 'accessory', 'shoe'];
 const TABS = [
   { id: 'modules', label: 'Modules' },
+  { id: 'businessModules', label: 'Business Modules' },
   { id: 'materials', label: 'Materials' },
   { id: 'handles', label: 'Handles' },
   { id: 'accessories', label: 'Accessories' },
@@ -293,6 +304,13 @@ const ModuleForm = ({ form, setForm }) => {
         <ImageUploadField
           value={form.imageUrl || ''}
           onChange={(v) => setForm((p) => ({ ...p, imageUrl: v }))}
+        />
+      </div>
+      <div style={{ ...fld, gridColumn: 'span 2' }}>
+        <label style={lbl}>Custom 3D Model (.glb / .gltf / .obj, optional)</label>
+        <Model3DUploadField
+          value={form.model3dUrl || ''}
+          onChange={(v) => setForm((p) => ({ ...p, model3dUrl: v }))}
         />
       </div>
       <div style={fld}>
@@ -515,7 +533,7 @@ const DrawerFasciaForm = ({ form, setForm }) => (
 
 const itemToForm = (item, type) => {
   const b = { isActive: item.isActive !== false };
-  if (type === 'modules')
+  if (type === 'modules' || type === 'businessModules')
     return {
       ...b,
       name: item.name || '',
@@ -525,6 +543,9 @@ const itemToForm = (item, type) => {
       height: item.height ?? '',
       depth: item.depth ?? '',
       imageUrl: item.imageUrl || '',
+      model3dUrl: item.model3dUrl || '',
+      businessId: item.businessId || '',
+      createdByName: item.createdByName || '',
       layout: item.layout || { hang: 0, shelves: 0, drawers: 0, shoe: 0, cubbies: 0 },
     };
   if (type === 'materials')
@@ -579,6 +600,7 @@ const displayCat = (item) => {
 
 const AdminCatalog = () => {
   const [tab, setTab] = useState('modules');
+  const [moduleFilter, setModuleFilter] = useState('all'); // 'all' | 'platform' | 'business'
   const [items, setItems] = useState({});
   const [loading, setLoading] = useState(true);
   const [editId, setEditId] = useState(null);
@@ -595,8 +617,94 @@ const AdminCatalog = () => {
   const loadTab = useCallback(async (type) => {
     setLoading(true);
     try {
+      if (type === 'modules' || type === 'businessModules') {
+        // 1. Fetch platform modules
+        let platformMods = [];
+        try {
+          const pSnap = await getDocs(collection(db, 'platform_catalog', 'catalog', 'modules'));
+          platformMods = pSnap.docs
+            .map((d) => ({ id: d.id, ...d.data(), source: 'platform', isPlatform: true }))
+            .filter((m) => m.isDeleted !== true);
+        } catch (pErr) {
+          console.warn('[AdminCatalog] platform modules fetch error:', pErr);
+        }
+
+        // 2. Fetch business modules
+        let bizRows = [];
+        try {
+          const snap = await getDocs(collectionGroup(db, 'modules'));
+          snap.docs.forEach((d) => {
+            const data = d.data();
+            const pathParts = d.ref.path.split('/');
+            const isBiz = pathParts[0] === 'business_modules' || !!data.businessId;
+            if (isBiz && data.isDeleted !== true) {
+              bizRows.push({
+                ...data,
+                id: d.id,
+                businessId: data.businessId || pathParts[1],
+                createdByName: data.createdByName || data.businessName || 'Business Partner',
+                source: 'business',
+                isPlatform: false,
+              });
+            }
+          });
+        } catch (cgErr) {
+          console.warn('[AdminCatalog] collectionGroup error, trying businesses scan:', cgErr);
+        }
+
+        if (bizRows.length === 0) {
+          try {
+            const bSnap = await getDocs(collection(db, 'businesses'));
+            for (const bDoc of bSnap.docs) {
+              const bData = bDoc.data();
+              const mSnap = await getDocs(collection(db, 'business_modules', bDoc.id, 'modules'));
+              mSnap.docs.forEach((d) => {
+                const data = d.data();
+                if (data.isDeleted !== true) {
+                  bizRows.push({
+                    ...data,
+                    id: d.id,
+                    businessId: bDoc.id,
+                    createdByName: data.createdByName || bData.businessName || 'Business Partner',
+                    source: 'business',
+                    isPlatform: false,
+                  });
+                }
+              });
+            }
+          } catch (bErr) {
+            console.warn('[AdminCatalog] businesses scan error:', bErr);
+          }
+        }
+
+        const seen = new Set();
+        const uniqueBiz = [];
+        bizRows.forEach((r) => {
+          if (!seen.has(r.id)) {
+            seen.add(r.id);
+            uniqueBiz.push(r);
+          }
+        });
+
+        // Combined all modules with business modules first so Super Admin sees them immediately
+        const allModules = [...uniqueBiz, ...platformMods];
+
+        setItems((prev) => ({
+          ...prev,
+          modules: allModules,
+          platformModules: platformMods,
+          businessModules: uniqueBiz,
+        }));
+        return;
+      }
+
       const snap = await getDocs(collection(db, 'platform_catalog', 'catalog', type));
-      setItems((prev) => ({ ...prev, [type]: snap.docs.map((d) => ({ id: d.id, ...d.data() })) }));
+      setItems((prev) => ({
+        ...prev,
+        [type]: snap.docs
+          .map((d) => ({ id: d.id, ...d.data() }))
+          .filter((m) => m.isDeleted !== true),
+      }));
     } catch (err) {
       console.error('[AdminCatalog] load error:', err);
       showToast('Load failed: ' + err.message);
@@ -695,7 +803,17 @@ const AdminCatalog = () => {
         else if (payload[f] === '') delete payload[f];
       });
       if (payload.imageUrl === '') delete payload.imageUrl;
-      if (addingNew) {
+      if (payload.model3dUrl === '') delete payload.model3dUrl;
+
+      const allModulesList = [...(items.modules || []), ...(items.businessModules || [])];
+      const itemObj = allModulesList.find((i) => i.id === editId) || {};
+      const bId = form.businessId || itemObj.businessId;
+
+      if (bId || tab === 'businessModules') {
+        if (!bId) throw new Error('Business account ID missing for this module');
+        await updateDoc(doc(db, 'business_modules', bId, 'modules', editId), payload);
+        showToast('Business module updated successfully');
+      } else if (addingNew) {
         const id = makeId(form.name || 'item');
         await setDoc(doc(db, 'platform_catalog', 'catalog', tab, id), {
           id,
@@ -724,10 +842,19 @@ const AdminCatalog = () => {
   const toggleActive = async (item) => {
     const next = item.isActive === false;
     try {
-      await updateDoc(doc(db, 'platform_catalog', 'catalog', tab, item.id), {
-        isActive: next,
-        updatedAt: serverTimestamp(),
-      });
+      if (item.businessId || tab === 'businessModules') {
+        const bId = item.businessId;
+        if (!bId) throw new Error('Business account ID missing');
+        await updateDoc(doc(db, 'business_modules', bId, 'modules', item.id), {
+          isActive: next,
+          updatedAt: serverTimestamp(),
+        });
+      } else {
+        await updateDoc(doc(db, 'platform_catalog', 'catalog', tab, item.id), {
+          isActive: next,
+          updatedAt: serverTimestamp(),
+        });
+      }
       showToast(next ? 'Item activated' : 'Item deactivated');
       loadTab(tab);
     } catch (err) {
@@ -735,11 +862,42 @@ const AdminCatalog = () => {
     }
   };
 
-  const current = items[tab] || [];
+  const deleteItem = async (item) => {
+    if (!window.confirm(`Are you sure you want to delete "${item.name}"?`)) return;
+    try {
+      if (item.businessId || tab === 'businessModules') {
+        const bId = item.businessId;
+        if (!bId) throw new Error('Business account ID missing');
+        await updateDoc(doc(db, 'business_modules', bId, 'modules', item.id), {
+          isDeleted: true,
+          isActive: false,
+          updatedAt: serverTimestamp(),
+        });
+      } else {
+        await updateDoc(doc(db, 'platform_catalog', 'catalog', tab, item.id), {
+          isDeleted: true,
+          isActive: false,
+          updatedAt: serverTimestamp(),
+        });
+      }
+      showToast('Item deleted successfully');
+      loadTab(tab);
+    } catch (err) {
+      showToast('Delete failed: ' + err.message);
+    }
+  };
+
+  let current = items[tab] || [];
+  if (tab === 'modules') {
+    if (moduleFilter === 'platform') current = items.platformModules || [];
+    else if (moduleFilter === 'business') current = items.businessModules || [];
+    else current = items.modules || [];
+  }
   const tabLabel = TABS.find((t) => t.id === tab)?.label || tab;
 
   const renderForm = () => {
-    if (tab === 'modules') return <ModuleForm form={form} setForm={setForm} />;
+    if (tab === 'modules' || tab === 'businessModules')
+      return <ModuleForm form={form} setForm={setForm} />;
     if (tab === 'materials') return <MaterialForm form={form} setForm={setForm} />;
     if (tab === 'handles') return <HandleForm form={form} setForm={setForm} />;
     if (tab === 'accessories') return <AccessoryForm form={form} setForm={setForm} />;
@@ -841,7 +999,7 @@ const AdminCatalog = () => {
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 6, marginBottom: 20 }}>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
         {TABS.map(({ id, label }) => (
           <button
             key={id}
@@ -866,6 +1024,39 @@ const AdminCatalog = () => {
           </button>
         ))}
       </div>
+
+      {tab === 'modules' && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)' }}>Filter:</span>
+          {[
+            { id: 'all', label: `All Modules (${(items.modules || []).length})` },
+            { id: 'platform', label: `Platform (${(items.platformModules || []).length})` },
+            {
+              id: 'business',
+              label: `Business Partners (${(items.businessModules || []).length})`,
+            },
+          ].map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              onClick={() => setModuleFilter(f.id)}
+              style={{
+                padding: '5px 12px',
+                borderRadius: 6,
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: 'pointer',
+                border: `1.5px solid ${moduleFilter === f.id ? 'var(--accent)' : 'var(--border)'}`,
+                background: moduleFilter === f.id ? 'var(--accent-light)' : 'var(--bg-secondary)',
+                color: moduleFilter === f.id ? 'var(--accent)' : 'var(--text-secondary)',
+                transition: 'all 0.15s',
+              }}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {(addingNew || editId) && (
         <div style={{ ...card, marginBottom: 20, padding: 24 }}>
@@ -947,7 +1138,7 @@ const AdminCatalog = () => {
                 {current.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={6}
+                      colSpan={7}
                       style={{
                         ...td,
                         textAlign: 'center',
@@ -1025,7 +1216,43 @@ const AdminCatalog = () => {
                         )}
                       </td>
                       <td style={{ ...td, color: 'var(--text-muted)', fontSize: 12 }}>
-                        {item.createdByName ?? 'Admin'}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                          <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                            {item.createdByName ||
+                              item.businessName ||
+                              (item.businessId ? 'Business Partner' : 'Admin')}
+                          </span>
+                          {item.businessId && (
+                            <span
+                              style={{
+                                fontSize: 10,
+                                color: 'var(--accent)',
+                                background: 'var(--accent-light)',
+                                padding: '1px 6px',
+                                borderRadius: 4,
+                                width: 'fit-content',
+                                fontFamily: 'monospace',
+                              }}
+                            >
+                              Biz ID: {item.businessId}
+                            </span>
+                          )}
+                          {item.model3dUrl && (
+                            <span
+                              style={{
+                                fontSize: 10,
+                                color: '#16a34a',
+                                background: '#dcfce7',
+                                padding: '1px 6px',
+                                borderRadius: 4,
+                                width: 'fit-content',
+                                fontWeight: 700,
+                              }}
+                            >
+                              ✓ 3D Model
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td style={td}>
                         <span
@@ -1094,6 +1321,26 @@ const AdminCatalog = () => {
                                 <CheckCircle size={11} /> Activate
                               </>
                             )}
+                          </button>
+                          <button
+                            onClick={() => deleteItem(item)}
+                            title="Delete this item"
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 4,
+                              padding: '4px 10px',
+                              borderRadius: 6,
+                              border: '1px solid rgba(220,38,38,0.25)',
+                              background: 'rgba(220,38,38,0.07)',
+                              color: '#dc2626',
+                              fontSize: 11,
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              fontFamily: 'var(--font-sans)',
+                            }}
+                          >
+                            <Trash2 size={11} /> Delete
                           </button>
                         </div>
                       </td>

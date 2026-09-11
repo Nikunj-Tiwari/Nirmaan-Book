@@ -96,21 +96,34 @@ const StepModules = () => {
 
   const chQty = (code, delta) => actions.setModuleQty(code, delta);
 
-  // Apply a quick-start template: reset all modules then set template quantities
+  // Apply a quick-start template: safely match IDs and set modules atomically
   const applyTemplate = useCallback(
     (template) => {
-      // Reset every currently selected module to 0
-      Object.keys(config.modules).forEach((id) => {
-        const qty = config.modules[id] || 0;
-        if (qty > 0) actions.setModuleQty(id, -qty);
+      const clean = (s) =>
+        String(s || '')
+          .replace(/[^a-zA-Z0-9]/g, '')
+          .toLowerCase();
+      const newModulesMap = {};
+      Object.entries(template.modules).forEach(([rawId, qty]) => {
+        const matched = (activeModules || []).find((m) => clean(m.id) === clean(rawId));
+        const resolvedId = matched ? matched.id : rawId;
+        newModulesMap[resolvedId] = qty;
       });
-      // Then add template quantities
-      Object.entries(template.modules).forEach(([id, qty]) => {
-        actions.setModuleQty(id, qty);
-      });
+
+      if (actions.setAllModules) {
+        actions.setAllModules(newModulesMap);
+      } else {
+        Object.keys(config.modules).forEach((id) => {
+          const q = config.modules[id] || 0;
+          if (q > 0) actions.setModuleQty(id, -q);
+        });
+        Object.entries(newModulesMap).forEach(([id, q]) => {
+          actions.setModuleQty(id, q);
+        });
+      }
       addToast(`"${template.name}" template applied! Customise further below.`, 'success');
     },
-    [config.modules, actions, addToast]
+    [config.modules, actions, activeModules, addToast]
   );
 
   return (
@@ -360,7 +373,12 @@ const StepModules = () => {
           >
             {filteredModules.map((m) => {
               const qty = config.modules[m.id] || 0;
-              const canAdd = canAddModule(config.width, config.modules, m.id, activeModules);
+              const canAdd = canAddModule(
+                derived.totalCapacity,
+                config.modules,
+                m.id,
+                activeModules
+              );
 
               const { onFocusNext, onFocusPrev } = createFocusHandlers(m.id, filteredModules);
 
@@ -497,7 +515,12 @@ const StepModules = () => {
           >
             {filteredModules.map((m, idx) => {
               const qty = config.modules[m.id] || 0;
-              const canAdd = canAddModule(config.width, config.modules, m.id, activeModules);
+              const canAdd = canAddModule(
+                derived.totalCapacity,
+                config.modules,
+                m.id,
+                activeModules
+              );
 
               const typeColor = TYPE_COLORS[m.type] || 'var(--border)';
 

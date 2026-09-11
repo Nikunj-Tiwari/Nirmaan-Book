@@ -21,12 +21,12 @@ import {
 
 // ─── Firebase config (mirrors src/firebase.js) ────────────────────────────────
 const firebaseConfig = {
-  apiKey: 'AIzaSyCnuAm7FcFrObKIsh2Zlssp63ChtmlLr_U',
-  authDomain: 'nirmanbook-15825.firebaseapp.com',
-  projectId: 'nirmanbook-15825',
-  storageBucket: 'nirmanbook-15825.firebasestorage.app',
-  messagingSenderId: '425973286997',
-  appId: '1:425973286997:web:7a2d955e60c4b3e8412cdc',
+  apiKey: 'AIzaSyArWfsogLZrxA5uAzvpQ9lBOHDq8R2RnMc',
+  authDomain: 'nimaanbook.firebaseapp.com',
+  projectId: 'nimaanbook',
+  storageBucket: 'nimaanbook.firebasestorage.app',
+  messagingSenderId: '405154325006',
+  appId: '1:405154325006:web:cb4a2e512cc73f4bc8d25f',
 };
 
 const app = initializeApp(firebaseConfig);

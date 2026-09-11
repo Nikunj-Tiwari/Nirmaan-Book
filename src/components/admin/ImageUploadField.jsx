@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Link, Upload, Image as ImageIcon, X, CheckCircle } from 'lucide-react';
+import { getImageKitAuthParams } from '../../utils/imagekitAuth';
 
 const inp = {
   width: '100%',
@@ -66,12 +67,18 @@ const ImageUploadField = ({ value, onChange }) => {
     setProgress(10);
 
     try {
+      // Fetch signed auth parameters (with Web Crypto fallback)
+      const authParams = await getImageKitAuthParams();
+
       const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
       const formData = new FormData();
       formData.append('file', file);
       formData.append('fileName', fileName);
       formData.append('publicKey', publicKey);
       formData.append('folder', '/catalog-images');
+      formData.append('signature', authParams.signature);
+      formData.append('token', authParams.token);
+      formData.append('expire', authParams.expire.toString());
 
       const hostedUrl = await new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();

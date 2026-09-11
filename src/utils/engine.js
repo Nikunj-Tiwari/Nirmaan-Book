@@ -92,12 +92,60 @@ export const getDerivedState = (config, allModules) => {
   const moduleWalls = config.moduleWalls || {};
   const moduleOverrides = config.moduleOverrides || {};
   const modulesList = [];
+
+  const wallCapA = config.width || 2400;
+  const isMultiWall = config.wallType === 'l-shape' || config.wallType === 'u-shape';
+  const wallCapB = isMultiWall ? config.width2 || 1200 : 0;
+  const wallCapC = config.wallType === 'u-shape' ? config.width3 || 1200 : 0;
+
+  let currentAWidth = 0;
+  let currentBWidth = 0;
+  let currentCWidth = 0;
+
+  const clean = (s) =>
+    String(s || '')
+      .replace(/[^a-zA-Z0-9]/g, '')
+      .toLowerCase();
+  const findModule = (id) => catalog.find((m) => m.id === id || clean(m.id) === clean(id));
+
+  // Pre-calculate widths of manually assigned modules
   Object.entries(config.modules).forEach(([id, qty]) => {
-    const mod = catalog.find((m) => m.id === id);
+    const mod = findModule(id);
+    if (!mod) return;
+    const mw = mod.width || 600;
+    for (let i = 0; i < qty; i++) {
+      const wallKey = `${id}:${i}`;
+      const explicitWall = moduleWalls[wallKey];
+      if (explicitWall === 'A') currentAWidth += mw;
+      else if (explicitWall === 'B') currentBWidth += mw;
+      else if (explicitWall === 'C') currentCWidth += mw;
+    }
+  });
+
+  // Assign unassigned modules: auto-overflow from Wall A -> Wall B -> Wall C
+  Object.entries(config.modules).forEach(([id, qty]) => {
+    const mod = findModule(id);
     if (mod) {
+      const mw = mod.width || 600;
       for (let i = 0; i < qty; i++) {
         const wallKey = `${id}:${i}`;
-        const wall = moduleWalls[wallKey] || 'A';
+        let wall = moduleWalls[wallKey];
+        if (!wall) {
+          if (currentAWidth + mw <= wallCapA || (!wallCapB && !wallCapC)) {
+            wall = 'A';
+            currentAWidth += mw;
+          } else if (wallCapB > 0 && currentBWidth + mw <= wallCapB) {
+            wall = 'B';
+            currentBWidth += mw;
+          } else if (wallCapC > 0 && currentCWidth + mw <= wallCapC) {
+            wall = 'C';
+            currentCWidth += mw;
+          } else if (wallCapB > 0) {
+            wall = wallCapC > 0 && currentBWidth > currentCWidth ? 'C' : 'B';
+          } else {
+            wall = 'A';
+          }
+        }
         const overrides = moduleOverrides[wallKey] || {};
         modulesList.push({ ...mod, wallKey, wall, ...overrides });
       }

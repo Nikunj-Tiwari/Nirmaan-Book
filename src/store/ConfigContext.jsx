@@ -10,7 +10,7 @@ import React, {
 } from 'react';
 import { COLOURS, MATERIALS, HANDLES, ACCESSORIES, LIGHTING, BRANDS } from '../data/config.jsx';
 import { MODULES } from '../data/modules';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, collectionGroup } from 'firebase/firestore';
 import { db } from '../firebase';
 import {
   updateModuleQty,
@@ -118,6 +118,8 @@ function configReducer(state, action) {
       }
       return { ...state, moduleAccessories: newModuleAccessories };
     }
+    case 'SET_ALL_MODULES':
+      return { ...state, modules: action.payload };
     case 'LOAD_CONFIG':
       return { ...initialState, ...action.payload };
     case 'RESET_CONFIG':
@@ -192,6 +194,7 @@ export const ConfigProvider = ({ children }) => {
       depth: Number(m.depth) || 600,
       basePrice: Number(m.basePrice) || 0,
       imageUrl: m.imageUrl || null,
+      model3dUrl: m.model3dUrl || null,
       layout: m.layout || {},
       // Preserve catalogue fields needed for Fix 6 accessory swap UI
       sections: m.sections || [],
@@ -279,15 +282,70 @@ export const ConfigProvider = ({ children }) => {
       }
     };
 
-    // -- 5. business_modules (own for BP, linked business for customer) ------
-    const fetchBusinessModules = async (businessId) => {
-      if (!businessId) return [];
+    // -- 5. business_modules (load all business modules for super_admin & customer, or own for BP) ------
+    const fetchBusinessModules = async () => {
       try {
-        const snap = await getDocs(collection(db, 'business_modules', businessId, 'modules'));
-        const rows = active(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
-        return rows.map((m) => ({
+        let rows = [];
+        try {
+          const snap = await getDocs(collectionGroup(db, 'modules'));
+          snap.docs.forEach((d) => {
+            const data = d.data();
+            const pathParts = d.ref.path.split('/');
+            const isBiz = pathParts[0] === 'business_modules' || !!data.businessId;
+            if (isBiz && data.isActive !== false && data.isDeleted !== true) {
+              rows.push({
+                ...data,
+                id: d.id,
+                businessId: data.businessId || pathParts[1],
+                createdByName: data.createdByName || 'Business Partner',
+              });
+            }
+          });
+        } catch (cgErr) {
+          console.warn(
+            '[ConfigContext] collectionGroup error, falling back to businesses scan:',
+            cgErr.message
+          );
+        }
+
+        // Fallback: scan businesses collection if collectionGroup returned 0
+        if (rows.length === 0) {
+          try {
+            const bizSnap = await getDocs(collection(db, 'businesses'));
+            for (const bDoc of bizSnap.docs) {
+              const bData = bDoc.data();
+              const mSnap = await getDocs(collection(db, 'business_modules', bDoc.id, 'modules'));
+              mSnap.docs.forEach((d) => {
+                const data = d.data();
+                if (data.isActive !== false && data.isDeleted !== true) {
+                  rows.push({
+                    ...data,
+                    id: d.id,
+                    businessId: bDoc.id,
+                    createdByName: data.createdByName || bData.businessName || 'Business Partner',
+                  });
+                }
+              });
+            }
+          } catch (bErr) {
+            console.warn('[ConfigContext] businesses scan error:', bErr.message);
+          }
+        }
+
+        // Deduplicate rows by id
+        const seen = new Set();
+        const unique = [];
+        rows.forEach((r) => {
+          if (!seen.has(r.id)) {
+            seen.add(r.id);
+            unique.push(r);
+          }
+        });
+
+        return unique.map((m) => ({
           ...normModule(m),
-          createdByName: m.createdByName || 'My Business',
+          businessId: m.businessId,
+          createdByName: m.createdByName || 'Business Partner',
           source: 'business',
         }));
       } catch (err) {
@@ -296,11 +354,12 @@ export const ConfigProvider = ({ children }) => {
       }
     };
 
-    const [mods, mats, hdls, accs] = await Promise.all([
+    const [mods, mats, hdls, accs, bizMods] = await Promise.all([
       fetchPlatformModules(),
       fetchMaterials(),
       fetchHandles(),
       fetchAccessories(),
+      fetchBusinessModules(),
     ]);
 
     // Apply results — fall back to local if Firestore returned null/empty
@@ -312,35 +371,26 @@ export const ConfigProvider = ({ children }) => {
     if (hdls) setActiveHandles(hdls);
     if (accs) setActiveAccessories(accs);
 
-    // Append business modules (own for BP, linked business for customer)
-    const bizId =
-      role === 'business_partner'
-        ? currentUser?.uid
-        : role === 'customer'
-          ? linkedBusinessId
-          : null;
-    const bizMods = await fetchBusinessModules(bizId);
-
-    if (bizMods.length > 0) {
-      console.info('[ConfigContext] merged', bizMods.length, 'business modules from', bizId);
+    if (bizMods && bizMods.length > 0) {
+      console.info(
+        '[ConfigContext] Loaded',
+        bizMods.length,
+        'business modules across all partners'
+      );
     }
 
-    const allModules = [...platformModules, ...bizMods];
+    const allModules = [...platformModules, ...(bizMods || [])];
     setActiveModules(allModules);
     console.info('[ConfigContext] Total modules available:', allModules.length);
   }, [currentUser?.uid, role, linkedBusinessId]);
 
-  // Run on auth state change (login / logout)
+  // Run on mount and auth state change (login / logout)
   useEffect(() => {
+    loadCatalog();
     if (currentUser?.uid) {
       loadPricing();
-      loadCatalog();
     } else {
       setActivePricing(buildLocalFallbackPricing());
-      setActiveModules(MODULES.map((m) => ({ ...m, source: 'platform', createdByName: 'Admin' })));
-      setActiveMaterials(MATERIALS);
-      setActiveHandles(HANDLES);
-      setActiveAccessories(ACCESSORIES);
       setPricingLoaded(true);
       pricingFetchedFor.current = null;
     }
@@ -390,10 +440,14 @@ export const ConfigProvider = ({ children }) => {
       dispatch({ type: 'UPDATE_PROJECT_INFO', payload: { key, value } }),
     setFinish: (key, value) => dispatch({ type: 'UPDATE_FINISH', payload: { key, value } }),
     setModuleQty: (id, delta) => {
-      // Guard here (not in reducer) so we have access to activeModules —
-      // the merged platform + business catalog. This fixes +/- for
-      // business-created modules whose IDs aren't in the static MODULES array.
-      if (delta > 0 && !canAddModule(config.width, config.modules, id, activeModules)) {
+      // Guard here using total room capacity (including Wall B & C in L/U shape)
+      const totalCap =
+        config.wallType === 'u-shape'
+          ? config.width + (config.width2 || 0) + (config.width3 || 0)
+          : config.wallType === 'l-shape'
+            ? config.width + (config.width2 || 0)
+            : config.width;
+      if (delta > 0 && !canAddModule(totalCap, config.modules, id, activeModules)) {
         return; // silently block — canAdd UI state already shows greyed-out +
       }
       dispatch({ type: 'UPDATE_MODULE_QTY', payload: { id, delta } });
@@ -407,6 +461,7 @@ export const ConfigProvider = ({ children }) => {
     toggleAccessory: (id) => dispatch({ type: 'TOGGLE_ACCESSORY', payload: { id } }),
     setModuleAccessory: (moduleId, accessoryId) =>
       dispatch({ type: 'SET_MODULE_ACCESSORY', payload: { moduleId, accessoryId } }),
+    setAllModules: (modulesMap) => dispatch({ type: 'SET_ALL_MODULES', payload: modulesMap }),
     reset: () => dispatch({ type: 'RESET_CONFIG' }),
     loadConfig: (data) => {
       dispatch({ type: 'LOAD_CONFIG', payload: dataToConfig(data) });

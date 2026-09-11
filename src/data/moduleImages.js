@@ -66,10 +66,29 @@ export const MODULE_IMAGES = {
  * @param {string} moduleId - Module ID (e.g., 'OW/SW 01')
  * @returns {string} - Path to image file or null if not found
  */
+function cleanId(s) {
+  return String(s || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+/**
+ * Get image path for a module
+ * @param {string} moduleId - Module ID (e.g., 'OW/SW 01', 'OW_SW_01', 'OW 12')
+ * @returns {string} - Path to image file or null if not found
+ */
 export const getModuleImagePath = (moduleId) => {
-  const filename = MODULE_IMAGES[moduleId];
-  if (filename) {
-    return `/wardrobe_modules/${filename}`;
+  if (!moduleId) return null;
+  // Exact match
+  if (MODULE_IMAGES[moduleId]) {
+    return `/wardrobe_modules/${MODULE_IMAGES[moduleId]}`;
+  }
+  // Normalized match (handles 'OW_SW_01' vs 'OW/SW 01', etc.)
+  const target = cleanId(moduleId);
+  for (const [key, file] of Object.entries(MODULE_IMAGES)) {
+    if (cleanId(key) === target) {
+      return `/wardrobe_modules/${file}`;
+    }
   }
   return null;
 };
@@ -80,7 +99,7 @@ export const getModuleImagePath = (moduleId) => {
  * @returns {boolean} - True if image exists in mapping
  */
 export const hasModuleImage = (moduleId) => {
-  return moduleId in MODULE_IMAGES;
+  return !!getModuleImagePath(moduleId);
 };
 
 /**

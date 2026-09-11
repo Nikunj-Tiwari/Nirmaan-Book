@@ -16,8 +16,8 @@ import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 
 // ── Hardcoded super admin credentials ────────────────────────────────────────
-const SUPER_ADMIN_UID = 'QCukA84neKUuZrgF3PQ4ZmpkQx32';
-const SUPER_ADMIN_EMAIL = 'nikunjtiwari68@gmail.com';
+const SUPER_ADMIN_UID = 'D7bvmKJAWLckfIKMyDA5p7vhlCn2';
+const SUPER_ADMIN_EMAIL = 'developer@nirmanbook.com';
 
 /**
  * Ensures the super admin documents exist in Firestore.

@@ -90,16 +90,28 @@ export async function createQuote({
     });
   }
 
-  // Serialise configSnapshot — convert Set to Array so Firestore can store it
-  let safeSnapshot = null;
-  if (configSnapshot) {
-    safeSnapshot = {
-      ...configSnapshot,
-      selectedAccessories: configSnapshot.selectedAccessories
-        ? Array.from(configSnapshot.selectedAccessories)
-        : [],
-    };
+  // Recursively sanitize objects for Firestore: strips React elements, functions, symbols, and converts Sets
+  function sanitizeForFirestore(val) {
+    if (val === null || val === undefined) return null;
+    if (typeof val === 'function' || typeof val === 'symbol') return undefined;
+    if (typeof val !== 'object') return val;
+    if (val instanceof Date) return val;
+    if (val instanceof Set) return Array.from(val).map(sanitizeForFirestore);
+    if (Array.isArray(val)) return val.map(sanitizeForFirestore).filter((v) => v !== undefined);
+    // Remove React elements ($$typeof symbol)
+    if (val.$$typeof || val._owner || (val.props && val.type)) return undefined;
+
+    const clean = {};
+    for (const [k, v] of Object.entries(val)) {
+      if (k === 'icon' && typeof v === 'object') continue;
+      const sv = sanitizeForFirestore(v);
+      if (sv !== undefined) clean[k] = sv;
+    }
+    return clean;
   }
+
+  const safeSnapshot = configSnapshot ? sanitizeForFirestore(configSnapshot) : null;
+  const safeModules = modules ? sanitizeForFirestore(modules) : {};
 
   const ref = await addDoc(collection(db, 'quotes'), {
     customerId,
@@ -107,7 +119,7 @@ export async function createQuote({
     businessId,
     projectName: projectName || 'Untitled Project',
     wallType: wallType || 'single',
-    modules: modules || {},
+    modules: safeModules,
     status: 'sent',
     snapshotPrices,
     configSnapshot: safeSnapshot,

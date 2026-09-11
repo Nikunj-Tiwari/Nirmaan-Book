@@ -192,10 +192,10 @@ const ModuleCard = React.forwardRef(
               }}
             />
           ) : (
-            /* SVG placeholder — same fill treatment */
+            /* SVG schematic placeholder — elegant architectural fallback */
             <img
               src={placeholderImage}
-              alt={`${module.name} (placeholder)`}
+              alt={`${module.name} (schematic)`}
               style={{
                 width: '100%',
                 height: '100%',
@@ -208,26 +208,6 @@ const ModuleCard = React.forwardRef(
                 transform: isHovered ? 'scale(1.03)' : 'scale(1)',
               }}
             />
-          )}
-
-          {/* Image-load error */}
-          {imageError && imagePath && (
-            <div
-              style={{
-                position: 'absolute',
-                inset: 0,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 8,
-                color: 'var(--text-muted)',
-                zIndex: 2,
-              }}
-            >
-              <AlertCircle size={28} strokeWidth={1.5} />
-              <span style={{ fontSize: 11, fontWeight: 500 }}>Image Not Found</span>
-            </div>
           )}
 
           {/* Category badge — pill overlay, top-left, theme-aware */}
@@ -345,11 +325,37 @@ const ModuleCard = React.forwardRef(
           </div>
 
           {/* Added-by badge */}
-          {module.createdByName && (
+          {module.source === 'business' || module.businessId ? (
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                fontSize: 10,
+                fontWeight: 600,
+                color: 'var(--accent)',
+                background: 'var(--accent-light)',
+                border: '1px solid rgba(194, 100, 42, 0.25)',
+                padding: '2px 6px',
+                borderRadius: 4,
+                marginBottom: 4,
+                width: 'fit-content',
+              }}
+              title={`Created by partner account ID: ${module.businessId || 'partner'}`}
+            >
+              <span>🏢</span>
+              <span>{module.createdByName || module.businessName || 'Business Partner'}</span>
+              {module.businessId && (
+                <span style={{ opacity: 0.7, fontSize: 9 }}>
+                  ({module.businessId.slice(0, 8)}...)
+                </span>
+              )}
+            </div>
+          ) : module.createdByName ? (
             <span style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 4 }}>
               by {module.createdByName}
             </span>
-          )}
+          ) : null}
 
           {/* − / count / + counter */}
           <div

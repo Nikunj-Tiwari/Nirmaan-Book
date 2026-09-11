@@ -9,8 +9,19 @@ import {
   sendPasswordResetEmail,
   RecaptchaVerifier,
   signInWithPhoneNumber,
+  GoogleAuthProvider,
+  signInWithPopup,
 } from 'firebase/auth';
-import { doc, getDoc, collection, getDocs, query, limit } from 'firebase/firestore';
+import {
+  doc,
+  getDoc,
+  setDoc,
+  serverTimestamp,
+  collection,
+  getDocs,
+  query,
+  limit,
+} from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { seedPlatformCatalog } from '../utils/seedPlatformCatalog';
 
@@ -98,7 +109,7 @@ export const AuthProvider = ({ children }) => {
   //   - Login (signInWithEmailAndPassword resolves)
   //   - Logout (signOut resolves)
   // It does NOT fire on route changes.
-  const SUPER_ADMIN_UID = 'QCukA84neKUuZrgF3PQ4ZmpkQx32';
+  const SUPER_ADMIN_UID = 'D7bvmKJAWLckfIKMyDA5p7vhlCn2';
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (fb) => {
@@ -231,6 +242,54 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // ─── Google Sign-In ───────────────────────────────────────────────────────
+  const signInWithGoogle = async (targetRole = 'customer') => {
+    try {
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
+      const result = await signInWithPopup(auth, provider);
+      const fbUser = result.user;
+
+      try {
+        const userDocRef = doc(db, 'users', fbUser.uid);
+        const snap = await getDoc(userDocRef);
+
+        if (!snap.exists()) {
+          const isSuperAdminUser =
+            fbUser.uid === SUPER_ADMIN_UID || fbUser.email === 'developer@nirmanbook.com';
+          const role = isSuperAdminUser ? 'super_admin' : targetRole;
+
+          await setDoc(userDocRef, {
+            uid: fbUser.uid,
+            email: fbUser.email,
+            name: fbUser.displayName || fbUser.email?.split('@')[0] || 'User',
+            role,
+            status: 'active',
+            linkedBusinessId: null,
+            createdAt: serverTimestamp(),
+          });
+
+          if (isSuperAdminUser) {
+            await setDoc(doc(db, 'admins', fbUser.uid), {
+              uid: fbUser.uid,
+              email: fbUser.email,
+              role: 'super_admin',
+              createdAt: serverTimestamp(),
+            });
+          }
+        }
+      } catch (docErr) {
+        console.warn('[AuthContext] Firestore profile init after Google sign-in:', docErr.message);
+      }
+
+      await resolveProfile(fbUser);
+      return { ok: true, user: fbUser };
+    } catch (err) {
+      console.error('[AuthContext] Google sign-in error:', err);
+      return { ok: false, error: err.message };
+    }
+  };
+
   // ─── Logout ───────────────────────────────────────────────────────────────
   // Req 6: Clear all stored profile data AND redirect to /login.
   const logout = async () => {
@@ -285,6 +344,7 @@ export const AuthProvider = ({ children }) => {
         // ── Actions ──
         login,
         register,
+        signInWithGoogle,
         logout,
         forgotPassword,
         sendPhoneOTP,

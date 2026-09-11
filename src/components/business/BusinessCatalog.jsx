@@ -22,6 +22,7 @@ import {
   X as XIcon,
 } from 'lucide-react';
 import ImageUploadField from '../admin/ImageUploadField';
+import Model3DUploadField from '../admin/Model3DUploadField';
 import { parseFile, validateRows, downloadTemplate } from '../../utils/bulkImport';
 
 const card = {
@@ -177,6 +178,7 @@ const emptyForm = () => ({
   height: '',
   depth: '',
   imageUrl: '',
+  model3dUrl: '',
   isActive: true,
 });
 
@@ -272,6 +274,7 @@ const BusinessCatalog = () => {
       height: item.height ?? '',
       depth: item.depth ?? '',
       imageUrl: item.imageUrl || '',
+      model3dUrl: item.model3dUrl || '',
       isActive: item.isActive !== false,
     });
   };
@@ -353,6 +356,7 @@ const BusinessCatalog = () => {
         else if (payload[f] === '') delete payload[f];
       });
       if (payload.imageUrl === '') delete payload.imageUrl;
+      if (payload.model3dUrl === '') delete payload.model3dUrl;
       if (addingNew) {
         const id = makeId(form.name || 'module');
         const writePath = `business_modules/${businessId}/modules/${id}`;
@@ -738,6 +742,13 @@ const BusinessCatalog = () => {
               <ImageUploadField
                 value={form.imageUrl || ''}
                 onChange={(v) => setForm((p) => ({ ...p, imageUrl: v }))}
+              />
+            </div>
+            <div style={{ ...fld, gridColumn: 'span 2' }}>
+              <label style={lbl}>Custom 3D Model (.glb / .gltf / .obj, optional)</label>
+              <Model3DUploadField
+                value={form.model3dUrl || ''}
+                onChange={(v) => setForm((p) => ({ ...p, model3dUrl: v }))}
               />
             </div>
             <div style={fld}>

@@ -36,5 +36,6 @@ dist-ssr
 # Firebase
 .firebase/
 
-# Local Archives
+# Local Archives & Scratch
 Archive/
+scratch/

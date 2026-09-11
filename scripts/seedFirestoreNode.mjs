@@ -1,4 +1,4 @@
-﻿/**
+/**
  * scripts/seedFirestoreNode.mjs
  *
  * Seeds Firestore using the Firebase REST API (no firebase-admin / no ADC needed).
@@ -22,8 +22,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
 
 // ---- Config ------------------------------------------------------------------
-const API_KEY         = 'AIzaSyCnuAm7FcFrObKIsh2Zlssp63ChtmlLr_U';
-const PROJECT_ID      = 'nirmanbook-15825';
+const API_KEY         = 'AIzaSyArWfsogLZrxA5uAzvpQ9lBOHDq8R2RnMc';
+const PROJECT_ID      = 'nimaanbook';
 const IMAGEKIT_BASE   = 'https://ik.imagekit.io/nirmaanbook/catalogue/';
 const FIRESTORE_URL   = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
 

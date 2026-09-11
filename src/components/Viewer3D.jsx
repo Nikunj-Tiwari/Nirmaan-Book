@@ -372,6 +372,10 @@ export function Viewer3D({
             <WardrobeAssembly
               modules={modulesWithAccessory}
               material={material}
+              handle={config.handle}
+              fascia={config.fascia}
+              lighting={config.lighting}
+              selectedAccessories={config.selectedAccessories}
               roomDimensions={{
                 width: roomWidth || 2400,
                 height: roomHeight,

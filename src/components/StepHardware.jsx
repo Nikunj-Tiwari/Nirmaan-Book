@@ -110,6 +110,90 @@ const L2Header = ({ label, open, onToggle }) => (
 /* ─────────────────────────────────────────────
    Option card — compact 2-col grid item
 ───────────────────────────────────────────── */
+const renderOptionVisual = (item, isSelected) => {
+  if (item.imageUrl) {
+    return (
+      <img
+        src={item.imageUrl}
+        alt={item.name}
+        style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 6 }}
+        onError={(e) => {
+          e.currentTarget.style.display = 'none';
+        }}
+      />
+    );
+  }
+  if (item.icon) {
+    return <span>{item.icon}</span>;
+  }
+  const name = (item.name || '').toLowerCase();
+  const id = (item.id || '').toLowerCase();
+  if (name.includes('black') || id.includes('black')) {
+    return (
+      <div
+        title="Matte Black"
+        style={{
+          width: 22,
+          height: 6,
+          borderRadius: 3,
+          background: '#1a1a1a',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.6)',
+          border: '1px solid #444',
+        }}
+      />
+    );
+  }
+  if (name.includes('gold') || id.includes('gold') || name.includes('brass')) {
+    return (
+      <div
+        title="Brushed Gold"
+        style={{
+          width: 22,
+          height: 6,
+          borderRadius: 3,
+          background: 'linear-gradient(135deg, #ECC880, #D4AF37, #996515)',
+          boxShadow: '0 1px 4px rgba(212,175,55,0.4)',
+        }}
+      />
+    );
+  }
+  if (
+    name.includes('steel') ||
+    id.includes('steel') ||
+    name.includes('satin') ||
+    name.includes('chrome')
+  ) {
+    return (
+      <div
+        title="Satin Steel"
+        style={{
+          width: 22,
+          height: 6,
+          borderRadius: 3,
+          background: 'linear-gradient(135deg, #F0F0F0, #B0B7BD, #7D858C)',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
+        }}
+      />
+    );
+  }
+  if (name.includes('handleless') || id.includes('handleless')) {
+    return (
+      <div
+        title="Handleless J-Pull"
+        style={{
+          width: 22,
+          height: 12,
+          borderRadius: '2px 2px 6px 2px',
+          border: '1.5px dashed var(--accent)',
+          background: isSelected ? 'var(--accent)' : 'transparent',
+          opacity: 0.85,
+        }}
+      />
+    );
+  }
+  return <span style={{ fontSize: 13, fontWeight: 700 }}>●</span>;
+};
+
 const OptionCard = ({ item, isSelected, onClick }) => (
   <button
     onClick={onClick}
@@ -141,9 +225,11 @@ const OptionCard = ({ item, isSelected, onClick }) => (
         justifyContent: 'center',
         fontSize: 16,
         color: isSelected ? '#ffffff' : 'var(--text-primary)',
+        overflow: 'hidden',
+        flexShrink: 0,
       }}
     >
-      <span>{item.icon}</span>
+      {renderOptionVisual(item, isSelected)}
     </div>
     <div>
       <div

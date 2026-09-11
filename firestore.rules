@@ -9,7 +9,7 @@ service cloud.firestore {
 
     function isSuperAdmin() {
       return request.auth != null &&
-        request.auth.uid == "QCukA84neKUuZrgF3PQ4ZmpkQx32";
+        request.auth.uid == "D7bvmKJAWLckfIKMyDA5p7vhlCn2";
     }
 
     function isOwner(uid) {
@@ -27,14 +27,21 @@ service cloud.firestore {
       allow read, write: if isOwner(userId) || isSuperAdmin();
     }
 
-    // businesses collection
+    // businesses collection: public read for partner profile/names, owner or super admin write
     match /businesses/{businessId} {
-      allow read, write: if isOwner(businessId) || isSuperAdmin();
+      allow read: if true;
+      allow write: if isOwner(businessId) || isSuperAdmin();
     }
 
-    // platform_catalog: super admin full access, authenticated users can read
+    // platform_catalog: super admin full access, public read
     match /platform_catalog/{document=**} {
-      allow read: if isAuthenticated();
+      allow read: if true;
+      allow write: if isSuperAdmin();
+    }
+
+    // collection group match: allow public read of any 'modules' subcollection
+    match /{path=**}/modules/{moduleId} {
+      allow read: if true;
       allow write: if isSuperAdmin();
     }
 
@@ -44,9 +51,9 @@ service cloud.firestore {
       allow write: if isSuperAdmin();
     }
 
-    // business_modules: business partners manage their own modules
+    // business_modules: public read, business partner or super admin write
     match /business_modules/{businessId}/modules/{moduleId} {
-      allow read: if isAuthenticated();
+      allow read: if true;
       allow write: if isOwner(businessId) || isSuperAdmin();
     }
 

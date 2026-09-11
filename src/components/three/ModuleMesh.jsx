@@ -1,8 +1,76 @@
-import React from 'react';
+import React, { Suspense, useMemo } from 'react';
 import * as THREE from 'three';
-import { Edges } from '@react-three/drei';
+import { Edges, useGLTF } from '@react-three/drei';
 
 const mmToMeters = (value) => value / 1000;
+
+export function getHandleStyle(handle) {
+  const name = (handle?.name || handle?.id || '').toLowerCase();
+  if (name.includes('black')) {
+    return { color: '#1a1a1a', roughness: 0.75, metalness: 0.15, isHidden: false };
+  }
+  if (name.includes('gold') || name.includes('brass')) {
+    return { color: '#d4af37', roughness: 0.32, metalness: 0.88, isHidden: false };
+  }
+  if (name.includes('steel') || name.includes('satin') || name.includes('chrome')) {
+    return { color: '#c8c0b4', roughness: 0.22, metalness: 0.88, isHidden: false };
+  }
+  if (name.includes('handleless') || name.includes('j-pull')) {
+    return { color: '#222222', roughness: 0.8, metalness: 0.1, isHidden: true };
+  }
+  return { color: '#c8c0b4', roughness: 0.22, metalness: 0.88, isHidden: false };
+}
+
+class ModelErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(err) {
+    console.warn(
+      '[ModuleMesh] Custom 3D model failed to render, falling back to procedural mesh:',
+      err
+    );
+  }
+  render() {
+    if (this.state.hasError) return this.props.fallback;
+    return this.props.children;
+  }
+}
+
+function CustomGLTFModel({ url, width, height, depth }) {
+  const gltf = useGLTF(url);
+  const cloned = useMemo(() => {
+    if (!gltf || !gltf.scene) return null;
+    const copy = gltf.scene.clone(true);
+    copy.traverse((child) => {
+      if (child.isMesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+      }
+    });
+    const box = new THREE.Box3().setFromObject(copy);
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+
+    const sx = size.x > 0.001 ? width / size.x : 1;
+    const sy = size.y > 0.001 ? height / size.y : 1;
+    const sz = size.z > 0.001 ? depth / size.z : 1;
+
+    copy.scale.set(sx, sy, sz);
+    copy.position.x = -center.x * sx;
+    copy.position.y = -box.min.y * sy;
+    copy.position.z = -center.z * sz;
+
+    return copy;
+  }, [gltf, width, height, depth]);
+
+  if (!cloned) return null;
+  return <primitive object={cloned} />;
+}
 
 /** A single wood/laminate panel */
 function Panel({ color, roughness, position, size, opacity = 1 }) {
@@ -21,12 +89,41 @@ function Panel({ color, roughness, position, size, opacity = 1 }) {
   );
 }
 
-/** Chrome/metal pull handle (vertical bar) */
-function Handle({ position, height }) {
+/** Pull handle with dynamic finish / style */
+function Handle({ position, height, handle }) {
+  const style = getHandleStyle(handle);
+  if (style.isHidden) {
+    return (
+      <mesh position={position}>
+        <boxGeometry args={[0.006, height, 0.008]} />
+        <meshStandardMaterial color="#1a1a1a" roughness={0.8} />
+      </mesh>
+    );
+  }
   return (
     <mesh castShadow position={position}>
       <cylinderGeometry args={[0.009, 0.009, height, 16]} />
-      <meshStandardMaterial color="#c8c0b4" roughness={0.22} metalness={0.88} />
+      <meshStandardMaterial
+        color={style.color}
+        roughness={style.roughness}
+        metalness={style.metalness}
+      />
+    </mesh>
+  );
+}
+
+/** Reusable drawer pull cylinder using active handle style */
+function DrawerPull({ position, width = 0.16, handle, rotation = [0, 0, Math.PI / 2] }) {
+  const style = getHandleStyle(handle);
+  if (style.isHidden) return null;
+  return (
+    <mesh position={position} rotation={rotation} castShadow>
+      <cylinderGeometry args={[0.006, 0.006, width, 14]} />
+      <meshStandardMaterial
+        color={style.color}
+        roughness={style.roughness}
+        metalness={style.metalness}
+      />
     </mesh>
   );
 }
@@ -42,10 +139,11 @@ function Rail({ position, length }) {
 }
 
 /** A Door panel placed just in front of the cabinet face */
-function Door({ color, roughness, x, yCenter, w, h, depth }) {
+function Door({ color, roughness, x, yCenter, w, h, depth, handle, fascia }) {
   const doorZ = depth / 2 + 0.012;
   const handleLen = Math.min(h * 0.18, 0.22);
   const handleY = yCenter; // vertically centered on door
+  const isFramed = fascia && (fascia === 'Inline' || fascia === 'Sofia' || fascia === 'Carmen');
   return (
     <group>
       <Panel
@@ -54,13 +152,34 @@ function Door({ color, roughness, x, yCenter, w, h, depth }) {
         position={[x, yCenter, doorZ]}
         size={[w - 0.004, h - 0.004, 0.018]}
       />
+      {isFramed && (
+        <mesh position={[x, yCenter, doorZ + 0.009]}>
+          <boxGeometry args={[w - 0.04, h - 0.04, 0.003]} />
+          <meshStandardMaterial color={color} roughness={roughness} />
+          <Edges color="#222222" threshold={15} />
+        </mesh>
+      )}
       {/* Vertical handle */}
-      <Handle position={[x + w * 0.38, handleY, doorZ + 0.025]} height={handleLen} />
+      <Handle
+        position={[x + w * 0.38, handleY, doorZ + 0.025]}
+        height={handleLen}
+        handle={handle}
+      />
     </group>
   );
 }
 
-export function ModuleMesh({ module, material, position, rotationY = 0, onHover, onClick }) {
+export function ModuleMesh({
+  module,
+  material,
+  position,
+  rotationY = 0,
+  onHover,
+  onClick,
+  handle,
+  fascia,
+  selectedAccessories,
+}) {
   const [hovered, setHovered] = React.useState(false);
 
   const width = mmToMeters(module.width || 600);
@@ -98,11 +217,11 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
   const isCorner = layout.corner === true || !!module.cornerVariant;
 
   /**
-   * isOpenFront — true for all 'hanging' type modules.
-   * Also force true for any module whose ID starts with "OW" (Open Wardrobe),
-   * since some like OW/SW 10 might be typed as 'drawers' but are physically open-front.
+   * isOpenFront — true for open wardrobe modules so shelves and drawers are visible,
+   * matching their catalogue image.
+   * Only modules explicitly configured with hasDoors: true render closed doors.
    */
-  const isOpenFront = moduleType === 'hanging' || module.id.startsWith('OW');
+  const isOpenFront = module.hasDoors !== true;
 
   // ── Helper: evenly spaced shelves ──────────────────────────────────────
   const renderShelves = (count, yStart, yEnd, color, rgh) => {
@@ -128,6 +247,11 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
     const zoneH = yEnd - yStart;
     const drawerH = zoneH / count;
     const faceH = Math.max(drawerH - 0.012, 0.06);
+    const handleStyle = getHandleStyle(handle);
+    const isFramedFascia =
+      fascia && (fascia === 'Inline' || fascia === 'Sofia' || fascia === 'Carmen');
+    const isJPullFascia = fascia === 'J-Pull' || handleStyle.isHidden;
+
     return Array.from({ length: count }, (_, j) => {
       const cy = yStart + drawerH * j + drawerH / 2;
       return (
@@ -139,11 +263,30 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
             position={[0, cy, depth / 2 + 0.006]}
             size={[innerW - 0.006, faceH, 0.018]}
           />
-          {/* Pull handle — short horizontal bar */}
-          <mesh position={[0, cy, depth / 2 + 0.032]} rotation={[0, 0, Math.PI / 2]}>
-            <cylinderGeometry args={[0.006, 0.006, Math.min(innerW * 0.3, 0.18), 12]} />
-            <meshStandardMaterial color="#c8c0b4" roughness={0.22} metalness={0.88} />
-          </mesh>
+          {/* Framed fascia profile */}
+          {isFramedFascia && (
+            <mesh position={[0, cy, depth / 2 + 0.016]}>
+              <boxGeometry args={[innerW - 0.04, faceH - 0.02, 0.003]} />
+              <meshStandardMaterial color={color} roughness={rgh} />
+              <Edges color="#222222" threshold={15} />
+            </mesh>
+          )}
+          {/* Pull handle or J-Pull route */}
+          {isJPullFascia ? (
+            <mesh position={[0, cy + faceH / 2 - 0.007, depth / 2 + 0.016]}>
+              <boxGeometry args={[innerW - 0.04, 0.008, 0.008]} />
+              <meshStandardMaterial color="#1a1a1a" roughness={0.8} />
+            </mesh>
+          ) : (
+            <mesh position={[0, cy, depth / 2 + 0.032]} rotation={[0, 0, Math.PI / 2]}>
+              <cylinderGeometry args={[0.006, 0.006, Math.min(innerW * 0.3, 0.18), 12]} />
+              <meshStandardMaterial
+                color={handleStyle.color}
+                roughness={handleStyle.roughness}
+                metalness={handleStyle.metalness}
+              />
+            </mesh>
+          )}
         </group>
       );
     });
@@ -336,6 +479,7 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
             <Handle
               position={[backX + stdD + 0.012, height / 2, backZ + stdD + leftOpeningD * 0.8]}
               height={0.22}
+              handle={handle}
             />
           </group>
         )}
@@ -384,10 +528,11 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
           position={[0, cy, depth / 2 + 0.006]}
           size={[innerW - 0.006, faceH, 0.018]}
         />
-        <mesh position={[0, cy, depth / 2 + 0.032]} rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.006, 0.006, Math.min(innerW * 0.3, 0.18), 12]} />
-          <meshStandardMaterial color="#c8c0b4" roughness={0.22} metalness={0.88} />
-        </mesh>
+        <DrawerPull
+          position={[0, cy, depth / 2 + 0.032]}
+          width={Math.min(innerW * 0.3, 0.18)}
+          handle={handle}
+        />
       </group>
     );
   };
@@ -426,7 +571,7 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
   const trouserRackBars = (key, yBot, yTop) => {
     const span = yTop - yBot;
     return (
-      <>
+      <group key={key}>
         {[0.25, 0.5, 0.75].map((f, i) => (
           <mesh
             key={`${key}-${i}`}
@@ -438,9 +583,32 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
             <meshStandardMaterial color="#c0bdb5" roughness={0.18} metalness={0.92} />
           </mesh>
         ))}
-      </>
+      </group>
     );
   };
+
+  // woodTray: wooden jewellery / accessory tray with soft velvet dividers
+  const woodTray = (key, y) => (
+    <group key={key} position={[0, y, 0]}>
+      <Panel
+        color={highlightColor}
+        roughness={roughness}
+        position={[0, 0, 0]}
+        size={[innerW, pt * 0.8, innerD]}
+      />
+      {[-innerW * 0.22, innerW * 0.22].map((x, i) => (
+        <mesh key={`vdiv-${i}`} position={[x, pt * 0.5, 0]}>
+          <boxGeometry args={[0.006, pt, innerD * 0.85]} />
+          <meshStandardMaterial color="#3a2e2b" roughness={0.9} />
+        </mesh>
+      ))}
+    </group>
+  );
+
+  // shoeRails: helper for accessory shoe tiers
+  const shoeRails = (key, yBot, yTop) => (
+    <group key={key}>{renderShoeRack(2, yBot, yTop, highlightColor, roughness)}</group>
+  );
 
   const renderOpenFrontInterior = () => {
     const sections = module.sections || [];
@@ -597,10 +765,11 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
                 position={[ow12LX, ow12DrCY, depth / 2 + 0.006]}
                 size={[ow12HW - pt - 0.006, ow12DrFH, 0.018]}
               />
-              <mesh position={[ow12LX, ow12DrCY, depth / 2 + 0.032]} rotation={[0, 0, Math.PI / 2]}>
-                <cylinderGeometry args={[0.006, 0.006, Math.min(ow12HW * 0.35, 0.1), 12]} />
-                <meshStandardMaterial color="#c8c0b4" roughness={0.22} metalness={0.88} />
-              </mesh>
+              <DrawerPull
+                position={[ow12LX, ow12DrCY, depth / 2 + 0.032]}
+                width={Math.min(ow12HW * 0.35, 0.1)}
+                handle={handle}
+              />
             </group>
             {/* RIGHT drawer face */}
             <group key="dr-right12">
@@ -610,10 +779,11 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
                 position={[ow12RX, ow12DrCY, depth / 2 + 0.006]}
                 size={[ow12HW - pt - 0.006, ow12DrFH, 0.018]}
               />
-              <mesh position={[ow12RX, ow12DrCY, depth / 2 + 0.032]} rotation={[0, 0, Math.PI / 2]}>
-                <cylinderGeometry args={[0.006, 0.006, Math.min(ow12HW * 0.35, 0.1), 12]} />
-                <meshStandardMaterial color="#c8c0b4" roughness={0.22} metalness={0.88} />
-              </mesh>
+              <DrawerPull
+                position={[ow12RX, ow12DrCY, depth / 2 + 0.032]}
+                width={Math.min(ow12HW * 0.35, 0.1)}
+                handle={handle}
+              />
             </group>
             {/* 2 open shelves below the drawer zone */}
             {shelf('bot1', H * 0.15)}
@@ -660,10 +830,11 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
                 position={[s13LX, s13DrCY, depth / 2 + 0.006]}
                 size={[s13HalfW - pt - 0.006, s13DrFH, 0.018]}
               />
-              <mesh position={[s13LX, s13DrCY, depth / 2 + 0.032]} rotation={[0, 0, Math.PI / 2]}>
-                <cylinderGeometry args={[0.006, 0.006, Math.min(s13HalfW * 0.4, 0.12), 12]} />
-                <meshStandardMaterial color="#c8c0b4" roughness={0.22} metalness={0.88} />
-              </mesh>
+              <DrawerPull
+                position={[s13LX, s13DrCY, depth / 2 + 0.032]}
+                width={Math.min(s13HalfW * 0.4, 0.12)}
+                handle={handle}
+              />
             </group>
             {/* LEFT: 1 shelf below drawer */}
             <Panel
@@ -791,6 +962,8 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
               w={door15W}
               h={cab15H}
               depth={depth}
+              handle={handle}
+              fascia={fascia}
             />
             <Door
               color={highlightColor}
@@ -800,6 +973,8 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
               w={door15W}
               h={cab15H}
               depth={depth}
+              handle={handle}
+              fascia={fascia}
             />
             {/* Floor of cabinet */}
             {shelf('cab-floor15', cab15Bot)}
@@ -1089,10 +1264,11 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
                 position={[s30LX, s30DrCY, depth / 2 + 0.006]}
                 size={[s30HalfW - pt - 0.006, s30DrFH, 0.018]}
               />
-              <mesh position={[s30LX, s30DrCY, depth / 2 + 0.032]} rotation={[0, 0, Math.PI / 2]}>
-                <cylinderGeometry args={[0.006, 0.006, Math.min(s30HalfW * 0.4, 0.12), 12]} />
-                <meshStandardMaterial color="#c8c0b4" roughness={0.22} metalness={0.88} />
-              </mesh>
+              <DrawerPull
+                position={[s30LX, s30DrCY, depth / 2 + 0.032]}
+                width={Math.min(s30HalfW * 0.4, 0.12)}
+                handle={handle}
+              />
             </group>
             {/* LEFT: 1 shelf below drawer */}
             <Panel
@@ -1357,10 +1533,11 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
                 position={[lx36, sideDrCY, depth / 2 + 0.006]}
                 size={[hw36 - pt - 0.006, sideDrFH, 0.018]}
               />
-              <mesh position={[lx36, sideDrCY, depth / 2 + 0.032]} rotation={[0, 0, Math.PI / 2]}>
-                <cylinderGeometry args={[0.006, 0.006, Math.min(hw36 * 0.35, 0.1), 12]} />
-                <meshStandardMaterial color="#c8c0b4" roughness={0.22} metalness={0.88} />
-              </mesh>
+              <DrawerPull
+                position={[lx36, sideDrCY, depth / 2 + 0.032]}
+                width={Math.min(hw36 * 0.35, 0.1)}
+                handle={handle}
+              />
             </group>
             {/* RIGHT half-width drawer */}
             <group key="dr-r36">
@@ -1370,10 +1547,11 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
                 position={[rx36, sideDrCY, depth / 2 + 0.006]}
                 size={[hw36 - pt - 0.006, sideDrFH, 0.018]}
               />
-              <mesh position={[rx36, sideDrCY, depth / 2 + 0.032]} rotation={[0, 0, Math.PI / 2]}>
-                <cylinderGeometry args={[0.006, 0.006, Math.min(hw36 * 0.35, 0.1), 12]} />
-                <meshStandardMaterial color="#c8c0b4" roughness={0.22} metalness={0.88} />
-              </mesh>
+              <DrawerPull
+                position={[rx36, sideDrCY, depth / 2 + 0.032]}
+                width={Math.min(hw36 * 0.35, 0.1)}
+                handle={handle}
+              />
             </group>
             {/* 3 full-width stacked drawers in zone 0%–35% */}
             {renderDrawers(3, interiorBot, sideDrBot, highlightColor, roughness)}
@@ -1450,10 +1628,11 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
                     position={[lx38, cy, depth / 2 + 0.006]}
                     size={[hw38 - pt - 0.006, faceH, 0.018]}
                   />
-                  <mesh position={[lx38, cy, depth / 2 + 0.032]} rotation={[0, 0, Math.PI / 2]}>
-                    <cylinderGeometry args={[0.006, 0.006, Math.min(hw38 * 0.35, 0.1), 12]} />
-                    <meshStandardMaterial color="#c8c0b4" roughness={0.22} metalness={0.88} />
-                  </mesh>
+                  <DrawerPull
+                    position={[lx38, cy, depth / 2 + 0.032]}
+                    width={Math.min(hw38 * 0.35, 0.1)}
+                    handle={handle}
+                  />
                 </group>
               );
             })}
@@ -1466,6 +1645,8 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
               w={hw38}
               h={cab38H}
               depth={depth}
+              handle={handle}
+              fascia={fascia}
             />
             {/* Bottom shelf at 20%–40% open area */}
             {shelf('base-cap38', s38SBot)}
@@ -1513,10 +1694,11 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
                   position={[xPos, s39DrCY, depth / 2 + 0.006]}
                   size={[hw39 - pt - 0.006, s39DrFH, 0.018]}
                 />
-                <mesh position={[xPos, s39DrCY, depth / 2 + 0.032]} rotation={[0, 0, Math.PI / 2]}>
-                  <cylinderGeometry args={[0.006, 0.006, Math.min(hw39 * 0.35, 0.1), 12]} />
-                  <meshStandardMaterial color="#c8c0b4" roughness={0.22} metalness={0.88} />
-                </mesh>
+                <DrawerPull
+                  position={[xPos, s39DrCY, depth / 2 + 0.032]}
+                  width={Math.min(hw39 * 0.35, 0.1)}
+                  handle={handle}
+                />
                 {/* 1 shelf creating 2 open cubbies below the drawer */}
                 <Panel
                   color={highlightColor}
@@ -1580,10 +1762,11 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
                     position={[lx40, cy, depth / 2 + 0.006]}
                     size={[hw40 - pt - 0.006, faceH, 0.018]}
                   />
-                  <mesh position={[lx40, cy, depth / 2 + 0.032]} rotation={[0, 0, Math.PI / 2]}>
-                    <cylinderGeometry args={[0.006, 0.006, Math.min(hw40 * 0.35, 0.1), 12]} />
-                    <meshStandardMaterial color="#c8c0b4" roughness={0.22} metalness={0.88} />
-                  </mesh>
+                  <DrawerPull
+                    position={[lx40, cy, depth / 2 + 0.032]}
+                    width={Math.min(hw40 * 0.35, 0.1)}
+                    handle={handle}
+                  />
                 </group>
               );
             })}
@@ -1607,26 +1790,65 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
         // a named case. When sections is empty (static MODULES path for unauthenticated
         // users), falls back to the original layout-field logic — no regression.
         if (!sections || sections.length === 0) {
-          if (numHang === 0 && numShelves > 0)
-            return <>{renderShelves(numShelves, interiorBot, H, highlightColor, roughness)}</>;
-          if (numHang >= 2 && numShelves === 0)
-            return (
-              <>
-                <Rail position={[0, H * 0.95, 0]} length={innerW * 0.88} />
-                <Rail position={[0, H * 0.5, 0]} length={innerW * 0.88} />
-              </>
-            );
-          if (numHang === 1 && numShelves === 0 && numDrawers === 0)
-            return <Rail position={[0, H * 0.88, 0]} length={innerW * 0.88} />;
-          if (numHang === 1 && numShelves > 0 && numDrawers === 0)
-            return (
-              <>
-                {shelf('top', H * 0.85)}
-                {rail('rail', H * 0.83)}
-                {renderShelves(numShelves - 1, interiorBot, H * 0.4, highlightColor, roughness)}
-              </>
-            );
-          return null;
+          const hasHang = numHang > 0;
+          const hasDrawers = numDrawers > 0;
+          const hasShelves = numShelves > 0;
+          const hasShoe = numShoe > 0;
+
+          // If no specific layout counts given, default to 4 shelves so module is never blank
+          if (!hasHang && !hasDrawers && !hasShelves && !hasShoe && numCubbies === 0) {
+            return <>{renderShelves(4, interiorBot, H, highlightColor, roughness)}</>;
+          }
+
+          let drawerTop = interiorBot;
+          if (hasDrawers) {
+            const drawerRatio = hasHang ? 0.35 : hasShelves ? 0.45 : 0.9;
+            drawerTop = interiorBot + (H - interiorBot) * drawerRatio;
+          }
+
+          let hangBottom = drawerTop;
+          if (hasHang) {
+            hangBottom = hasShelves || hasDrawers ? H * 0.45 : interiorBot;
+          }
+
+          return (
+            <>
+              {hasHang && (
+                <>
+                  {shelf('dflt-top-sh', H * 0.88)}
+                  <Rail position={[0, H * 0.85, 0]} length={innerW * 0.88} />
+                  {numHang >= 2 && (
+                    <>
+                      {shelf('dflt-mid-sh', (H * 0.88 + hangBottom) / 2)}
+                      <Rail
+                        position={[0, (H * 0.85 + hangBottom) / 2 - 0.03, 0]}
+                        length={innerW * 0.88}
+                      />
+                    </>
+                  )}
+                  {hangBottom > interiorBot && shelf('dflt-hang-floor', hangBottom)}
+                </>
+              )}
+              {hasDrawers &&
+                renderDrawers(numDrawers, interiorBot, drawerTop, highlightColor, roughness)}
+              {hasShelves &&
+                renderShelves(
+                  numShelves,
+                  hasDrawers ? drawerTop : interiorBot,
+                  hasHang ? hangBottom : H,
+                  highlightColor,
+                  roughness
+                )}
+              {hasShoe &&
+                renderShoeRack(
+                  numShoe,
+                  interiorBot,
+                  hasHang ? hangBottom : H * 0.4,
+                  highlightColor,
+                  roughness
+                )}
+            </>
+          );
         }
 
         // Proportional sections renderer — stacks zones top→bottom by weight.
@@ -1706,6 +1928,8 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
                       w={hw}
                       h={yTop - yBot}
                       depth={depth}
+                      handle={handle}
+                      fascia={fascia}
                     />
                     <Door
                       key={`${zKey}-R`}
@@ -1716,6 +1940,8 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
                       w={hw}
                       h={yTop - yBot}
                       depth={depth}
+                      handle={handle}
+                      fascia={fascia}
                     />
                   </React.Fragment>
                 );
@@ -1728,24 +1954,73 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
     }
   };
 
-  return (
-    <group
-      position={position}
-      rotation-y={rotationY}
-      onPointerOver={(e) => {
-        e.stopPropagation();
-        setHovered(true);
-        onHover?.(module);
-      }}
-      onPointerOut={() => {
-        setHovered(false);
-        onHover?.(null);
-      }}
-      onPointerDown={(e) => {
-        e.stopPropagation();
-        onClick?.(module);
-      }}
-    >
+  // ── Global Accessories Add-ons (Step 5 Hardware & Accessories) ────────
+  const renderAccessories = () => {
+    if (!selectedAccessories || selectedAccessories.size === 0) return null;
+    return (
+      <group key="global-accessories">
+        {/* Mirror Panel: Full-length mirror panel mounted on inner side wall */}
+        {selectedAccessories.has('mirror') && (
+          <group position={[-innerW / 2 + 0.012, height * 0.5, 0]}>
+            <mesh castShadow receiveShadow>
+              <boxGeometry args={[0.006, height * 0.78, innerD * 0.75]} />
+              <meshStandardMaterial
+                color="#e8eff9"
+                metalness={0.96}
+                roughness={0.04}
+                envMapIntensity={2.0}
+              />
+            </mesh>
+            <Edges color="#b0c4de" threshold={20} />
+          </group>
+        )}
+
+        {/* Side Hanger Rod: Pull-out side rod for scarves/ties */}
+        {selectedAccessories.has('side') && (
+          <group position={[innerW / 2 - 0.015, height * 0.62, 0]}>
+            <mesh rotation={[0, 0, Math.PI / 2]}>
+              <cylinderGeometry args={[0.009, 0.009, 0.02, 16]} />
+              <meshStandardMaterial color="#333" metalness={0.8} />
+            </mesh>
+            <mesh position={[-0.05, 0, 0]} rotation={[Math.PI / 2, 0, 0]}>
+              <cylinderGeometry args={[0.007, 0.007, innerD * 0.65, 16]} />
+              <meshStandardMaterial color="#c0bdb5" metalness={0.9} roughness={0.15} />
+            </mesh>
+          </group>
+        )}
+
+        {/* Top Hanger Rod: Additional top garment rail */}
+        {selectedAccessories.has('top') && numHang === 0 && (
+          <Rail position={[0, height * 0.88, 0]} length={innerW * 0.88} />
+        )}
+
+        {/* Trouser Rack: Pull-out soft-close trouser rack */}
+        {selectedAccessories.has('rack-t') && (
+          <group position={[0, 0, 0]}>
+            {trouserRackBars('glob-acc-trouser', height * 0.28, height * 0.42)}
+          </group>
+        )}
+
+        {/* Glass Jewellery / Accessory Tray */}
+        {(selectedAccessories.has('jewel-g') || selectedAccessories.has('acc-g')) && (
+          <group position={[0, 0, 0]}>{glassTray('glob-acc-jewel-g', height * 0.44)}</group>
+        )}
+
+        {/* Wood Jewellery / Accessory Tray */}
+        {(selectedAccessories.has('jewel-w') || selectedAccessories.has('acc-w')) && (
+          <group position={[0, 0, 0]}>{woodTray('glob-acc-jewel-w', height * 0.44)}</group>
+        )}
+
+        {/* Shoe Rack Shelves */}
+        {selectedAccessories.has('shoe') && numShoe === 0 && (
+          <group position={[0, 0, 0]}>{shoeRails('glob-acc-shoe', 0.08, height * 0.28)}</group>
+        )}
+      </group>
+    );
+  };
+
+  const renderProceduralCarcassAndInterior = () => (
+    <>
       {/* ── Carcass (shared by all module types) ──────────────────── */}
       {/* Left side panel */}
       <Panel
@@ -1784,14 +2059,14 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
       />
 
       {/* ══════════════════════════════════════════════════════════════
-          OPEN-FRONT INTERIOR — type:'hanging'
+          OPEN-FRONT INTERIOR
           Rendered by renderOpenFrontInterior() which dispatches on
           module.id for exact zone geometry matching the catalogue.
           ══════════════════════════════════════════════════════════════ */}
       {isOpenFront && renderOpenFrontInterior()}
 
       {/* ══════════════════════════════════════════════════════════════
-          CLOSED MODULE INTERIOR — all other types
+          CLOSED MODULE INTERIOR — only when module.hasDoors === true
           Retains full legacy door + zone logic.
           ══════════════════════════════════════════════════════════════ */}
       {!isOpenFront && (
@@ -1817,6 +2092,8 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
                 w={doorW}
                 h={numHang >= 2 ? hangZoneTop - hangZoneBottom : hangZoneTop - storageZoneTop}
                 depth={depth}
+                handle={handle}
+                fascia={fascia}
               />
               <Door
                 color={highlightColor}
@@ -1830,6 +2107,8 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
                 w={doorW}
                 h={numHang >= 2 ? hangZoneTop - hangZoneBottom : hangZoneTop - storageZoneTop}
                 depth={depth}
+                handle={handle}
+                fascia={fascia}
               />
             </>
           )}
@@ -1864,6 +2143,8 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
                 w={doorW}
                 h={storageZoneTop - storageZoneBot}
                 depth={depth}
+                handle={handle}
+                fascia={fascia}
               />
               <Door
                 color={highlightColor}
@@ -1873,6 +2154,8 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
                 w={doorW}
                 h={storageZoneTop - storageZoneBot}
                 depth={depth}
+                handle={handle}
+                fascia={fascia}
               />
             </>
           )}
@@ -1951,6 +2234,39 @@ export function ModuleMesh({ module, material, position, rotationY = 0, onHover,
             />
           )}
         </>
+      )}
+
+      {/* ── Global Accessories Add-ons ── */}
+      {renderAccessories()}
+    </>
+  );
+
+  return (
+    <group
+      position={position}
+      rotation-y={rotationY}
+      onPointerOver={(e) => {
+        e.stopPropagation();
+        setHovered(true);
+        onHover?.(module);
+      }}
+      onPointerOut={() => {
+        setHovered(false);
+        onHover?.(null);
+      }}
+      onPointerDown={(e) => {
+        e.stopPropagation();
+        onClick?.(module);
+      }}
+    >
+      {module.model3dUrl ? (
+        <ModelErrorBoundary fallback={renderProceduralCarcassAndInterior()}>
+          <Suspense fallback={renderProceduralCarcassAndInterior()}>
+            <CustomGLTFModel url={module.model3dUrl} width={width} height={height} depth={depth} />
+          </Suspense>
+        </ModelErrorBoundary>
+      ) : (
+        renderProceduralCarcassAndInterior()
       )}
     </group>
   );
