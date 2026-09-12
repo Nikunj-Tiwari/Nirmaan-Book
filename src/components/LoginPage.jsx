@@ -505,7 +505,19 @@ const LoginPage = () => {
       if (r.error?.includes('popup-closed-by-user')) {
         return;
       }
-      setError('Google sign in failed. Please try again.');
+      if (r.error?.includes('unauthorized-domain')) {
+        setError(
+          'Domain not authorized: Please add this domain to Firebase Console > Authentication > Settings > Authorized domains.'
+        );
+      } else if (r.error?.includes('operation-not-allowed')) {
+        setError(
+          'Google Sign-in is not enabled in Firebase Console > Authentication > Sign-in method.'
+        );
+      } else {
+        setError(
+          r.error ? `Google sign in failed: ${r.error}` : 'Google sign in failed. Please try again.'
+        );
+      }
       return;
     }
 
