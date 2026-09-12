@@ -12,7 +12,6 @@ import SavedDesignsDrawer from './components/SavedDesignsDrawer';
 import ThemeToggle from './components/ThemeToggle';
 import MobileNav from './components/MobileNav';
 import ProtectedRoute from './components/ProtectedRoute';
-import CursorFollower from './components/CursorFollower';
 
 // ── New: role-based route guards ──
 import CustomerRoute from './components/guards/CustomerRoute';
@@ -531,7 +530,6 @@ const App = () => {
 
   return (
     <ToastProvider>
-      <CursorFollower />
       <Routes>
         {/* ── Public: Home ── */}
         <Route
